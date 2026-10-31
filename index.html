@@ -165,6 +165,31 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .fbT .row.me{background:var(--ink);color:var(--bg)}
 .fbT .row.me img{filter:none}
 .fbMsg{color:var(--mid);line-height:1.5}
+.hg{flex:1;min-height:0;display:grid;gap:2.4vh;grid-auto-flow:row dense}
+.tile{border:max(1px,.18vh) solid var(--dim);padding:1.8vh 2.2vh;display:flex;flex-direction:column;gap:1vh;min-height:0;min-width:0;overflow:hidden;
+  container-type:size;justify-content:center}
+.tile > *{flex:none}
+.tile .h{position:absolute;top:1.6vh;left:2.2vh;right:2.2vh}
+.tile{position:relative;padding-top:4.6vh}
+.tile .h{font-size:.72em;letter-spacing:.3em;text-transform:uppercase;color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile.ph{padding:0;background:var(--dim)}
+.tile.ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:var(--cover-filter)}
+.tile.ph.orig img{filter:none}
+.tile .big{font-family:var(--fT),serif;font-size:min(3.6em,30cqh);line-height:1;text-shadow:0 0 1.5vh color-mix(in srgb,var(--ink) 40%,transparent)}
+.tile .sub{color:var(--mid)}
+.tile .row2{display:flex;align-items:center;gap:2vh}
+.tile .row2 svg{width:8vh;height:8vh;stroke-width:1.2}
+.tile .t2{font-family:var(--fT),serif;font-size:1.35em;line-height:1.15;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.tile .nw{display:flex;gap:1.8vh;min-height:0;flex:0 1 auto;max-height:100%}
+.tile .nw img{height:100%;max-height:16vh;aspect-ratio:4/3;object-fit:cover;filter:var(--cover-filter);flex:none}
+.tile .bus ul{gap:.6vh}
+.tile .fbHead img{width:6vh;height:6vh}
+.tile .fbHead .n{font-size:1.5em}
+.tile .hrs{display:flex;justify-content:space-between;margin-top:2vh;font-size:.8em;text-align:center}
+@container (max-height:250px){ .tile .hrs{display:none} .tile .row2 svg{width:6vh;height:6vh} }
+@container (max-width:520px){ .tile .nw img{display:none} .tile .bus .tm small{display:none} }
+.tile .bus .bh{position:absolute;top:1.6vh;left:2.2vh;right:2.2vh;margin:0;font-size:.72em}
+.tile .hrs svg{width:3.4vh;height:3.4vh;display:block;margin:.3vh auto}
 
 #crt{position:absolute;inset:0;z-index:8;pointer-events:none}
 #crt.on::before{content:"";position:absolute;inset:0;
@@ -252,7 +277,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       </div>
       <div id="dial"><canvas id="dialC"></canvas></div>
       <div id="photo"></div>
-      <div id="board"><div class="pg" id="pgWx"></div><div class="pg" id="pgNews"></div><div class="pg" id="pgFb"></div></div>
+      <div id="board"><div class="pg" id="pgWx"></div><div class="pg" id="pgNews"></div><div class="pg" id="pgFb"></div><div class="pg" id="pgHome"></div></div>
       <div id="osd"></div>
     </div></div>
     <div id="hum"></div>
@@ -378,6 +403,11 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
 
     <section>
       <h3>När inget spelar</h3>
+      <label class="chk"><input type="checkbox" id="idHome"> Hemskärm med flera rutor</label>
+      <div class="seg" id="homeSeg" style="margin:6px 0 4px 26px">
+        <button data-v="clock">Klocka</button><button data-v="wx">Väder</button><button data-v="bus">Bussar</button>
+        <button data-v="news">Nyhet</button><button data-v="aik">AIK</button><button data-v="photo">Foto</button>
+      </div>
       <label class="chk"><input type="checkbox" id="idWx"> Väder i detalj</label>
       <label class="chk"><input type="checkbox" id="idBus"> Bussavgångar på vädersidan</label>
       <div class="row"><input type="search" id="busQ" placeholder="Sök hållplats, t.ex. Falun Centrum"><button class="btn" id="busBtn">Sök</button></div>
@@ -388,7 +418,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <textarea id="albums" rows="3" placeholder="Delningslänkar till album, en per rad (photos.app.goo.gl/...)" style="width:100%;font:inherit;font-size:13px;padding:7px 9px;border:1.5px solid var(--panel-ink);background:#f6efdc;color:var(--panel-ink);border-radius:3px;margin-top:8px"></textarea>
       <label class="chk"><input type="checkbox" id="photoOrig"> Foton i originalfärg (annars bildrörets färgläge)</label>
       <div class="note" id="photoStatus"></div>
-      <label class="chk"><input type="checkbox" id="idFb"> Fotboll (AIK och Bayern, varannan gång)</label>
+      <label class="chk"><input type="checkbox" id="idFb"> Fotboll (AIK)</label>
       <div class="note" id="fbStatus"></div>
       <label class="chk"><input type="checkbox" id="idTest"> Testbild</label>
       <div id="idleSl"></div>
@@ -467,9 +497,11 @@ S.edge = Object.assign({}, EDGE_DEF, S.edge || {});
 const IDLE_DEF = { wx:true, news:true, test:true, secs:40, artSecs:15, feed:"svt", own:"" };
 const BUS_DEF = { on:true, id:"", name:"" };
 const PHOTO_DEF = { on:true, albums:"", secs:12, orig:false };
+const HOME_DEF = { on:true, clock:true, wx:true, bus:true, news:true, aik:true, photo:false };
 S.idle = Object.assign({}, IDLE_DEF, S.idle || {});
 S.bus = Object.assign({}, BUS_DEF, S.bus || {});
 S.photo = Object.assign({}, PHOTO_DEF, S.photo || {});
+S.home = Object.assign({}, HOME_DEF, S.home || {});
 if (S.idle.fb === undefined) S.idle.fb = true;
 const FEEDS = {
   svt:     { name:"SVT Nyheter",  url:"https://www.svt.se/nyheter/rss.xml" },
@@ -1133,11 +1165,11 @@ function renderEdges(){
   const e = S.edge, d = new Date(), Lp = [], Rp = [];
   if (e.date) Lp.push(`<span>${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}</span>`);
   if (e.week) Lp.push(`<span>v.${isoWeek(d)}</span>`);
-  if (e.wx && WX && BOARD.page !== "wx"){
+  if (e.wx && WX && BOARD.page !== "wx" && !(BOARD.page === "hem" && S.home.wx)){
     Rp.push(`${wxIcon(WX.c, WX.day)}<span>${Math.round(WX.t)}°</span><span>${WX_TEXT(WX.c)}</span>` +
       (WX.hi != null ? `<span class="sep">${Math.round(WX.hi)}° / ${Math.round(WX.lo)}°</span>` : "") + `<span class="sep">${e.place}</span>`);
   }
-  if (e.clock) Rp.push(`<span class="clock">${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}</span>`);
+  if (e.clock && !(BOARD.page === "hem" && S.home.clock)) Rp.push(`<span class="clock">${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}</span>`);
   const sep = '<span class="sep">·</span>';
   const l = Lp.join(sep), r = Rp.join(sep);
   if ($("#edgeL").innerHTML !== l) $("#edgeL").innerHTML = l;
@@ -1153,6 +1185,7 @@ const COMPASS = ["N","NO","O","SO","S","SV","V","NV"];
 const DAYS_SHORT = ["Sön","Mån","Tis","Ons","Tor","Fre","Lör"];
 function idlePages(){
   const p = [];
+  if (S.home.on && HOME_TILES.some(k => S.home[k])) p.push("hem");
   if (S.idle.wx && WX && WX.hourly) p.push("wx");
   if (S.idle.news && NEWS.items.length) p.push("news");
   if (S.photo.on && PHOTOS.urls.length) p.push("foto");
@@ -1195,13 +1228,13 @@ async function findStops(q){
   }catch(e){ $("#busStatus").textContent = "Sökningen svarar inte."; }
 }
 function depTime(d){ return new Date(d.rt || d.sched); }
-function renderBus(){
+function renderBus(max = 7){
   const b = S.bus;
   if (!b.id) return `<div class="bus"><div class="bh">Avgångar</div><div class="msg">Välj hållplats under S → När inget spelar.</div></div>`;
   const head = `<div class="bh">Avgångar · ${esc(b.name)}</div>`;
   if (DEP.err) return `<div class="bus">${head}<div class="msg">${DEP.nokey ? "RESROBOT_API_KEY saknas på servern." : esc(DEP.err)}</div></div>`;
   const now = Date.now();
-  const rows = DEP.items.filter(d => depTime(d).getTime() > now - 30e3).slice(0, 7).map(d => {
+  const rows = DEP.items.filter(d => depTime(d).getTime() > now - 30e3).slice(0, max).map(d => {
     const t = depTime(d), min = Math.round((t.getTime() - now)/60e3);
     const when = d.canceled ? "Inställd" : min <= 0 ? "Nu" : min <= 15 ? `${min} min` : hhmm(t);
     const late = !d.canceled && d.rt && d.sched && new Date(d.rt) - new Date(d.sched) >= 120e3 ? `<small>(${hhmm(new Date(d.sched))})</small>` : "";
@@ -1312,7 +1345,7 @@ function outcome(m){
 }
 function renderFbPage(){
   if (!FOOT.ok || !FOOT.teams.length) return "";
-  const T = FOOT.teams[BOARD.fbIdx % FOOT.teams.length], st = T.standing || {};
+  const T = FOOT.teams[0], st = T.standing || {};
   const d = x => { const t = new Date(x); return isNaN(t) ? "" : `${SV_DAYS[t.getDay()]} ${t.getDate()}/${t.getMonth()+1}`; };
   const nm = T.next_match;
   const next = nm ? `<div class="fbM">${logo(nm.opponent_logo)}<div><div class="o">${esc(nm.opponent)}</div><div class="w">${nm.is_home ? "Hemma" : "Borta"}</div></div>
@@ -1328,17 +1361,74 @@ function renderFbPage(){
     </div><div class="fbT">${rows}</div></div>`;
 }
 
+// ---------- hemskärm: valbara rutor ----------
+const HOME_TILES = ["clock", "wx", "bus", "news", "aik", "photo"];
+function homeTile(k){
+  const now = new Date();
+  if (k === "clock") return `<div class="tile"><div class="h">${DAYS[now.getDay()]} · vecka ${isoWeek(now)}</div>
+    <div class="big">${hhmm(now)}</div><div class="sub">${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}</div></div>`;
+  if (k === "wx"){
+    if (!WX || !WX.hourly) return `<div class="tile"><div class="h">Väder</div><div class="sub">Hämtar väder...</div></div>`;
+    const H2 = WX.hourly; let i0 = H2.time.findIndex(t => new Date(t).getTime() > Date.now() - 3600e3); if (i0 < 0) i0 = 0;
+    const hrs = [1, 3, 5, 7].map(o => i0 + o).filter(i => i < H2.time.length).map(i =>
+      `<div>${String(new Date(H2.time[i]).getHours()).padStart(2,"0")}${wxIcon(H2.weather_code[i], H2.is_day[i] === 1)}${Math.round(H2.temperature_2m[i])}°</div>`).join("");
+    return `<div class="tile"><div class="h">Väder · ${esc(S.edge.place)}</div>
+      <div class="row2">${wxIcon(WX.c, WX.day)}<div><div class="big">${Math.round(WX.t)}°</div><div class="sub">${WX_TEXT(WX.c)}<br>${Math.round(WX.hi)}° / ${Math.round(WX.lo)}°</div></div></div>
+      <div class="hrs">${hrs}</div></div>`;
+  }
+  if (k === "bus") return `<div class="tile">${renderBus(5)}</div>`;
+  if (k === "news"){
+    const it = NEWS.items; if (!it.length) return `<div class="tile"><div class="h">Nyheter</div><div class="sub">Inga nyheter hämtade.</div></div>`;
+    const a = it[BOARD.newsIdx % it.length]; ensureImg(a);
+    return `<div class="tile"><div class="h">${esc(NEWS.src)}${a.date ? " · " + hhmm(new Date(a.date)) : ""}</div>
+      <div class="nw">${a.img ? `<img src="/api/img?url=${encodeURIComponent(a.img)}" alt="" onerror="this.remove()">` : ""}<div class="t2">${esc(a.title)}</div></div></div>`;
+  }
+  if (k === "aik"){
+    const T = FOOT.ok && FOOT.teams[0]; if (!T) return `<div class="tile"><div class="h">AIK</div><div class="sub">Ingen fotbollsdata.</div></div>`;
+    const st = T.standing || {}, nm = T.next_match, last = (T.recent_results || [])[0];
+    const d = x => { const t = new Date(x); return `${SV_DAYS[t.getDay()]} ${t.getDate()}/${t.getMonth()+1} ${hhmm(t)}`; };
+    return `<div class="tile"><div class="h">Fotboll · ${esc(T.league)}</div>
+      <div class="fbHead">${st.team ? logo(st.team.logo) : ""}<div><div class="n">${esc(T.team_name)}</div>${st.position ? `<div class="s">${ordinal(st.position)} plats · ${st.points} p</div>` : ""}</div></div>
+      ${nm ? `<div class="sub">Nästa: <span style="color:var(--ink)">${esc(nm.opponent)}</span> · ${nm.is_home ? "hemma" : "borta"} · ${d(nm.date)}</div>` : ""}
+      ${last ? `<div class="sub">Senast: ${esc(last.opponent)} ${esc(last.score || "")} · ${outcome(last).toLowerCase()}</div>` : ""}</div>`;
+  }
+  if (k === "photo"){
+    if (!PHOTOS.urls.length) return `<div class="tile"><div class="h">Foto</div><div class="sub">Lägg in ett album under Foton.</div></div>`;
+    const u = PHOTOS.urls[PHOTOS.order[(BOARD.homePhoto || 0) % PHOTOS.order.length]];
+    return `<div class="tile ph${S.photo.orig ? " orig" : ""}"><img src="${photoSrc(u)}" alt=""></div>`;
+  }
+  return "";
+}
+function renderHomePage(){
+  // Rutnätet anpassar sig efter antalet rutor; fotot tar två rader, sista rutan fyller ut en ofullständig rad
+  const ks = HOME_TILES.filter(k => S.home[k]);
+  const photo = ks.includes("photo"), cells = ks.length + (photo ? 1 : 0);
+  const cols = cells <= 2 ? Math.max(1, cells) : cells <= 4 ? 2 : 3, rows = Math.ceil(cells / cols);
+  const free = cols*rows - cells;
+  const order = photo ? ["photo", ...ks.filter(k => k !== "photo")] : ks;
+  const html = order.map((k, i) => {
+    let t = homeTile(k), st = "";
+    if (k === "photo" && rows > 1) st = "grid-row:span 2;";
+    if (i === order.length - 1 && free > 0 && !(k === "photo")) st += `grid-column:span ${free + 1};`;
+    return st ? t.replace('<div class="tile', `<div style="${st}" class="tile`) : t;
+  }).join("");
+  return `<div class="hg" style="grid-template-columns:repeat(${cols},1fr);grid-template-rows:repeat(${rows},1fr)">${html}</div>`;
+}
+
 function renderBoard(){
   const wx = $("#pgWx"), nw = $("#pgNews");
   if (BOARD.page === "wx"){ const h = renderWxPage(); if (wx.innerHTML !== h) wx.innerHTML = h; }
   if (BOARD.page === "news"){ const h = renderNewsPage(); if (nw.innerHTML !== h) nw.innerHTML = h; }
   const fb = $("#pgFb");
   if (BOARD.page === "fotboll"){ const h = renderFbPage(); if (fb.innerHTML !== h) fb.innerHTML = h; }
+  const hm = $("#pgHome");
+  if (BOARD.page === "hem"){ const h = renderHomePage(); if (hm.innerHTML !== h) hm.innerHTML = h; }
+  hm.classList.toggle("on", BOARD.page === "hem");
   fb.classList.toggle("on", BOARD.page === "fotboll");
   $("#photo").classList.toggle("on", BOARD.page === "foto");
   $("#photo").classList.toggle("orig", !!S.photo.orig);
   wx.classList.toggle("on", BOARD.page === "wx"); nw.classList.toggle("on", BOARD.page === "news");
-  $("#board").classList.toggle("on", ["wx", "news", "fotboll"].includes(BOARD.page));
+  $("#board").classList.toggle("on", ["wx", "news", "fotboll", "hem"].includes(BOARD.page));
 }
 // körs varje bildruta; returnerar vilken sida som ska visas just nu ("" när musik spelar)
 function boardStep(idle, now){
@@ -1351,12 +1441,14 @@ function boardStep(idle, now){
     BOARD.page = next; BOARD.until = now + S.idle.secs*1000;
     BOARD.newsUntil = now + S.idle.artSecs*1000;
     if (next === "news") $("#pgNews").innerHTML = "";
-    if (next === "fotboll") BOARD.fbIdx++;
+    if (next === "hem"){ BOARD.homePhoto = (BOARD.homePhoto || 0) + 1; BOARD.photoUntil = now + S.photo.secs*1000; }
     if (next === "foto"){ showPhoto(); BOARD.photoUntil = now + S.photo.secs*1000; }
     if (next === "wx" && S.bus.on && S.bus.id && Date.now() - DEP.at > 45e3) loadDeps();
     renderBoard(); renderEdges();
   }
   if (BOARD.page === "foto" && now > BOARD.photoUntil){ showPhoto(); BOARD.photoUntil = now + S.photo.secs*1000; }
+  if (BOARD.page === "hem" && now > BOARD.newsUntil){ BOARD.newsIdx++; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
+  if (BOARD.page === "hem" && S.home.photo && now > BOARD.photoUntil){ BOARD.homePhoto = (BOARD.homePhoto || 0) + 1; BOARD.photoUntil = now + S.photo.secs*1000; renderBoard(); }
   if (BOARD.page === "news" && now > BOARD.newsUntil){ BOARD.newsIdx++; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
   return BOARD.page;
 }
@@ -1827,6 +1919,9 @@ function buildControls(){
   $("#idPhoto").addEventListener("change", e => { S.photo.on = e.target.checked; saveS(); BOARD.until = 0; loadPhotos(); });
   $("#albums").addEventListener("change", e => { S.photo.albums = e.target.value; saveS(); loadPhotos(); });
   $("#photoOrig").addEventListener("change", e => { S.photo.orig = e.target.checked; saveS(); renderBoard(); });
+  $("#idHome").addEventListener("change", e => { S.home.on = e.target.checked; saveS(); BOARD.until = 0; });
+  $("#homeSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return;
+    S.home[b.dataset.v] = !S.home[b.dataset.v]; saveS(); b.classList.toggle("on", S.home[b.dataset.v]); renderBoard(); renderEdges(); });
   $("#idFb").addEventListener("change", e => { S.idle.fb = e.target.checked; saveS(); BOARD.until = 0; loadFootball(); });
   $("#idBus").addEventListener("change", e => { S.bus.on = e.target.checked; saveS(); loadDeps(); renderBoard(); });
   $("#busBtn").addEventListener("click", () => { const v = $("#busQ").value.trim(); if (v) findStops(v); });
@@ -1855,6 +1950,7 @@ function syncAll(){
   $("#edDate").checked = S.edge.date; $("#edWeek").checked = S.edge.week; $("#edClock").checked = S.edge.clock; $("#edWx").checked = S.edge.wx;
   $("#wxPlace").value = S.edge.place;
   $("#idBus").checked = S.bus.on;
+  $("#idHome").checked = S.home.on; document.querySelectorAll("#homeSeg button").forEach(b => b.classList.toggle("on", !!S.home[b.dataset.v]));
   $("#idPhoto").checked = S.photo.on; $("#albums").value = S.photo.albums; $("#photoOrig").checked = !!S.photo.orig; $("#idFb").checked = S.idle.fb;
   if (S.bus.id) $("#busSel").innerHTML = `<option value="${esc(S.bus.id)}">${esc(S.bus.name)}</option>`;
   $("#idWx").checked = S.idle.wx; $("#idNews").checked = S.idle.news; $("#idTest").checked = S.idle.test;

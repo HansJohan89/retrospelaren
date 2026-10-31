@@ -47,10 +47,11 @@ På Pi:n är *Vågiga linjer*, *Spökbild* och *Färgfransar* de tyngsta effekte
 
 I stället för bara testbilden växlar skärmen mellan sidor (S → När inget spelar):
 
+- **Hemskärm:** flera rutor samtidigt, du väljer vilka: klocka, väder, bussar, nyhet, AIK och foto. Rutnätet anpassar sig efter hur många som är valda; fotot tar två rader. Nyheten och fotot byts medan hemskärmen visas. Väljer du bara hemskärmen stannar den kvar.
 - **Väder och bussar:** nuläge, känns som, vind och byar, luftfuktighet, lufttryck, sol upp/ned, prognos varannan timme och fem dagar framåt. Bredvid vädret visas nästa timmes avgångar från vald hållplats, med realtid, förseningar och inställda turer.
 - **Nyheter:** en artikel i taget med rubrik, ingress och bild, från SVT Nyheter, SVT Dalarna, Ekot eller valfritt RSS-flöde. Saknar flödet bild hämtas artikelns delningsbild. En stapel visar när nästa artikel kommer.
 - **Foton:** bilder ur ett eller flera publikt delade Google Foto-album, i helskärm med långsam inzoomning och mjuk övertoning. Visas i bildrörets färgläge eller i originalfärg.
-- **Fotboll:** AIK i Allsvenskan och Bayern München i Bundesliga, varannan gång: placering, nästa match, de tre senaste resultaten och hela tabellen.
+- **Fotboll:** AIK i Allsvenskan: placering, nästa match, de tre senaste resultaten och hela tabellen.
 - **Testbild**
 
 Välj vilka sidor som ingår, sekunder per sida, per artikel och per foto.
@@ -66,7 +67,7 @@ Albumen läses om en gång i timmen, så nya bilder dyker upp av sig själva.
 
 ### Fotboll (Highlightly)
 
-Samma källa som e-ink-tavlan: Highlightly, med nyckeln `HIGHLIGHTLY_API_KEY` (på Railway som variabel, lokalt i filen `highlightly.key`). Gratisnivån ger 100 anrop per dygn och delas med e-ink-tavlan, som använder ungefär 58. Den här servern hämtar därför högst var sjätte timme (24 anrop per dygn).
+Samma källa som e-ink-tavlan: Highlightly, med nyckeln `HIGHLIGHTLY_API_KEY` (på Railway som variabel, lokalt i filen `highlightly.key`). Bara AIK. Gratisnivån ger 100 anrop per dygn och delas med e-ink-tavlan, som använder ungefär 58. Den här servern hämtar därför högst var tredje timme (3 anrop per hämtning, 24 per dygn).
 
 ### Bussavgångar (ResRobot)
 

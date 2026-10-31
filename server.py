@@ -19,7 +19,7 @@ Vägar:
   /api/stops?q=     sök hållplats (ResRobot v2.1, nyckel i RESROBOT_API_KEY eller resrobot.key)
   /api/departures?id=  avgångar närmaste två timmarna från en hållplats
   /api/album?url=   bildadresser ur ett publikt delat Google Foto-album (samma metod som e-ink-tavlan)
-  /api/football     AIK/Allsvenskan och Bayern/Bundesliga via Highlightly (nyckel i HIGHLIGHTLY_API_KEY)
+  /api/football     AIK i Allsvenskan via Highlightly (nyckel i HIGHLIGHTLY_API_KEY)
   /api/send?c=      skicka kommando till sidan: open, close, next, prev,
                     playpause, viz:1-5, palette:svartvit|sepia|fosfor|farg
 
@@ -484,11 +484,11 @@ class Handler(SimpleHTTPRequestHandler):
         return self._json({"urls": urls})
 
     # --- Fotboll: Highlightly, samma lag och ligor som e-ink-tavlan (fetchers/football.py) ---
-    # Gratisnivån ger 100 anrop/dygn och delas med e-ink-tavlan (~58/dygn). Den här servern hämtar
-    # högst var sjätte timme (6 anrop per hämtning = 24/dygn), så de båda tillsammans håller sig under taket.
+    # Bara AIK här. Gratisnivån ger 100 anrop/dygn och delas med e-ink-tavlan (~58/dygn). Den här servern
+    # hämtar högst var tredje timme (3 anrop per hämtning = 24/dygn), så de båda tillsammans håller sig under taket.
     def football(self):
         import time
-        if FOOTBALL_CACHE["data"] and time.time() - FOOTBALL_CACHE["at"] < 6 * 3600:
+        if FOOTBALL_CACHE["data"] and time.time() - FOOTBALL_CACHE["at"] < 3 * 3600:
             return self._json(FOOTBALL_CACHE["data"])
         key = secret("HIGHLIGHTLY_API_KEY")
         if not key:
@@ -528,8 +528,7 @@ class Handler(SimpleHTTPRequestHandler):
                     "next_match": summary(team, nxt), "recent_results": [summary(team, m) for m in recent]}
         try:
             data = {"ok": True, "at": int(time.time() * 1000),
-                    "teams": [team_block("AIK", "Allsvenskan", 96947, 321611),
-                              team_block("Bayern München", "Bundesliga", 67162, 134391)]}
+                    "teams": [team_block("AIK", "Allsvenskan", 96947, 321611)]}
         except Exception as e:
             if FOOTBALL_CACHE["data"]:
                 return self._json(FOOTBALL_CACHE["data"])
