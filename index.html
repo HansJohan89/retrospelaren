@@ -161,9 +161,15 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .tile.tsign .sign{height:100%}
 .fbBox{display:flex;flex-direction:column;min-height:0;min-width:0}
 .fbBox > .bh,.fbBox > .nx,.fbBox > .nxm,.bus > .bh{flex:none}
-.fbBox .nxm{display:flex;justify-content:center;align-items:center;gap:3.2vh;margin-bottom:1.4vh;color:var(--mid);min-width:0}
+.fbBox .nxm{display:flex;justify-content:space-around;align-items:center;gap:3vh;margin-bottom:1.4vh;color:var(--mid);min-width:0}
+/* Föregående och nästa match bredvid varandra: rubrik och datum till vänster om emblemen */
+.fbBox .nxm .mm{display:flex;align-items:center;gap:2vh;min-width:0}
+.fbBox .nxm .lb{display:flex;flex-direction:column;gap:.5vh;white-space:nowrap}
+.fbBox .nxm .lb small{font-size:.8em;color:var(--mid)}
+.fbBox .nxm .sc{color:var(--ink);font-family:var(--fT),serif;font-size:1.5em;white-space:nowrap}
+@container (max-width:34em){ .fbBox .nxm img{width:7vh!important;height:7vh!important} .fbBox .nxm .mm{gap:1.2vh} }
 .fbBox .nxm .vs{display:flex;align-items:center;justify-content:center;gap:1.6vh}
-.fbBox .nxm img{width:11vh;height:11vh;object-fit:contain;filter:var(--cover-filter);flex:none}
+.fbBox .nxm img{width:9.5vh;height:9.5vh;object-fit:contain;filter:var(--cover-filter);flex:none}
 .fbBox .nxm b{font-weight:400;color:var(--ink)}
 .fbBox .nxm i{font-style:normal;color:var(--ink)}
 .fbBox .nxm .dt{color:var(--ink);white-space:nowrap;font-size:.9em}
@@ -1512,7 +1518,14 @@ function renderFbBox(T){
   const nd = nm ? new Date(nm.date) : null;
   // Nästa match som två emblem (hemmalaget först) och tid, i stället för text
   const own = st.team && st.team.logo ? logo(st.team.logo) : "", opp = nm ? logo(nm.opponent_logo) : "";
-  const next = nm ? `<div class="nxm"><b>Nästa:</b><span class="vs">${nm.is_home ? own + "<i>–</i>" + opp : opp + "<i>–</i>" + own}</span><span class="dt">${SV_DAYS[nd.getDay()]} ${nd.getDate()}/${nd.getMonth()+1} ${hhmm(nd)}</span></div>` : "";
+  const dd = t => `${SV_DAYS[t.getDay()]} ${t.getDate()}/${t.getMonth()+1}`;
+  const pair = (m, mid) => `<span class="vs">${m.is_home ? own + mid + opp2(m) : opp2(m) + mid + own}</span>`;
+  const opp2 = m => logo(m.opponent_logo);
+  const last = (T.recent_results || []).filter(Boolean)[0];
+  const prev = last ? `<div class="mm"><span class="lb"><b>Senast:</b><small>${dd(new Date(last.date))}${outcome(last) ? " · " + outcome(last).toLowerCase() : ""}</small></span>` +
+    pair(last, `<span class="sc">${esc(String(last.score || "?").replace(/\s*-\s*/, "–"))}</span>`) + `</div>` : "";
+  const nxt = nm ? `<div class="mm"><span class="lb"><b>Nästa:</b><small>${dd(nd)} ${hhmm(nd)}</small></span>${pair(nm, "<i>–</i>")}</div>` : "";
+  const next = prev || nxt ? `<div class="nxm">${prev}${nxt}</div>` : "";
   const v = x => x == null ? "" : x;
   const diff = r => r.gf == null || r.ga == null ? "" : (r.gf - r.ga > 0 ? "+" : "") + (r.gf - r.ga);
   const rows = (T.table || []).map(r => `<div class="r x${r.id === T.team_id ? " me" : ""}"><span>${r.position}</span>${logo(r.logo)}<span class="t">${esc(r.id === T.team_id ? T.team_name : r.name)}</span>` +
