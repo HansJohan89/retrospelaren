@@ -108,7 +108,10 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .wxNow .txt{display:flex;flex-direction:column;gap:.6vh}
 .wxNow .big{font-family:var(--fT),serif;font-size:1.7em}
 .wxNow .sub{color:var(--mid)}
-.wxFacts{display:flex;flex-wrap:wrap;gap:.8vh 3.5vh;color:var(--mid);font-size:.9em;letter-spacing:.06em}
+/* Två fasta rader (vind, fukt, tryck / sol): spalten blir lika bred som första raden, inte bredare */
+.wxFacts{display:flex;flex-direction:column;gap:.8vh;color:var(--mid);font-size:.9em;letter-spacing:.06em}
+.wxFacts > div{display:flex;flex-wrap:wrap;gap:.8vh 3.5vh}
+.wxFacts span{white-space:nowrap}
 .wxFacts b{color:var(--ink);font-weight:400}
 .wxRow{display:grid;gap:1vh;text-align:center}
 .wxRow .c{display:flex;flex-direction:column;align-items:center;gap:.4vh;padding:1vh 0;border:max(1px,.15vh) solid var(--dim)}
@@ -123,10 +126,8 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #pgWx .wxB .sign{height:auto;max-height:100%;align-self:start;font-size:.86em}
 #pgWx .wxB .sign .sh{font-size:1.6em}
 .sign{--sign-dim:brightness(.86) contrast(.95)}
-/* Vädret idag tar bara den bredd det behöver, dagsprognosen fyller resten */
-#pgWx .wxA{flex:none;display:grid;grid-template-columns:auto minmax(0,1fr);gap:5vh;align-items:center}
-/* Vind/fukt/tryck/sol bryts inom bredden av nuvarande väder i stället för att göra spalten bredare */
-#pgWx .wxA .wxFacts{width:0;min-width:100%}
+/* Vädret idag tar den bredd det behöver (högst 58 %), dagsprognosen fyller resten */
+#pgWx .wxA{flex:none;display:grid;grid-template-columns:fit-content(58%) minmax(0,1fr);gap:5vh;align-items:center}
 #pgWx .wxA .wxNow svg{width:12vh;height:12vh}
 #pgWx .wxA .wxDays{font-size:.85em}
 #pgWx .wxB{flex:1 1 auto;min-height:0;overflow:hidden;display:grid;grid-template-columns:1fr 1fr;gap:6vh;grid-template-rows:minmax(0,1fr)}
@@ -1516,9 +1517,9 @@ function renderWxPage(){
   return `<div class="wxA"><div class="wxL">
       <div class="wxNow">${wxIcon(W2.c, W2.day)}<span class="tmp">${Math.round(W2.t)}°</span>
         <div class="txt"><span class="big">${WX_TEXT(W2.c)}</span><span class="sub">Känns som ${Math.round(W2.feel)}°</span><span class="sub">Idag ${Math.round(W2.hi)}° / ${Math.round(W2.lo)}°</span></div></div>
-      <div class="wxFacts"><span>Vind <b>${Math.round(W2.wind)} m/s ${COMPASS[Math.round((W2.dir || 0)/45) % 8]}</b>${W2.gust ? ` (byar ${Math.round(W2.gust)})` : ""}</span>
-        <span>Fukt <b>${Math.round(W2.hum)}%</b></span><span>Tryck <b>${Math.round(W2.pres)} hPa</b></span>
-        <span>Sol <b>${sr}</b> – <b>${ss}</b></span></div>
+      <div class="wxFacts"><div><span>Vind <b>${Math.round(W2.wind)} m/s ${COMPASS[Math.round((W2.dir || 0)/45) % 8]}</b>${W2.gust ? ` (byar ${Math.round(W2.gust)})` : ""}</span>
+        <span>Fukt <b>${Math.round(W2.hum)}%</b></span><span>Tryck <b>${Math.round(W2.pres)} hPa</b></span></div>
+        <div><span>Sol <b>${sr}</b> – <b>${ss}</b></span></div></div>
     </div><div class="wxRow wxDays" style="grid-template-columns:repeat(${days.length},1fr)">${days.join("")}</div></div>
     ${fbWant ? `<div class="wxB duo"><div class="wxC">${hoursRow(hours.slice(0, 4))}${bus ? renderBus() : ""}</div>${fb ? renderFbBox(fb) : `<div class="fbBox"><div class="fbWait">Allsvenskan<small>Tabellen hämtas igen om en stund.</small></div></div>`}</div>`
       : hoursRow(hours) + (bus ? `<div class="wxB solo">${renderBus()}</div>` : "")}`;
