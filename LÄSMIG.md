@@ -75,14 +75,14 @@ Samma källa som e-ink-tavlan: Highlightly, med nyckeln `HIGHLIGHTLY_API_KEY` (p
 
 ### Bussavgångar (ResRobot)
 
-Avgångarna visas som en hållplatsskylt i Dalatrafiks stil: rött namnfält med hållplatsen (och "mot ..." om du valt en hållplats att åka till), vita rader med röda linjer, linjesymbol (grön för lokal- och länstrafik, röd för express), linjenummer, vart bussen går eller när du är framme, och avgångstid. Längst ner dalatrafik.se och kundtjänstnumret. Dalatrafiks logotyp (vit häst, `assets/dalatrafik-logo.png`) sitter i namnfältet; en SVG med namnet `dalatrafik-logo.svg` används i stället om den finns. Skylten visas i Dalatrafiks färger, eller i bildrörets färgläge om du stänger av det under S → När inget spelar.
+Avgångarna visas som en hållplatsskylt i Dalatrafiks stil med fyra avgångar: rött namnfält med hållplatsen, vita rader med röda linjer, linjesymbol (grön för lokal- och länstrafik, röd för express), linjenummer, vart bussen går (eller den hållplats du valt att åka till) och avgångstid. Skylten krymps om det behövs så att fyra avgångar alltid får plats, och påverkas av bildrörets spökbild och färgfransar som resten av bilden. Längst ner dalatrafik.se och kundtjänstnumret. Dalatrafiks logotyp (vit häst, `assets/dalatrafik-logo.png`) sitter i namnfältet; en SVG med namnet `dalatrafik-logo.svg` används i stället om den finns. Skylten visas i Dalatrafiks färger, eller i bildrörets färgläge om du stänger av det under S → När inget spelar.
 
 Avgångarna hämtas från Trafiklabs ResRobot v2.1, samma API och samma nyckel som e-ink-tavlan använder (`RESROBOT_API_KEY`). Nyckeln ligger på servern, aldrig i koden:
 
 - på Railway: variabeln `RESROBOT_API_KEY` på tjänsten `retrospelaren` (samma värde som på SoumayAPP)
 - lokalt: en fil `resrobot.key` bredvid `server.py` (den finns i `.gitignore`), eller miljövariabeln `RESROBOT_API_KEY`
 
-Sök sedan hållplats under S → När inget spelar och välj i listan. Välj också gärna **Framme vid**: då visar listan i stället för slutdestination när du är framme vid den hållplatsen (ResRobots resesökning, samma som e-ink-tavlans reseplan), med linje, avgång, ankomst och eventuella byten. Servern frågar ResRobot högst en gång per minut och hållplats, tre timmar framåt och upp till tolv timmar vid gles trafik, så att det alltid finns flera avgångar att visa.
+Sök sedan hållplats under S → När inget spelar och välj i listan. Välj också gärna **Framme vid**: då visar skylten bara avgångar som tar dig dit (ResRobots resesökning, samma som e-ink-tavlans reseplan), med den hållplatsen på varje rad och avgångstiden till höger. Servern frågar ResRobot högst en gång per minut och hållplats, tre timmar framåt och upp till tolv timmar vid gles trafik, så att det alltid finns flera avgångar att visa.
 
 ## Radio
 

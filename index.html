@@ -126,15 +126,17 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #pgWx .wxRow,#pgWx .kick{flex:none}
 #pgWx.tight .wxHours{display:none}
 /* Hållplatsskylt i Dalatrafiks stil: rött namnfält, vita rader med röda linjer, rött fält med webb och telefon */
-.sign{--dt:#e00034;background:#fff;color:#161616;border:max(2px,.3vh) solid var(--dt);border-radius:1.4vh;overflow:hidden;text-shadow:none;letter-spacing:0;
+.sign{--dt:#e00034;background:#fff;color:#161616;border:max(2px,.3vh) solid var(--dt);border-radius:1.4vh;overflow:hidden;text-shadow:var(--sign-ts,none);letter-spacing:0;
+  filter:var(--sign-fx,none);
   font-family:Arial,"Helvetica Neue",Helvetica,sans-serif;font-weight:700;box-shadow:0 .8vh 2.4vh rgba(0,0,0,.55);min-height:0}
-.sign.pal{filter:var(--cover-filter)}
-.sign .sh{flex:none;background:var(--dt);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:1.5vh;padding:1.6vh 2vh;font-size:1.65em;line-height:1.15}
+.sign.pal{filter:var(--cover-filter) var(--sign-fx,drop-shadow(0 0 0 transparent))}
+.sign .sh{flex:none;background:var(--dt);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:1.5vh;padding:1.5vh 3.4vh 1.5vh 2vh;font-size:1.95em;line-height:1.1}
 .sign .sh .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sign .sh .to{display:block;font-size:.55em;font-weight:400;opacity:.95;margin-top:.2em}
-.sign .sh img{height:1.55em;flex:none;margin:-.2em 0}
-.bus.sign ul{padding:0 1.6vh;gap:0}
-.bus.sign li{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:1.2vh;padding:.75vh 0;border-bottom:max(1px,.22vh) solid var(--dt)}
+.sign .sh img{height:1.35em;flex:none;margin:-.15em 0}
+.bus.sign ul{padding:0 1.6vh;gap:0;display:flex;flex-direction:column}
+.bus.sign.fill li{flex:1 0 auto;align-content:center}
+.bus.sign li{font-size:1.12em;display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:1.2vh;padding:.75vh 0;border-bottom:max(1px,.22vh) solid var(--dt)}
 .bus.sign li:last-child{border-bottom:none}
 .bus.sign .bdg svg{width:1.75em;height:1.75em;display:block}
 .bus.sign .ln{border:none;padding:0;text-align:left;font-size:1.15em;min-width:2.4ch}
@@ -1080,6 +1082,14 @@ function applyFxStatic(){
   const extra = ts.join(", ");
   for (const el of [$("#info"), $("#edges"), $("#osd"), $("#board")]) el.style.textShadow = extra;
   $("#title").style.textShadow = `0 0 1.2vh ${hexA(P.ink, 0.45)}` + (extra ? ", " + extra : "");
+  const sts = [], sdf = [];
+  if (g > 0){ sts.push(`${(0.6+g*1.6).toFixed(2)}vh 0 rgba(20,20,20,${(0.18+g*0.35).toFixed(2)})`);
+              sdf.push(`drop-shadow(${(0.6+g*1.6).toFixed(2)}vh 0 0 rgba(255,255,255,${(0.08+g*0.22).toFixed(2)}))`); }
+  if (c > 0){ sts.push(`${(-c*0.5).toFixed(2)}vh 0 rgba(255,40,40,${(c*0.7).toFixed(2)})`, `${(c*0.5).toFixed(2)}vh 0 rgba(0,190,255,${(c*0.7).toFixed(2)})`);
+              sdf.push(`drop-shadow(${(-c*0.5).toFixed(2)}vh 0 0 rgba(255,40,40,${(c*0.5).toFixed(2)})) drop-shadow(${(c*0.5).toFixed(2)}vh 0 0 rgba(0,190,255,${(c*0.5).toFixed(2)}))`); }
+  const rs = document.documentElement.style;
+  rs.setProperty("--sign-ts", sts.join(", ") || "none");
+  rs.setProperty("--sign-fx", sdf.join(" ") || "drop-shadow(0 0 0 transparent)");
   $("#crt").classList.toggle("on", S.crt);
   if (v("wobble") === 0){ wobD.setAttribute("scale", "0"); }
 }
@@ -1369,13 +1379,13 @@ function busBadge(mode){
   return red ? `<span class="bdg"><svg viewBox="0 0 48 48" style="color:#e00034"><rect x="3" y="3" width="42" height="42" rx="10" fill="#e00034"/>${BUS_PICTO}</svg></span>`
              : `<span class="bdg"><svg viewBox="0 0 48 48" style="color:#2e9b48"><g fill="#2e9b48"><circle cx="24" cy="24" r="17"/>${bump}</g>${BUS_PICTO}</svg></span>`;
 }
-function renderBus(max = 7){
+function renderBus(max = 4){
   const b = S.bus;
   const pal = S.bus.signOrig === false ? " pal" : "";
   const logo = SIGN_LOGO ? `<img src="${SIGN_LOGO}" alt="">` : "";
-  const head = `<div class="sh"><span class="nm">${esc(stopName(b.name) || "Hållplats")}${b.to ? `<span class="to">mot ${esc(stopName(b.toName))}</span>` : ""}</span>${logo}</div>`;
+  const head = `<div class="sh"><span class="nm">${esc(stopName(b.name) || "Hållplats")}</span>${logo}</div>`;
   const foot = `<div class="sf"><span>dalatrafik.se</span><span>0771-95 95 95</span></div>`;
-  const wrap = inner => `<div class="bus sign${pal}">${head}${inner}${foot}</div>`;
+  const wrap = inner => `<div class="bus sign fill${pal}">${head}${inner}${foot}</div>`;
   if (!b.id) return wrap(`<div class="msg">Välj hållplats under S → När inget spelar.</div>`);
   if (DEP.err) return wrap(`<div class="msg">${DEP.nokey ? "RESROBOT_API_KEY saknas på servern." : esc(DEP.err)}</div>`);
   const now = Date.now();
@@ -1384,8 +1394,8 @@ function renderBus(max = 7){
     const other = t.toDateString() !== new Date().toDateString();
     const when = d.canceled ? "Inställd" : min <= 0 ? "Nu" : min <= 15 ? `${min} min` : (other ? DAYS_SHORT[t.getDay()].toLowerCase() + " " : "") + hhmm(t);
     const late = !d.canceled && d.rt && d.sched && new Date(d.rt) - new Date(d.sched) >= 120e3 ? ` <small>(${hhmm(new Date(d.sched))})</small>` : "";
-    // Med vald hållplats att åka till: när man är framme (och byten). Annars: vart bussen går.
-    const ds = b.to ? `framme ${hhmm(new Date(d.arr))}${d.changes ? ` <small>· ${d.changes} byte</small>` : ""}` : esc(stopName(d.dest));
+    // Med vald hållplats att åka till står den hållplatsen på raden, annars vart bussen går; till höger bara avgångstiden
+    const ds = b.to ? esc(stopName(b.toName)) : esc(stopName(d.dest));
     return `<li class="${d.canceled ? "x" : min <= 3 ? "soon" : ""}">${busBadge(d.mode)}<span class="ln">${esc(d.line)}</span><span class="ds">${ds}</span><span class="tm">${when}${late}</span></li>`;
   });
   return wrap(rows.length ? `<ul>${rows.join("")}</ul>` : `<div class="msg">${DEP.at ? (b.to ? "Inga resor hittades." : "Inga avgångar de närmaste tolv timmarna.") : "Hämtar avgångar..."}</div>`);
@@ -1535,7 +1545,7 @@ function homeTile(k){
       <div class="row2">${wxIcon(WX.c, WX.day)}<div><div class="big">${Math.round(WX.t)}°</div><div class="sub">${WX_TEXT(WX.c)}<br>${Math.round(WX.hi)}° / ${Math.round(WX.lo)}°</div></div></div>
       <div class="hrs">${hrs}</div></div>`;
   }
-  if (k === "bus") return `<div class="tile tsign">${renderBus(5)}</div>`;
+  if (k === "bus") return `<div class="tile tsign">${renderBus(4)}</div>`;
   if (k === "news"){
     const it = NEWS.items; if (!it.length) return `<div class="tile"><div class="h">Nyheter</div><div class="sub">Inga nyheter hämtade.</div></div>`;
     const a = it[BOARD.newsIdx % it.length]; ensureImg(a);
@@ -1590,12 +1600,32 @@ function layoutPage(el, h){
 }
 // Vädersidan är trång när färre än 5 avgångar (eller alla, om de är färre) får plats, eller när vädret till vänster inte får plats
 function wxCramped(el){
-  const ul = el.querySelector(".bus ul");
+  // Trångt = fyra avgångar får inte plats på skylten ens när den krymps 15 %; då döljs timprognosen
+  const sign = el.querySelector(".wxB .sign"), ul = sign && sign.querySelector("ul");
   if (!ul || !ul.children.length) return false;
-  const li = ul.children[0].getBoundingClientRect().height, gap = parseFloat(getComputedStyle(ul).rowGap) || 0;
-  return Math.floor((ul.clientHeight + gap) / (li + gap)) < Math.min(4, ul.children.length);
+  sign.style.fontSize = ""; sign.classList.remove("fill");
+  const fs = parseFloat(getComputedStyle(sign).fontSize);
+  sign.style.fontSize = (fs * 0.85) + "px";
+  const need = Math.min(4, ul.children.length);
+  let h = 0; for (let i = 0; i < need; i++) h += ul.children[i].getBoundingClientRect().height;
+  const cramped = h > ul.clientHeight + 1;
+  sign.style.fontSize = ""; sign.classList.add("fill");
+  return cramped;
 }
+// Skylten krymps (högst till 60 %) tills fyra avgångar får plats, sedan sträcks raderna ut så att de fyller skylten
+function fitSign(sign){
+  const ul = sign.querySelector("ul"); if (!ul) return;
+  sign.style.fontSize = ""; sign.classList.remove("fill");
+  const fs = parseFloat(getComputedStyle(sign).fontSize), need = Math.min(4, ul.children.length);
+  const rowsH = () => { let h = 0; for (let i = 0; i < need; i++) h += ul.children[i].getBoundingClientRect().height; return h; };
+  let k = 1;
+  while (rowsH() > ul.clientHeight + 1 && k > 0.6){ k -= 0.04; sign.style.fontSize = (fs * k).toFixed(1) + "px"; }
+  sign.classList.add("fill");
+}
+
+
 function fitLists(el){
+  el.querySelectorAll(".bus.sign").forEach(fitSign);
   el.querySelectorAll(".bus ul").forEach(ul => {
     while (ul.children.length > 1 && ul.scrollHeight > ul.clientHeight + 1) ul.lastElementChild.remove();
   });
