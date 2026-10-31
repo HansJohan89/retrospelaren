@@ -156,9 +156,9 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .tile.tsign .sign{height:100%}
 .fbBox{display:flex;flex-direction:column;min-height:0;min-width:0}
 .fbBox > .bh,.fbBox > .nx,.fbBox > .nxm,.bus > .bh{flex:none}
-.fbBox .nxm{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:1.1vh;margin-bottom:1.2vh;color:var(--mid);min-width:0}
-.fbBox .nxm .vs{display:flex;align-items:center;justify-content:center;gap:1.1vh}
-.fbBox .nxm img{width:6.4vh;height:6.4vh;object-fit:contain;filter:var(--cover-filter);flex:none}
+.fbBox .nxm{display:flex;justify-content:center;align-items:center;gap:3.2vh;margin-bottom:1.4vh;color:var(--mid);min-width:0}
+.fbBox .nxm .vs{display:flex;align-items:center;justify-content:center;gap:1.6vh}
+.fbBox .nxm img{width:9.5vh;height:9.5vh;object-fit:contain;filter:var(--cover-filter);flex:none}
 .fbBox .nxm b{font-weight:400;color:var(--ink)}
 .fbBox .nxm i{font-style:normal;color:var(--ink)}
 .fbBox .nxm .dt{color:var(--ink);white-space:nowrap;font-size:.9em}
@@ -176,6 +176,12 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .bus ul{flex:1 1 auto;min-height:0;overflow:hidden}
 .tile .bus{flex:1 1 auto;height:auto}
 #pgWx .wxRow{font-size:.9em}
+/* Timprognosen i två låga rader (klockslag och regnrisk, sedan symbol och temperatur) så att den får plats bredvid skylten */
+#pgWx .wxHours .c{display:grid;grid-template-columns:auto auto;justify-content:center;align-items:center;column-gap:1vh;row-gap:.2vh;padding:.6vh 0}
+#pgWx .wxHours .c .h{grid-column:1;grid-row:1}
+#pgWx .wxHours .c .p{grid-column:2;grid-row:1}
+#pgWx .wxHours .c svg{grid-column:1;grid-row:2;width:3.6vh;height:3.6vh}
+#pgWx .wxHours .c .v{grid-column:2;grid-row:2}
 .wxTop.solo{grid-template-columns:1fr}
 .wxL{display:flex;flex-direction:column;gap:2.6vh;min-width:0}
 .wxTop:not(.solo) .wxNow svg{width:10vh;height:10vh}
@@ -1645,12 +1651,12 @@ function layoutPage(el, h){
 }
 // Vädersidan är trång när färre än 5 avgångar (eller alla, om de är färre) får plats, eller när vädret till vänster inte får plats
 function wxCramped(el){
-  // Trångt = fyra avgångar får inte plats på skylten ens när den krymps 15 %; då döljs timprognosen
+  // Trångt = fyra avgångar får inte plats på skylten ens när den krymps 28 %; då döljs timprognosen
   const sign = el.querySelector(".wxB .sign"), ul = sign && sign.querySelector("ul");
   if (!ul || !ul.children.length) return false;
   sign.style.fontSize = ""; sign.classList.remove("fill"); sign.style.height = "100%";
   const fs = parseFloat(getComputedStyle(sign).fontSize);
-  sign.style.fontSize = (fs * 0.85) + "px";
+  sign.style.fontSize = (fs * 0.72) + "px";
   const need = Math.min(4, ul.children.length);
   let h = 0; for (let i = 0; i < need; i++) h += ul.children[i].getBoundingClientRect().height;
   const cramped = h > ul.clientHeight + 1;
