@@ -70,22 +70,18 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 
 .upper .title,.upper .artist{text-transform:uppercase}
 #edges{position:absolute;top:3%;left:6%;right:6%;z-index:4;display:flex;justify-content:space-between;align-items:center;gap:3vh;
-  font-size:calc(3.4vh*var(--esz,1));letter-spacing:.04em;color:var(--ink);white-space:nowrap;pointer-events:none;
-  text-shadow:0 0 1vh color-mix(in srgb,var(--ink) 35%,transparent)}
-#edges .grp{display:flex;align-items:center;gap:1.8vh;min-width:0;overflow:hidden}
-#edges .day{font-family:var(--fT),serif;font-size:1.25em}
-#edges .wk{color:var(--mid);font-size:.7em;letter-spacing:.15em;text-transform:uppercase;align-self:flex-end;margin-bottom:.35em}
-#edges .clock{font-family:var(--fT),serif;font-size:2.3em;line-height:.95;letter-spacing:.02em;
-  text-shadow:0 0 1.6vh color-mix(in srgb,var(--ink) 50%,transparent)}
-#edges .wxe{display:flex;align-items:center;gap:1vh;color:var(--mid)}
-#edges .wxe b{color:var(--ink);font-weight:400}
-#edges svg{width:1.6em;height:1.6em;flex:none;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+  font-family:var(--fT),serif;font-size:calc(4.8vh*var(--esz,1));line-height:1.1;letter-spacing:.02em;color:var(--ink);white-space:nowrap;pointer-events:none;
+  text-shadow:0 0 1.4vh color-mix(in srgb,var(--ink) 45%,transparent)}
+#edges .grp{display:flex;align-items:center;gap:.5em;min-width:0}
+#edges .wk{color:var(--mid)}
+#edges .wxe{display:flex;align-items:center;gap:.35em}
+#edges svg{width:1.05em;height:1.05em;flex:none;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 #edges .sep{opacity:.5}
-#osd{position:absolute;top:calc(4% + 9.5vh*var(--esz,1));left:0;right:0;text-align:center;z-index:4;font-size:calc(2.6vh*var(--sz));letter-spacing:.2em;color:var(--ink);
+#osd{position:absolute;top:calc(4% + 7.5vh*var(--esz,1));left:0;right:0;text-align:center;z-index:4;font-size:calc(2.6vh*var(--sz));letter-spacing:.2em;color:var(--ink);
   text-shadow:0 0 1vh var(--ink);opacity:0;transition:opacity .8s;text-transform:uppercase}
 #osd.on{opacity:.95;transition:opacity .1s}
 
-#board{position:absolute;left:6%;right:6%;top:calc(4% + 9.5vh*var(--esz,1));bottom:7%;z-index:3;color:var(--ink);font-size:calc(2.75vh*var(--sz));
+#board{position:absolute;left:6%;right:6%;top:calc(4% + 7.5vh*var(--esz,1));bottom:7%;z-index:3;color:var(--ink);font-size:calc(2.75vh*var(--sz));
   opacity:0;pointer-events:none;transition:opacity .5s}
 #board.on{opacity:1}
 #board svg{stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
@@ -673,6 +669,7 @@ function measureEdges(){
 }
 function resize(){
   layoutScreen();
+  renderEdges.fitted = false;
   requestAnimationFrame(measureEdges);
   DPR = Math.min(2, window.devicePixelRatio || 1);
   const r = view.getBoundingClientRect();
@@ -1203,15 +1200,23 @@ const MONTHS = ["jan","feb","mars","april","maj","juni","juli","aug","sep","okt"
 const MONTHS_L = ["januari","februari","mars","april","maj","juni","juli","augusti","september","oktober","november","december"];
 function renderEdges(){
   const e = S.edge, d = new Date(), Lp = [], Rp = [];
-  if (e.date) Lp.push(`<span class="day">${DAYS[d.getDay()]}</span><span>${d.getDate()} ${MONTHS_L[d.getMonth()]}</span>`);
+  if (e.date) Lp.push(`<span>${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS_L[d.getMonth()]}</span>`);
   if (e.week) Lp.push(`<span class="wk">v.${isoWeek(d)}</span>`);
   if (e.wx && WX && BOARD.page !== "wx" && !(BOARD.page === "hem" && S.home.wx))
-    Rp.push(`<span class="wxe">${wxIcon(WX.c, WX.day)}<b>${Math.round(WX.t)}°</b><span>${WX_TEXT(WX.c)}</span></span>`);
+    Rp.push(`<span class="wxe">${wxIcon(WX.c, WX.day)}<span>${Math.round(WX.t)}° ${WX_TEXT(WX.c).toLowerCase()}</span></span>`);
   if (e.clock && !(BOARD.page === "hem" && S.home.clock)) Rp.push(`<span class="clock">${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}</span>`);
   const l = Lp.join(""), r = Rp.join("");
-  if ($("#edgeL").innerHTML !== l) $("#edgeL").innerHTML = l;
-  if ($("#edgeR").innerHTML !== r) $("#edgeR").innerHTML = r;
+  if ($("#edgeL").innerHTML !== l){ $("#edgeL").innerHTML = l; renderEdges.fitted = false; }
+  if ($("#edgeR").innerHTML !== r){ $("#edgeR").innerHTML = r; fitEdges(); }
+  else if (!renderEdges.fitted){ fitEdges(); }
   measureEdges();
+}
+function fitEdges(){
+  const ed = $("#edges"), L = $("#edgeL"), R = $("#edgeR");
+  ed.style.fontSize = "";
+  const need = L.scrollWidth + R.scrollWidth + parseFloat(getComputedStyle(ed).columnGap || 0), have = ed.clientWidth;
+  if (need > have && have > 0) ed.style.fontSize = (parseFloat(getComputedStyle(ed).fontSize) * have / need * 0.98).toFixed(1) + "px";
+  renderEdges.fitted = true;
 }
 
 // ---------- tavla när inget spelar: väder, nyheter, testbild ----------
@@ -1888,7 +1893,7 @@ function loadFonts(){
   const r = document.documentElement.style;
   r.setProperty("--fT", `"${S.look.fontT}"`); r.setProperty("--fB", `"${S.look.fontB}"`);
   FT = `"${S.look.fontT}", serif`; FB = `"${S.look.fontB}", monospace`;
-  if (document.fonts) document.fonts.load(`20px "${S.look.fontT}"`).then(() => document.fonts.load(`20px "${S.look.fontB}"`)).then(() => { if (state.track){ const t = state.track; state.trackKey = ""; setTrack(t); } }).catch(()=>{});
+  if (document.fonts) document.fonts.load(`20px "${S.look.fontT}"`).then(() => document.fonts.load(`20px "${S.look.fontB}"`)).then(() => { renderEdges.fitted = false; if (state.track){ const t = state.track; state.trackKey = ""; setTrack(t); } }).catch(()=>{});
 }
 function applyLook(){
   const Lk = S.look, r = document.documentElement.style;
