@@ -180,8 +180,10 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #pgWx .wxHours .c{display:grid;grid-template-columns:auto auto;justify-content:center;align-items:center;column-gap:1vh;row-gap:.2vh;padding:.6vh 0}
 #pgWx .wxHours .c .h{grid-column:1;grid-row:1}
 #pgWx .wxHours .c .p{grid-column:2;grid-row:1}
-#pgWx .wxHours .c svg{grid-column:1;grid-row:2;width:3.6vh;height:3.6vh}
-#pgWx .wxHours .c .v{grid-column:2;grid-row:2}
+#pgWx .wxHours .c svg{grid-column:1;grid-row:2;width:4.4vh;height:4.4vh;justify-self:end}
+#pgWx .wxHours .c .v{grid-column:2;grid-row:2;font-size:1.3em;justify-self:start}
+#pgWx .wxHours .c .h{justify-self:end}
+#pgWx .wxHours .c .p{justify-self:start}
 .wxTop.solo{grid-template-columns:1fr}
 .wxL{display:flex;flex-direction:column;gap:2.6vh;min-width:0}
 .wxTop:not(.solo) .wxNow svg{width:10vh;height:10vh}
@@ -1659,7 +1661,8 @@ function wxCramped(el){
   sign.style.fontSize = (fs * 0.72) + "px";
   const need = Math.min(4, ul.children.length);
   let h = 0; for (let i = 0; i < need; i++) h += ul.children[i].getBoundingClientRect().height;
-  const cramped = h > ul.clientHeight + 1;
+  const cs = getComputedStyle(ul), pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  const cramped = h + pad > ul.clientHeight + 1;
   sign.style.fontSize = ""; sign.style.height = ""; sign.classList.add("fill");
   return cramped;
 }
@@ -1668,7 +1671,9 @@ function fitSign(sign){
   const ul = sign.querySelector("ul"); if (!ul) return;
   sign.style.fontSize = ""; sign.classList.remove("fill"); sign.style.height = "100%";
   const fs = parseFloat(getComputedStyle(sign).fontSize), need = Math.min(4, ul.children.length);
-  const rowsH = () => { let h = 0; for (let i = 0; i < need; i++) h += ul.children[i].getBoundingClientRect().height; return h; };
+  // Listans egen utfyllnad räknas med, annars kan sista avgången bli några pixlar för hög och plockas bort
+  const cs = getComputedStyle(ul), pad = () => parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  const rowsH = () => { let h = pad(); for (let i = 0; i < need; i++) h += ul.children[i].getBoundingClientRect().height; return h; };
   let k = 1;
   while (rowsH() > ul.clientHeight + 1 && k > 0.6){ k -= 0.04; sign.style.fontSize = (fs * k).toFixed(1) + "px"; }
   sign.style.height = ""; sign.classList.add("fill");
