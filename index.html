@@ -2071,7 +2071,7 @@ async function spFindDevice(nameSub){
   const n = nameSub.toLowerCase();
   return list.find(d => (d.name || "").toLowerCase().includes(n)) || null;
 }
-const WAKE_DEVICE_NAME = "vardagsrum";
+const WAKE_DEVICE_NAME = "Tavlan";
 async function spResumeOnWakeDevice(){
   const dev = await spFindDevice(WAKE_DEVICE_NAME);
   if (!dev){ osd('Hittar inte Spotify-enheten "' + WAKE_DEVICE_NAME + '"'); return; }
