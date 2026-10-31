@@ -69,17 +69,23 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #dial canvas{position:absolute;inset:0;width:100%;height:100%}
 
 .upper .title,.upper .artist{text-transform:uppercase}
-#edges{position:absolute;top:4.2%;left:6%;right:6%;z-index:4;display:flex;justify-content:space-between;align-items:center;gap:3vh;
-  font-size:calc(2.1vh*var(--sz));letter-spacing:.18em;text-transform:uppercase;color:var(--mid);white-space:nowrap;pointer-events:none}
-#edges .grp{display:flex;align-items:center;gap:1.6vh;min-width:0;overflow:hidden}
-#edges .clock{color:var(--ink);font-size:1.25em;letter-spacing:.12em}
-#edges svg{width:1.5em;height:1.5em;flex:none;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+#edges{position:absolute;top:3%;left:6%;right:6%;z-index:4;display:flex;justify-content:space-between;align-items:center;gap:3vh;
+  font-size:calc(3.4vh*var(--esz,1));letter-spacing:.04em;color:var(--ink);white-space:nowrap;pointer-events:none;
+  text-shadow:0 0 1vh color-mix(in srgb,var(--ink) 35%,transparent)}
+#edges .grp{display:flex;align-items:center;gap:1.8vh;min-width:0;overflow:hidden}
+#edges .day{font-family:var(--fT),serif;font-size:1.25em}
+#edges .wk{color:var(--mid);font-size:.7em;letter-spacing:.15em;text-transform:uppercase;align-self:flex-end;margin-bottom:.35em}
+#edges .clock{font-family:var(--fT),serif;font-size:2.3em;line-height:.95;letter-spacing:.02em;
+  text-shadow:0 0 1.6vh color-mix(in srgb,var(--ink) 50%,transparent)}
+#edges .wxe{display:flex;align-items:center;gap:1vh;color:var(--mid)}
+#edges .wxe b{color:var(--ink);font-weight:400}
+#edges svg{width:1.6em;height:1.6em;flex:none;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 #edges .sep{opacity:.5}
-#osd{position:absolute;top:10.5%;left:0;right:0;text-align:center;z-index:4;font-size:calc(2.6vh*var(--sz));letter-spacing:.2em;color:var(--ink);
+#osd{position:absolute;top:calc(4% + 9.5vh*var(--esz,1));left:0;right:0;text-align:center;z-index:4;font-size:calc(2.6vh*var(--sz));letter-spacing:.2em;color:var(--ink);
   text-shadow:0 0 1vh var(--ink);opacity:0;transition:opacity .8s;text-transform:uppercase}
 #osd.on{opacity:.95;transition:opacity .1s}
 
-#board{position:absolute;left:6%;right:6%;top:12.5%;bottom:7%;z-index:3;color:var(--ink);font-size:calc(2.75vh*var(--sz));
+#board{position:absolute;left:6%;right:6%;top:calc(4% + 9.5vh*var(--esz,1));bottom:7%;z-index:3;color:var(--ink);font-size:calc(2.75vh*var(--sz));
   opacity:0;pointer-events:none;transition:opacity .5s}
 #board.on{opacity:1}
 #board svg{stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
@@ -511,7 +517,7 @@ const PRESETS = {
   sliten: { bright:45, contrast:62, blur:35, persist:45, curve:65, vignette:75, glare:45, scan:55, flicker:45, snow:20, hum:45, jitter:22, wobble:22, roll:28, interf:35, ghost:30, chroma:14 },
   dalig:  { bright:48, contrast:58, blur:42, persist:35, curve:60, vignette:65, glare:40, scan:50, flicker:50, snow:55, hum:60, jitter:42, wobble:48, roll:50, interf:70, ghost:55, chroma:25 }
 };
-const LOOK_DEF = { brand:"BLAUPUNKT", fontT:"Limelight", fontB:"Special Elite", size:100, upper:false, cover:"square", dial:true,
+const LOOK_DEF = { brand:"BLAUPUNKT", fontT:"Limelight", fontB:"Special Elite", size:100, edgeSize:100, upper:false, cover:"square", dial:true,
   format:"4:3", scale:100, offX:0, offY:0 };
 const EDGE_DEF = { date:true, week:true, clock:true, wx:true, place:"Falun", lat:60.6065, lon:15.6355 };
 const FONTS_T = ["Limelight","Monoton","Poiret One","Righteous","Abril Fatface","Playfair Display","Bebas Neue","Federo","Josefin Sans","Pacifico","Lobster","Yesteryear"];
@@ -660,8 +666,14 @@ function layoutScreen(){
   sc.style.width = Math.round(w) + "px"; sc.style.height = Math.round(h) + "px";
   sc.style.transform = `translate(${L2.offX/100*vw}px, ${L2.offY/100*vh}px)`;
 }
+let EDGE_B = 0.12;   // kanternas nederkant som andel av skärmhöjden, så visualiseringarna börjar under datum och klocka
+function measureEdges(){
+  const sc = $("#screen").getBoundingClientRect(), ed = $("#edges").getBoundingClientRect();
+  EDGE_B = $("#edges").innerHTML.trim() && sc.height ? (ed.bottom - sc.top) / sc.height : 0.05;
+}
 function resize(){
   layoutScreen();
+  requestAnimationFrame(measureEdges);
   DPR = Math.min(2, window.devicePixelRatio || 1);
   const r = view.getBoundingClientRect();
   W = Math.round(r.width*DPR); H = Math.round(r.height*DPR);
@@ -681,7 +693,8 @@ function hexA(hex, a){
 }
 function region(){ // visualiseringens yta mellan kanterna och radioskalan
   const infoOn = S.info && state.track;
-  return { x:W*0.06, y:H*0.15, w:W*0.88, h:infoOn ? H*0.47 : H*0.7 };
+  const top = Math.max(0.15, EDGE_B + 0.02), bottom = infoOn ? 0.62 : 0.85;
+  return { x:W*0.06, y:H*top, w:W*0.88, h:H*(bottom - top) };
 }
 function fade(a){ ctx.globalCompositeOperation = "source-over"; ctx.shadowBlur = 0; ctx.fillStyle = hexA(P.bg, a); ctx.fillRect(0,0,W,H); }
 function glow(c, b){ ctx.shadowColor = c; ctx.shadowBlur = b*DPR; }
@@ -1187,19 +1200,18 @@ function isoWeek(d){ const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), 
   t.setUTCDate(t.getUTCDate() + 4 - n); const y = new Date(Date.UTC(t.getUTCFullYear(),0,1)); return Math.ceil(((t - y)/86400000 + 1)/7); }
 const DAYS = ["Söndag","Måndag","Tisdag","Onsdag","Torsdag","Fredag","Lördag"];
 const MONTHS = ["jan","feb","mars","april","maj","juni","juli","aug","sep","okt","nov","dec"];
+const MONTHS_L = ["januari","februari","mars","april","maj","juni","juli","augusti","september","oktober","november","december"];
 function renderEdges(){
   const e = S.edge, d = new Date(), Lp = [], Rp = [];
-  if (e.date) Lp.push(`<span>${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}</span>`);
-  if (e.week) Lp.push(`<span>v.${isoWeek(d)}</span>`);
-  if (e.wx && WX && BOARD.page !== "wx" && !(BOARD.page === "hem" && S.home.wx)){
-    Rp.push(`${wxIcon(WX.c, WX.day)}<span>${Math.round(WX.t)}°</span><span>${WX_TEXT(WX.c)}</span>` +
-      (WX.hi != null ? `<span class="sep">${Math.round(WX.hi)}° / ${Math.round(WX.lo)}°</span>` : "") + `<span class="sep">${e.place}</span>`);
-  }
+  if (e.date) Lp.push(`<span class="day">${DAYS[d.getDay()]}</span><span>${d.getDate()} ${MONTHS_L[d.getMonth()]}</span>`);
+  if (e.week) Lp.push(`<span class="wk">v.${isoWeek(d)}</span>`);
+  if (e.wx && WX && BOARD.page !== "wx" && !(BOARD.page === "hem" && S.home.wx))
+    Rp.push(`<span class="wxe">${wxIcon(WX.c, WX.day)}<b>${Math.round(WX.t)}°</b><span>${WX_TEXT(WX.c)}</span></span>`);
   if (e.clock && !(BOARD.page === "hem" && S.home.clock)) Rp.push(`<span class="clock">${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}</span>`);
-  const sep = '<span class="sep">·</span>';
-  const l = Lp.join(sep), r = Rp.join(sep);
+  const l = Lp.join(""), r = Rp.join("");
   if ($("#edgeL").innerHTML !== l) $("#edgeL").innerHTML = l;
   if ($("#edgeR").innerHTML !== r) $("#edgeR").innerHTML = r;
+  measureEdges();
 }
 
 // ---------- tavla när inget spelar: väder, nyheter, testbild ----------
@@ -1881,6 +1893,7 @@ function loadFonts(){
 function applyLook(){
   const Lk = S.look, r = document.documentElement.style;
   r.setProperty("--sz", (Lk.size/100).toFixed(2));
+  r.setProperty("--esz", ((Lk.edgeSize ?? 100)/100).toFixed(2));
   $("#screen").classList.toggle("upper", !!Lk.upper);
   $("#brandStart").textContent = Lk.brand || " ";
   document.title = Lk.brand || "Spelare";
@@ -1973,6 +1986,7 @@ function buildControls(){
   for (const [k, l] of FX_PIC) syncers.push(slider($("#fxPic"), k, l, fxObj, 0, 100, fxChange));
   for (const [k, l] of FX_DIST) syncers.push(slider($("#fxDist"), k, l, fxObj, 0, 100, fxChange));
   syncers.push(slider($("#lookSl"), "size", "Textstorlek %", lk, 60, 160, applyLook));
+  syncers.push(slider($("#lookSl"), "edgeSize", "Datum och klocka %", lk, 50, 160, applyLook));
   syncers.push(slider($("#scrSl"), "scale", "Storlek %", lk, 40, 130, applyLook));
   syncers.push(slider($("#scrSl"), "offX", "Sidled %", lk, -30, 30, applyLook));
   syncers.push(slider($("#scrSl"), "offY", "Höjdled %", lk, -30, 30, applyLook));
