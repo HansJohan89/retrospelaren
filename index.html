@@ -79,11 +79,11 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
   text-shadow:0 0 1vh var(--ink);opacity:0;transition:opacity .8s;text-transform:uppercase}
 #osd.on{opacity:.95;transition:opacity .1s}
 
-#board{position:absolute;left:6%;right:6%;top:12.5%;bottom:7%;z-index:3;color:var(--ink);font-size:calc(2.3vh*var(--sz));
+#board{position:absolute;left:6%;right:6%;top:12.5%;bottom:7%;z-index:3;color:var(--ink);font-size:calc(2.75vh*var(--sz));
   opacity:0;pointer-events:none;transition:opacity .5s}
 #board.on{opacity:1}
 #board svg{stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
-#board .pg{position:absolute;inset:0;display:none;flex-direction:column;gap:2.2vh}
+#board .pg{position:absolute;inset:0;display:none;flex-direction:column;gap:3vh}
 #board .pg.on{display:flex}
 #board .kick{font-size:.8em;letter-spacing:.35em;text-transform:uppercase;color:var(--mid);display:flex;justify-content:space-between;gap:2vh;
   border-bottom:max(1px,.2vh) solid var(--dim);padding-bottom:1vh;white-space:nowrap;overflow:hidden}
@@ -96,8 +96,8 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .wxFacts{display:flex;flex-wrap:wrap;gap:.8vh 3.5vh;color:var(--mid);font-size:.9em;letter-spacing:.06em}
 .wxFacts b{color:var(--ink);font-weight:400}
 .wxRow{display:grid;gap:1vh;text-align:center}
-.wxRow .c{display:flex;flex-direction:column;align-items:center;gap:.5vh;padding:1vh 0;border:max(1px,.15vh) solid var(--dim)}
-.wxRow .c svg{width:4.2vh;height:4.2vh}
+.wxRow .c{display:flex;flex-direction:column;align-items:center;gap:.8vh;padding:1.6vh 0;border:max(1px,.15vh) solid var(--dim)}
+.wxRow .c svg{width:5.5vh;height:5.5vh}
 .wxRow .h{font-size:.8em;color:var(--mid);letter-spacing:.12em;text-transform:uppercase}
 .wxRow .v{font-size:1.15em}
 .wxRow .p{font-size:.75em;color:var(--mid)}
@@ -105,7 +105,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .nwTop .t{font-family:var(--fT),serif;font-size:2em;line-height:1.1;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
   text-shadow:0 0 1.2vh color-mix(in srgb,var(--ink) 40%,transparent)}
 .nwTop .d{margin-top:1.2vh;color:var(--mid);line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.nwList{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1.1vh;overflow:hidden}
+.nwList{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1.6vh;overflow:hidden;min-height:0}
 .nwList li{display:flex;gap:2vh;align-items:baseline;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .nwList li .tm{color:var(--mid);font-size:.8em;flex:none;width:5ch}
 .nwList li .x{overflow:hidden;text-overflow:ellipsis}
@@ -1132,7 +1132,7 @@ function renderNewsPage(){
   const cur = BOARD.newsIdx % it.length, top = it[cur];
   const when = x => x.date ? hhmm(new Date(x.date)) : "";
   const list = [];
-  for (let k = 1; k <= 5 && k < it.length; k++){ const x = it[(cur + k) % it.length]; list.push(`<li><span class="tm">${when(x)}</span><span class="x">${esc(x.title)}</span></li>`); }
+  for (let k = 1; k <= 7 && k < it.length; k++){ const x = it[(cur + k) % it.length]; list.push(`<li><span class="tm">${when(x)}</span><span class="x">${esc(x.title)}</span></li>`); }
   return `<div class="kick"><span>Nyheter · ${esc(NEWS.src)}</span><span>${cur + 1} / ${it.length}</span></div>
     <div class="nwTop"><div class="t">${esc(top.title)}</div>${top.desc ? `<div class="d">${esc(top.desc)}</div>` : ""}</div>
     <ul class="nwList">${list.join("")}</ul>`;
