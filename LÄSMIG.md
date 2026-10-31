@@ -149,3 +149,7 @@ Inställningar, favoritstationer och senaste station sparas både i webbläsaren
 (servern läser `RAILWAY_VOLUME_MOUNT_PATH`, eller `DATA_DIR` om den är satt), så allt finns kvar
 efter omstarter och nya versioner, och är detsamma på alla enheter som öppnar sidan.
 Lokalt hamnar filen i mappen `data/`. Spotify-inloggningen sparas bara i webbläsaren.
+
+Vädersidan visar sju dagar framåt. Med fotboll påslagen står timprognosen (fyra tider) ovanför
+hållplatsskylten och tabellen till höger med föregående och nästa match. Text och emblem i
+skylten och tabellen följer spaltens bredd, så att inget kapas eller krockar i helskärm eller 4:3.

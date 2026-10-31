@@ -115,6 +115,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .wxRow .c svg{width:4.4vh;height:4.4vh}
 .wxRow .h{font-size:.8em;color:var(--mid);letter-spacing:.12em;text-transform:uppercase}
 .wxRow .v{font-size:1.15em}
+.wxRow .lo{color:var(--mid);margin-top:-.3vh}
 .wxRow .p{font-size:.75em;color:var(--mid)}
 .wxTop{display:grid;grid-template-columns:1.05fr 1fr;gap:5vh;align-items:start}
 #pgWx{gap:3.4vh}
@@ -129,7 +130,11 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #pgWx .wxB.solo{grid-template-columns:1fr}
 /* Med fotboll: vänster spalt = timprognos (4 tider) ovanför en mer fyrkantig skylt, höger spalt = tabellen från timprognosens topp till skyltens botten */
 #pgWx .wxB.duo{grid-template-columns:minmax(0,.78fr) minmax(0,1.22fr)}
-#pgWx .wxC{display:flex;flex-direction:column;gap:2.4vh;min-height:0;min-width:0}
+#pgWx .wxC{display:flex;flex-direction:column;gap:2.4vh;min-height:0;min-width:0;container-type:inline-size}
+/* Skyltens text följer spaltens bredd, så att hållplatsnamn och avgångar inte kapas på smala skärmar */
+#pgWx .wxC .sign{font-size:min(.86em,4.2cqi)}
+.wxDays{container-type:inline-size}
+@container (max-width:620px){ .wxDays .u{display:none} }
 #pgWx .wxC .wxHours{flex:none}
 #pgWx .wxB.duo .sign{flex:1 1 auto;min-height:0;max-height:none;align-self:stretch}
 #pgWx .wxRow,#pgWx .kick{flex:none}
@@ -161,14 +166,14 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .tile.tsign .sign{height:100%}
 .fbBox{display:flex;flex-direction:column;min-height:0;min-width:0}
 .fbBox > .bh,.fbBox > .nx,.fbBox > .nxm,.bus > .bh{flex:none}
-.fbBox .nxm{display:flex;justify-content:space-around;align-items:center;gap:3vh;margin-bottom:1.4vh;color:var(--mid);min-width:0}
+.fbBox .nxm{display:flex;justify-content:space-between;align-items:center;gap:4cqi;margin-bottom:1.4vh;color:var(--mid);min-width:0;font-size:min(1em,2.7cqi)}
 /* Föregående och nästa match bredvid varandra: rubrik och datum till vänster om emblemen */
-.fbBox .nxm .mm{display:flex;align-items:center;gap:2vh;min-width:0}
+.fbBox .nxm .mm{display:flex;align-items:center;gap:1.6cqi;min-width:0;flex:0 1 auto}
 .fbBox .nxm .lb{display:flex;flex-direction:column;gap:.5vh;white-space:nowrap}
 .fbBox .nxm .lb small{font-size:.8em;color:var(--mid)}
 .fbBox .nxm .sc{color:var(--ink);font-family:var(--fT),serif;font-size:1.5em;white-space:nowrap}
-.fbBox .nxm .vs{display:flex;align-items:center;justify-content:center;gap:1.6vh}
-.fbBox .nxm img{width:min(10vh,9cqi);height:min(10vh,9cqi);object-fit:contain;filter:var(--cover-filter);flex:none}
+.fbBox .nxm .vs{display:flex;align-items:center;justify-content:center;gap:1.2cqi;flex:none}
+.fbBox .nxm img{width:min(10vh,8cqi);height:min(10vh,8cqi);object-fit:contain;filter:var(--cover-filter);flex:none}
 .fbBox .nxm b{font-weight:400;color:var(--ink)}
 .fbBox .nxm i{font-style:normal;color:var(--ink)}
 .fbBox .nxm .dt{color:var(--ink);white-space:nowrap;font-size:.9em}
@@ -176,6 +181,8 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .fbBox .nx{color:var(--mid);font-size:.85em;margin-bottom:1vh;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fbBox .nx b{color:var(--ink);font-weight:400}
 .mt{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;overflow:hidden}
+/* Tabellens text följer spaltens bredd, så att alla kolumner får plats även i helskärm */
+#pgWx .fbBox .mt,#pgWx .fbBox .mh{font-size:min(1em,3cqi)}
 .mt .r{display:grid;grid-template-columns:3ch 3vh 1fr auto;gap:1.2vh;align-items:center;padding:.3vh .8vh;flex:none}
 .mt .r img{width:3vh;height:3vh;object-fit:contain;filter:var(--cover-filter)}
 /* Detaljerad tabell: spelade, vunna, oavgjorda, förlorade, målskillnad, mål och poäng. Mål döljs när spalten är smal. */
@@ -190,7 +197,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .mt .r.x.me .n,.mt .r.x.me .pt{color:inherit}
 /* Rubrikerna i mindre text, men samma kolumnbredder som raderna (bredderna räknas i tecken) */
 .fbBox .mh span{font-size:.75em;letter-spacing:.06em}
-@container (max-width:30em){
+@container (max-width:640px){
   .mt .r.x,.fbBox .mh{grid-template-columns:2.6ch 3.6vh minmax(0,1fr) repeat(4,2.6ch) 3.4ch 3ch}
   .mt .r.x .gm,.fbBox .mh .gm{display:none}
 }
@@ -1311,7 +1318,7 @@ async function loadWeather(){
       `&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,is_day,wind_speed_10m,wind_gusts_10m,wind_direction_10m,surface_pressure` +
       `&hourly=temperature_2m,weather_code,precipitation_probability,precipitation,is_day` +
       `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,sunrise,sunset` +
-      `&timezone=auto&forecast_days=6&wind_speed_unit=ms`;
+      `&timezone=auto&forecast_days=8&wind_speed_unit=ms`;
     const j = await (await fetch(u)).json();
     const c = j.current;
     WX = { t:c.temperature_2m, c:c.weather_code, day:c.is_day === 1, feel:c.apparent_temperature, hum:c.relative_humidity_2m,
@@ -1492,11 +1499,11 @@ function renderWxPage(){
       `<span class="v">${Math.round(H2.temperature_2m[i])}°</span><span class="p">${H2.precipitation_probability[i] ?? 0}%</span></div>`);
   }
   const days = [];
-  for (let i = 1; i < D2.time.length && days.length < 5; i++){
+  for (let i = 1; i < D2.time.length && days.length < 7; i++){
     const d = new Date(D2.time[i] + "T12:00");
     days.push(`<div class="c"><span class="h">${DAYS_SHORT[d.getDay()]}</span>${wxIcon(D2.weather_code[i], true)}` +
-      `<span class="v">${Math.round(D2.temperature_2m_max[i])}° / ${Math.round(D2.temperature_2m_min[i])}°</span>` +
-      `<span class="p">${(D2.precipitation_sum[i] ?? 0).toFixed(1).replace(".", ",")} mm</span></div>`);
+      `<span class="v">${Math.round(D2.temperature_2m_max[i])}°</span><span class="lo">${Math.round(D2.temperature_2m_min[i])}°</span>` +
+      `<span class="p">${(D2.precipitation_sum[i] ?? 0).toFixed(1).replace(".", ",")}<span class="u"> mm</span></span></div>`);
   }
   const sr = D2.sunrise?.[0] ? hhmm(new Date(D2.sunrise[0])) : "–", ss = D2.sunset?.[0] ? hhmm(new Date(D2.sunset[0])) : "–";
   const bus = S.bus.on, fb = S.idle.wxFb && FOOT.ok && FOOT.teams[0];
@@ -1521,7 +1528,7 @@ function renderFbBox(T){
   const pair = (m, mid) => `<span class="vs">${m.is_home ? own + mid + opp2(m) : opp2(m) + mid + own}</span>`;
   const opp2 = m => logo(m.opponent_logo);
   const last = (T.recent_results || []).filter(Boolean)[0];
-  const prev = last ? `<div class="mm"><span class="lb"><b>Senast:</b><small>${dd(new Date(last.date))}${outcome(last) ? " · " + outcome(last).toLowerCase() : ""}</small></span>` +
+  const prev = last ? `<div class="mm"><span class="lb"><b>Senast:</b><small>${new Date(last.date).getDate()}/${new Date(last.date).getMonth()+1}${outcome(last) ? " · " + outcome(last).toLowerCase() : ""}</small></span>` +
     pair(last, `<span class="sc">${esc(String(last.score || "?").replace(/\s*-\s*/, "–"))}</span>`) + `</div>` : "";
   const nxt = nm ? `<div class="mm"><span class="lb"><b>Nästa:</b><small>${dd(nd)} ${hhmm(nd)}</small></span>${pair(nm, "<i>–</i>")}</div>` : "";
   const next = prev || nxt ? `<div class="nxm">${prev}${nxt}</div>` : "";
