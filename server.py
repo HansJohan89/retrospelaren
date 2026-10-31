@@ -678,8 +678,21 @@ class Handler(SimpleHTTPRequestHandler):
     # hämtar högst var tredje timme (3 anrop per hämtning = 24/dygn), så de båda tillsammans håller sig under taket.
     def football(self):
         import time
+        # Cachen ligger även på volymen, så att en omstart eller ny version inte kostar nya anrop
+        # (gratisnivån hos Highlightly är 100 anrop per dygn, delade med e-ink-tavlan)
+        fp = os.path.join(DATA_DIR, "football.json")
+        if not FOOTBALL_CACHE["data"]:
+            try:
+                with open(fp, encoding="utf-8") as f:
+                    c = json.load(f)
+                FOOTBALL_CACHE.update(data=c["data"], at=c["at"])
+            except (OSError, ValueError, KeyError):
+                pass
         if FOOTBALL_CACHE["data"] and time.time() - FOOTBALL_CACHE["at"] < 3 * 3600:
             return self._json(FOOTBALL_CACHE["data"])
+        # Efter ett misslyckat anrop (t.ex. slut på dagens anrop) väntar vi 30 minuter innan nästa försök
+        if time.time() - FOOTBALL_CACHE.get("fail", 0) < 1800:
+            return self._json(FOOTBALL_CACHE["data"] or {"ok": False, "error": FOOTBALL_CACHE.get("err", "")})
         key = secret("HIGHLIGHTLY_API_KEY")
         if not key:
             return self._json({"ok": False, "nokey": True, "error": "Ingen HIGHLIGHTLY_API_KEY på servern"})
@@ -725,10 +738,18 @@ class Handler(SimpleHTTPRequestHandler):
             data = {"ok": True, "at": int(time.time() * 1000),
                     "teams": [team_block("AIK", "Allsvenskan", 96947, 321611)]}
         except Exception as e:
+            FOOTBALL_CACHE.update(fail=time.time(), err=f"Highlightly: {e}")
             if FOOTBALL_CACHE["data"]:
                 return self._json(FOOTBALL_CACHE["data"])
             return self._json({"ok": False, "error": f"Highlightly: {e}"})
-        FOOTBALL_CACHE.update(data=data, at=time.time())
+        FOOTBALL_CACHE.update(data=data, at=time.time(), fail=0)
+        try:
+            os.makedirs(DATA_DIR, exist_ok=True)
+            with open(fp + ".tmp", "w", encoding="utf-8") as f:
+                json.dump({"data": data, "at": FOOTBALL_CACHE["at"]}, f, ensure_ascii=False)
+            os.replace(fp + ".tmp", fp)
+        except OSError:
+            pass
         return self._json(data)
 
     # --- styrning utifrån (t.ex. jalusins reedbrytare på Pi:n) ---
