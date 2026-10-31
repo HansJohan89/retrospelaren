@@ -146,7 +146,10 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_HEAD(self):
         path = urllib.parse.urlparse(self.path).path
-        self.send_response(200 if path in ("/", "/callback", "/index.html", "/api/ping") else 404)
+        name = path[len("/assets/"):] if path.startswith("/assets/") else ""
+        ok = path in ("/", "/callback", "/index.html", "/api/ping") or (
+            name and "/" not in name and not name.startswith(".") and os.path.isfile(os.path.join(ROOT, "assets", name)))
+        self.send_response(200 if ok else 404)
         self.end_headers()
 
     def do_GET(self):
@@ -189,10 +192,33 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.poll_cmd(int(q.get("since", ["0"])[0] or 0))
             if path == "/api/ping":
                 return self._json({"ok": True})
+            if path == "/api/logo":
+                f = next((n for n in ("dalatrafik-logo.svg", "dalatrafik-logo.png") if os.path.isfile(os.path.join(ROOT, "assets", n))), None)
+                return self._json({"url": "/assets/" + f if f else ""})
+            if path.startswith("/assets/"):
+                return self.asset(path[len("/assets/"):])
             # Inga andra filer serveras: nyckelfiler och källkod ska inte gå att hämta.
             return self._json({"error": "hittades inte"}, 404)
         except (BrokenPipeError, ConnectionResetError):
             pass
+
+    def asset(self, name):
+        """Bilder i mappen assets (t.ex. Dalatrafiks logotyp). Bara enkla filnamn och bildformat."""
+        import re
+        types = {".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp"}
+        ext = os.path.splitext(name)[1].lower()
+        if not re.fullmatch(r"[A-Za-z0-9_.-]+", name) or ext not in types:
+            return self._json({"error": "hittades inte"}, 404)
+        fp = os.path.join(ROOT, "assets", name)
+        if not os.path.isfile(fp):
+            return self._json({"error": "hittades inte"}, 404)
+        with open(fp, "rb") as f:
+            data = f.read()
+        self.send_response(200)
+        self.send_header("Content-Type", types[ext])
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
 
     # --- radioström med CORS ---
     def proxy_stream(self, url):
@@ -526,7 +552,9 @@ class Handler(SimpleHTTPRequestHandler):
             if (sched, lines) in seen:
                 continue
             seen.add((sched, lines))
-            out.append({"line": lines, "sched": sched, "rt": rt_dep,
+            p0 = jny[0].get("Product") or {}
+            p0 = (p0[0] if p0 else {}) if isinstance(p0, list) else p0
+            out.append({"line": lines, "mode": p0.get("catOutL") or "", "sched": sched, "rt": rt_dep,
                         "arr": rt_arr or f"{d.get('date')}T{d.get('time')}", "changes": len(jny) - 1,
                         "canceled": any(l.get("cancelled") for l in jny), "live": bool(rt_dep)})
         out.sort(key=lambda x: x["rt"] or x["sched"])

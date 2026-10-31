@@ -1,0 +1,2 @@
+Lägg Dalatrafiks logotyp här som dalatrafik-logo.svg (helst) eller dalatrafik-logo.png,
+vit på transparent bakgrund. Den visas då i hållplatsskyltens röda namnfält.

@@ -75,6 +75,8 @@ Samma källa som e-ink-tavlan: Highlightly, med nyckeln `HIGHLIGHTLY_API_KEY` (p
 
 ### Bussavgångar (ResRobot)
 
+Avgångarna visas som en hållplatsskylt i Dalatrafiks stil: rött namnfält med hållplatsen (och "mot ..." om du valt en hållplats att åka till), vita rader med röda linjer, linjesymbol (grön för lokal- och länstrafik, röd för express), linjenummer, vart bussen går eller när du är framme, och avgångstid. Längst ner dalatrafik.se och kundtjänstnumret. Dalatrafiks logotyp läggs som `assets/dalatrafik-logo.svg` (eller `.png`, vit på transparent bakgrund) och visas då i namnfältet. Skylten visas i Dalatrafiks färger, eller i bildrörets färgläge om du stänger av det under S → När inget spelar.
+
 Avgångarna hämtas från Trafiklabs ResRobot v2.1, samma API och samma nyckel som e-ink-tavlan använder (`RESROBOT_API_KEY`). Nyckeln ligger på servern, aldrig i koden:
 
 - på Railway: variabeln `RESROBOT_API_KEY` på tjänsten `retrospelaren` (samma värde som på SoumayAPP)
