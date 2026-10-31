@@ -3,29 +3,35 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Retrospelaren</title>
+<title>BLAUPUNKT</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Limelight&family=Special+Elite&display=swap" rel="stylesheet">
+<link id="gfonts" href="https://fonts.googleapis.com/css2?family=Limelight&family=Special+Elite&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#070807; --ink:#e9ecea; --mid:#9aa09c; --dim:#3a3f3c; --accent:#ffffff;
   --cover-filter:grayscale(1) contrast(1.1);
   --panel:#e9e0c9; --panel-ink:#2a2116; --panel-line:#b9a985; --panel-hot:#b5442c;
+  --fT:"Limelight"; --fB:"Special Elite"; --sz:1;
+  --scan:.28; --vig:.55; --glare:.07; --radx:3.2%; --rady:4.2%; --curve:6vh;
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:#000;color:var(--ink);overflow:hidden}
-body{font-family:"Special Elite","Courier New",monospace}
+body{font-family:var(--fB),"Courier New",monospace}
 body.hidecursor,body.hidecursor *{cursor:none!important}
 
 #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
-#screen{position:relative;height:min(100vh,75vw);aspect-ratio:4/3;background:var(--bg);
-  border-radius:3.2% / 4.2%;overflow:hidden;isolation:isolate;transition:background .6s}
-#viz,#noise{position:absolute;inset:0;width:100%;height:100%;display:block}
-#noise{z-index:6;opacity:0;pointer-events:none}
+#screen{position:relative;width:100vw;height:100vh;background:var(--bg);flex:none;
+  border-radius:var(--radx) / var(--rady);overflow:hidden;isolation:isolate;transition:background .6s}
+#viz,#fx{position:absolute;inset:0;width:100%;height:100%;display:block}
+#fx{z-index:6;pointer-events:none;mix-blend-mode:screen;image-rendering:pixelated}
+#hum{position:absolute;left:0;right:0;height:22%;z-index:5;pointer-events:none;opacity:0;
+  background:linear-gradient(to bottom,transparent,rgba(0,0,0,.9) 45%,rgba(0,0,0,.9) 55%,transparent)}
+#flick{position:absolute;inset:0;z-index:7;background:#000;opacity:0;pointer-events:none}
+.power{position:absolute;inset:0;transform-origin:50% 50%}
 #screen.rolling .content{animation:roll .45s steps(6) 1}
 @keyframes roll{0%{transform:translateY(0)}40%{transform:translateY(-18%)}70%{transform:translateY(9%)}100%{transform:translateY(0)}}
-.content{position:absolute;inset:0}
+.content{position:absolute;inset:0;will-change:transform}
 
 #info{position:absolute;left:5%;right:5%;bottom:13.5%;height:17%;display:flex;gap:3.2%;align-items:center;
   transition:opacity .6s, transform .6s;z-index:3}
@@ -36,42 +42,58 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
   background:var(--dim);box-shadow:0 0 2.5vh rgba(0,0,0,.6)}
 .cover img{width:100%;height:100%;object-fit:cover;display:block;filter:var(--cover-filter)}
 .cover img[src=""]{visibility:hidden}
-.cover .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:Limelight,serif;
+.cover .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--fT),serif;
   font-size:4.5vh;color:var(--mid)}
+.cover.vinyl{border:none;padding:0;border-radius:50%;background:repeating-radial-gradient(circle,#0b0b0b 0 1px,#1d1d1d 1px 2.5px);
+  box-shadow:0 0 2.5vh rgba(0,0,0,.7),inset 0 0 0 .3vh #000}
+.cover.vinyl::before{content:"";position:absolute;inset:0;border-radius:50%;z-index:2;
+  background:conic-gradient(from 30deg,transparent 0 10%,rgba(255,255,255,.12) 14%,transparent 20% 60%,rgba(255,255,255,.09) 64%,transparent 70%)}
+.cover.vinyl img{position:absolute;inset:31%;width:38%;height:38%;border-radius:50%}
+.cover.vinyl::after{content:"";position:absolute;left:50%;top:50%;width:4%;height:4%;margin:-2% 0 0 -2%;border-radius:50%;background:#000;z-index:3}
+.cover.vinyl .ph{inset:31%;border-radius:50%;background:var(--mid);color:var(--bg);font-size:2vh}
+.cover.vinyl.spin{animation:spin 1.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.cover.none{display:none}
 .meta{min-width:0;flex:1;display:flex;flex-direction:column;gap:.6vh}
-.kicker{font-size:1.75vh;letter-spacing:.35em;color:var(--mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.title{font-family:Limelight,serif;font-size:5vh;line-height:1.05;white-space:nowrap;overflow:hidden;color:var(--ink);
+.kicker{font-size:calc(1.75vh*var(--sz));letter-spacing:.35em;color:var(--mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.title{font-family:var(--fT),serif;font-size:calc(5vh*var(--sz));line-height:1.05;white-space:nowrap;overflow:hidden;color:var(--ink);
   text-shadow:0 0 1.2vh color-mix(in srgb,var(--ink) 45%,transparent)}
 .title span{display:inline-block;padding-right:6vh}
 .title.marquee span{animation:marq var(--dur,14s) linear infinite}
 @keyframes marq{0%,12%{transform:translateX(0)}100%{transform:translateX(calc(-100% ))}}
-.artist{font-size:3.1vh;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
-.album{font-size:2vh;color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.artist{font-size:calc(3.1vh*var(--sz));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.album{font-size:calc(2vh*var(--sz));color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 #dial{position:absolute;left:5%;right:5%;bottom:4.2%;height:7.2%;z-index:3;
   border-top:max(1px,.2vh) solid var(--dim);border-bottom:max(1px,.2vh) solid var(--dim)}
 #dial canvas{position:absolute;inset:0;width:100%;height:100%}
 
-#osd{position:absolute;top:5%;left:6%;z-index:4;font-size:2.6vh;letter-spacing:.2em;color:var(--ink);
+.upper .title,.upper .artist{text-transform:uppercase}
+#edges{position:absolute;top:4.2%;left:6%;right:6%;z-index:4;display:flex;justify-content:space-between;align-items:center;gap:3vh;
+  font-size:calc(2.1vh*var(--sz));letter-spacing:.18em;text-transform:uppercase;color:var(--mid);white-space:nowrap;pointer-events:none}
+#edges .grp{display:flex;align-items:center;gap:1.6vh;min-width:0;overflow:hidden}
+#edges .clock{color:var(--ink);font-size:1.25em;letter-spacing:.12em}
+#edges svg{width:1.5em;height:1.5em;flex:none;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+#edges .sep{opacity:.5}
+#osd{position:absolute;top:10.5%;left:0;right:0;text-align:center;z-index:4;font-size:calc(2.6vh*var(--sz));letter-spacing:.2em;color:var(--ink);
   text-shadow:0 0 1vh var(--ink);opacity:0;transition:opacity .8s;text-transform:uppercase}
 #osd.on{opacity:.95;transition:opacity .1s}
 
 #crt{position:absolute;inset:0;z-index:8;pointer-events:none}
 #crt.on::before{content:"";position:absolute;inset:0;
-  background:repeating-linear-gradient(to bottom,rgba(0,0,0,.28) 0,rgba(0,0,0,.28) 1px,transparent 1px,transparent 3px);
-  mix-blend-mode:multiply;animation:flick 6s infinite steps(60)}
+  background:repeating-linear-gradient(to bottom,rgba(0,0,0,var(--scan)) 0,rgba(0,0,0,var(--scan)) 1px,transparent 1px,transparent 3px);
+  mix-blend-mode:multiply}
 #crt.on::after{content:"";position:absolute;inset:0;
   background:
-   radial-gradient(ellipse 120% 90% at 30% 18%,rgba(255,255,255,.07),transparent 40%),
-   radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.55) 88%,rgba(0,0,0,.9) 100%);
-  box-shadow:inset 0 0 6vh rgba(0,0,0,.85)}
-@keyframes flick{0%{opacity:.92}50%{opacity:1}100%{opacity:.94}}
+   radial-gradient(ellipse 120% 90% at 30% 18%,rgba(255,255,255,var(--glare)),transparent 40%),
+   radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,calc(var(--vig)*.6)) 85%,rgba(0,0,0,var(--vig)) 100%);
+  box-shadow:inset 0 0 var(--curve) rgba(0,0,0,.85)}
 #blank{position:absolute;inset:0;z-index:9;background:#000;opacity:0;pointer-events:none;transition:opacity 1.2s}
 #blank.on{opacity:1}
 
 #start{position:absolute;inset:0;z-index:7;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh;
   background:radial-gradient(circle at center,color-mix(in srgb,var(--bg) 70%,transparent),var(--bg));cursor:pointer;text-align:center}
-#start h1{font-family:Limelight,serif;font-weight:400;font-size:8vh;margin:0;letter-spacing:.04em;text-shadow:0 0 2vh var(--ink)}
+#start h1{font-family:var(--fT),serif;font-weight:400;font-size:8vh;margin:0;letter-spacing:.08em;text-shadow:0 0 2vh var(--ink)}
 #start p{margin:0;font-size:2.4vh;color:var(--mid);letter-spacing:.15em}
 #start .knob{width:9vh;height:9vh;border-radius:50%;border:.5vh solid var(--mid);position:relative;margin-top:2vh}
 #start .knob::after{content:"";position:absolute;left:50%;top:8%;width:.6vh;height:35%;background:var(--ink);transform:translateX(-50%)}
@@ -113,13 +135,25 @@ label.chk{display:flex;gap:8px;align-items:center;margin-top:8px;cursor:pointer}
 #spStatus{margin-top:8px;font-size:13px}
 kbd{font:12px "Special Elite",monospace;border:1px solid var(--panel-ink);border-radius:3px;padding:0 5px;background:#f6efdc}
 .keys{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font-size:13px}
+.sl{display:grid;grid-template-columns:128px 1fr 30px;gap:8px;align-items:center;margin-top:6px;font-size:13.5px}
+.sl output{text-align:right;font-size:12px;color:#6b5a3e}
+select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--panel-ink);background:#f6efdc;color:var(--panel-ink);border-radius:3px;flex:1;min-width:0}
+.lbl{min-width:128px;font-size:13.5px}
+#panel h4{font:12px "Special Elite",monospace;letter-spacing:.2em;text-transform:uppercase;margin:14px 0 2px;color:#8a7756}
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="wob" x="-5%" y="0" width="110%" height="100%">
+    <feTurbulence id="wobT" type="fractalNoise" baseFrequency="0.0001 0.035" numOctaves="1" seed="2" result="t"/>
+    <feDisplacementMap id="wobD" in="SourceGraphic" in2="t" scale="0" xChannelSelector="R" yChannelSelector="A"/>
+  </filter>
+</svg>
 <div id="stage">
   <div id="screen">
-    <div class="content">
+    <div class="power" id="power"><div class="content" id="content">
       <canvas id="viz"></canvas>
+      <div id="edges"><div class="grp" id="edgeL"></div><div class="grp" id="edgeR"></div></div>
       <div id="info" class="out">
         <div class="cover"><img id="cov" src="" alt=""><div class="ph" id="covPh">&#9835;</div></div>
         <div class="meta">
@@ -131,10 +165,12 @@ kbd{font:12px "Special Elite",monospace;border:1px solid var(--panel-ink);border
       </div>
       <div id="dial"><canvas id="dialC"></canvas></div>
       <div id="osd"></div>
-    </div>
-    <canvas id="noise"></canvas>
+    </div></div>
+    <div id="hum"></div>
+    <canvas id="fx"></canvas>
+    <div id="flick"></div>
     <div id="start">
-      <h1>Retrospelaren</h1>
+      <h1 id="brandStart">BLAUPUNKT</h1>
       <p>Vrid på &mdash; klicka eller tryck valfri tangent</p>
       <div class="knob"></div>
     </div>
@@ -208,8 +244,62 @@ kbd{font:12px "Special Elite",monospace;border:1px solid var(--panel-ink);border
         <button data-v="fosfor">Grön fosfor</button>
         <button data-v="farg">60-talsfärg</button>
       </div>
-      <label class="chk"><input type="checkbox" id="crtChk"> Linjer, vinjett och flimmer</label>
+      <h4>Förinställning</h4>
+      <div class="seg" id="presetSeg">
+        <button data-v="ren">Ren bild</button>
+        <button data-v="ny">Ny TV 1962</button>
+        <button data-v="sliten">Sliten</button>
+        <button data-v="dalig">Dålig mottagning</button>
+      </div>
+      <h4>Bild</h4>
+      <div id="fxPic"></div>
+      <h4>Störningar</h4>
+      <div id="fxDist"></div>
+      <label class="chk"><input type="checkbox" id="warmChk"> Bildröret värms upp vid start och slocknar till en punkt</label>
+    </section>
+
+    <section>
+      <h3>Utseende</h3>
+      <div class="row"><span class="lbl">Märkning</span><input type="text" id="brandIn" maxlength="24"></div>
+      <div class="row"><span class="lbl">Rubrikstypsnitt</span><select id="fontT"></select></div>
+      <div class="row"><span class="lbl">Brödtext</span><select id="fontB"></select></div>
+      <div id="lookSl"></div>
+      <label class="chk"><input type="checkbox" id="upperChk"> Titel och artist med versaler</label>
+      <h4>Omslag</h4>
+      <div class="seg" id="coverSeg">
+        <button data-v="square">Fyrkant</button>
+        <button data-v="vinyl">Vinylskiva</button>
+        <button data-v="none">Dölj</button>
+      </div>
       <label class="chk"><input type="checkbox" id="infoChk"> Visa låtinformation</label>
+      <label class="chk"><input type="checkbox" id="dialChk"> Visa radioskala</label>
+      <label class="chk"><input type="checkbox" id="crtChk"> Linjer, vinjett och reflex</label>
+    </section>
+
+    <section>
+      <h3>Skärm</h3>
+      <div class="seg" id="fmtSeg">
+        <button data-v="4:3">4:3</button>
+        <button data-v="16:9">16:9</button>
+        <button data-v="fill">Fyll skärmen</button>
+      </div>
+      <div id="scrSl"></div>
+      <div class="note">Storlek och förskjutning används för att passa bilden exakt bakom masken i möbeln.</div>
+    </section>
+
+    <section>
+      <h3>Kanter</h3>
+      <label class="chk"><input type="checkbox" id="edDate"> Veckodag och datum</label>
+      <label class="chk"><input type="checkbox" id="edWeek"> Veckonummer</label>
+      <label class="chk"><input type="checkbox" id="edClock"> Klocka</label>
+      <label class="chk"><input type="checkbox" id="edWx"> Väder</label>
+      <div class="row"><input type="search" id="wxPlace" placeholder="Ort för vädret"><button class="btn" id="wxBtn">Sök ort</button></div>
+      <div class="note" id="wxStatus"></div>
+    </section>
+
+    <section>
+      <h3>Återställ</h3>
+      <div class="row"><button class="btn" id="resetBtn">Återställ alla inställningar</button></div>
     </section>
 
     <section>
@@ -225,7 +315,7 @@ kbd{font:12px "Special Elite",monospace;border:1px solid var(--panel-ink);border
         <kbd>F</kbd><span>Helskärm</span>
         <kbd>S</kbd><span>Inställningar</span>
       </div>
-      <div class="note">Styrning utifrån, t.ex. jalusins brytare: <code>/api/send?c=open</code>, <code>close</code>, <code>next</code>, <code>prev</code>, <code>playpause</code>, <code>viz:3</code></div>
+      <div class="note">Styrning utifrån, t.ex. jalusins brytare: <code>/api/send?c=open</code>, <code>close</code>, <code>next</code>, <code>prev</code>, <code>playpause</code>, <code>viz:3</code>, <code>palette:sepia</code></div>
     </section>
   </div>
 </aside>
@@ -243,7 +333,28 @@ const S = Object.assign({
   source: "radio", viz: 1, palette: "svartvit", crt: true, info: true, autoChannel: false,
   vizInput: "sim", clientId: "", genre: "tag=60s", volume: 0.8
 }, store.get("settings", {}));
+const FX_DEF = { bright:50, contrast:55, blur:15, persist:20, curve:50, vignette:55, glare:40, scan:45,
+  flicker:20, snow:6, hum:18, jitter:8, wobble:0, roll:8, interf:12, ghost:8, chroma:0 };
+const FX_PIC = [["bright","Ljusstyrka"],["contrast","Kontrast"],["blur","Mjukhet"],["persist","Efterglöd"],["curve","Välvning"],
+  ["vignette","Vinjett"],["glare","Glasreflex"],["scan","Linjer"]];
+const FX_DIST = [["flicker","Flimmer"],["snow","Snö (brus)"],["hum","Brumband"],["jitter","Skakning"],["wobble","Vågiga linjer"],
+  ["roll","Bildrullning"],["interf","Tillfälliga störningar"],["ghost","Spökbild"],["chroma","Färgfransar"]];
+const PRESETS = {
+  ren:    { bright:50, contrast:50, blur:5,  persist:5,  curve:30, vignette:25, glare:20, scan:15, flicker:0,  snow:0,  hum:0,  jitter:0,  wobble:0,  roll:0,  interf:0,  ghost:0,  chroma:0 },
+  ny:     Object.assign({}, FX_DEF),
+  sliten: { bright:45, contrast:62, blur:35, persist:45, curve:65, vignette:75, glare:45, scan:55, flicker:45, snow:20, hum:45, jitter:22, wobble:22, roll:28, interf:35, ghost:30, chroma:14 },
+  dalig:  { bright:48, contrast:58, blur:42, persist:35, curve:60, vignette:65, glare:40, scan:50, flicker:50, snow:55, hum:60, jitter:42, wobble:48, roll:50, interf:70, ghost:55, chroma:25 }
+};
+const LOOK_DEF = { brand:"BLAUPUNKT", fontT:"Limelight", fontB:"Special Elite", size:100, upper:false, cover:"square", dial:true,
+  format:"4:3", scale:100, offX:0, offY:0 };
+const EDGE_DEF = { date:true, week:true, clock:true, wx:true, place:"Falun", lat:60.6065, lon:15.6355 };
+const FONTS_T = ["Limelight","Monoton","Poiret One","Righteous","Abril Fatface","Playfair Display","Bebas Neue","Federo","Josefin Sans","Pacifico","Lobster","Yesteryear"];
+const FONTS_B = ["Special Elite","Courier Prime","Cutive Mono","Josefin Sans","Jost","Oswald","Libre Baskerville","Bebas Neue"];
+S.fx = Object.assign({}, FX_DEF, S.fx || {}); if (S.warm === undefined) S.warm = true;
+S.look = Object.assign({}, LOOK_DEF, S.look || {});
+S.edge = Object.assign({}, EDGE_DEF, S.edge || {});
 const saveS = () => store.set("settings", S);
+let FT = '"Limelight", serif', FB = '"Special Elite", monospace';
 
 const PALETTES = {
   svartvit:{bg:"#070807",ink:"#e9ecea",mid:"#9aa09c",dim:"#30342f",accent:"#ffffff",paper:"#dcd9cf",face:"#161616",red:"#9b9b9b",warm:"#c9c9c9",
@@ -352,19 +463,33 @@ function computeLevels(t){
 }
 
 // ================= canvas =================
-const cv = $("#viz"), ctx = cv.getContext("2d");
+const view = $("#viz"), vctx = view.getContext("2d");
+const cv = document.createElement("canvas"), ctx = cv.getContext("2d");   // arbetsyta (efterglöd byggs upp här)
 const dialC = $("#dialC"), dctx = dialC.getContext("2d");
-const nz = $("#noise"), nctx = nz.getContext("2d");
+const fxc = $("#fx"), fctx = fxc.getContext("2d");
+const off = document.createElement("canvas"), octx = off.getContext("2d");
+const offT = document.createElement("canvas"), otx = offT.getContext("2d");
 let W=0, H=0, DPR=1;
+function layoutScreen(){
+  const sc = $("#screen"), L2 = S.look, vw = innerWidth, vh = innerHeight, k = L2.scale/100;
+  let w, h;
+  if (L2.format === "fill"){ w = vw*k; h = vh*k; }
+  else { const r = L2.format === "16:9" ? 16/9 : 4/3; h = Math.min(vh, vw/r)*k; w = h*r; }
+  sc.style.width = Math.round(w) + "px"; sc.style.height = Math.round(h) + "px";
+  sc.style.transform = `translate(${L2.offX/100*vw}px, ${L2.offY/100*vh}px)`;
+}
 function resize(){
+  layoutScreen();
   DPR = Math.min(2, window.devicePixelRatio || 1);
-  const r = cv.getBoundingClientRect();
+  const r = view.getBoundingClientRect();
   W = Math.round(r.width*DPR); H = Math.round(r.height*DPR);
-  if (cv.width !== W || cv.height !== H){ cv.width = W; cv.height = H; ctx.fillStyle = P.bg; ctx.fillRect(0,0,W,H); }
+  if (cv.width !== W || cv.height !== H){ cv.width = W; cv.height = H; view.width = W; view.height = H; ctx.fillStyle = P.bg; ctx.fillRect(0,0,W,H); }
   const d = dialC.getBoundingClientRect();
   const dw = Math.round(d.width*DPR), dh = Math.round(d.height*DPR);
   if (dialC.width !== dw || dialC.height !== dh){ dialC.width = dw; dialC.height = dh; }
-  nz.width = Math.max(1, Math.round(r.width/3)); nz.height = Math.max(1, Math.round(r.height/3));
+  fxc.width = Math.max(1, Math.round(r.width/3)); fxc.height = Math.max(1, Math.round(r.height/3));
+  off.width = Math.max(1, Math.round(W/2)); off.height = Math.max(1, Math.round(H/2));
+  offT.width = off.width; offT.height = off.height;
 }
 window.addEventListener("resize", resize);
 
@@ -372,17 +497,20 @@ function hexA(hex, a){
   const h = hex.replace("#",""); const n = parseInt(h.length===3 ? h.split("").map(c=>c+c).join("") : h, 16);
   return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
 }
-function region(){ // visualiseringens yta ovanför radioskalan
+function region(){ // visualiseringens yta mellan kanterna och radioskalan
   const infoOn = S.info && state.track;
-  return { x:W*0.06, y:H*0.115, w:W*0.88, h:infoOn ? H*0.5 : H*0.72 };
+  return { x:W*0.06, y:H*0.15, w:W*0.88, h:infoOn ? H*0.47 : H*0.7 };
 }
 function fade(a){ ctx.globalCompositeOperation = "source-over"; ctx.shadowBlur = 0; ctx.fillStyle = hexA(P.bg, a); ctx.fillRect(0,0,W,H); }
 function glow(c, b){ ctx.shadowColor = c; ctx.shadowBlur = b*DPR; }
+const fxv = k => (S.fx[k] || 0)/100;
+const persistK = () => 1 - fxv("persist")*0.85;          // hur mycket av förra bilden som suddas
+function clearBg(){ fade(Math.min(1, persistK()*1.05)); }
 
 // ---------- 1 Oscilloskop ----------
 let oscGain = 2;
 function drawOsc(t){
-  fade(0.3);
+  fade(0.3*persistK());
   const R = region();
   ctx.strokeStyle = hexA(P.mid, 0.28); ctx.lineWidth = 1*DPR;
   ctx.beginPath();
@@ -413,7 +541,7 @@ function drawOsc(t){
 // ---------- 2 Magiskt öga (EM34) ----------
 let eyeA = 0, eyeB = 0;
 function drawEye(t){
-  ctx.globalCompositeOperation="source-over"; ctx.shadowBlur=0; ctx.fillStyle = P.bg; ctx.fillRect(0,0,W,H);
+  clearBg();
   const R = region(), cx = R.x+R.w/2, cy = R.y+R.h/2, r = Math.min(R.w,R.h)*0.4;
   const la = Math.min(1, L.rmsL*4.2), lb = Math.min(1, L.rmsR*2.4);
   eyeA += (la-eyeA)*(la>eyeA?0.45:0.12); eyeB += (lb-eyeB)*(lb>eyeB?0.45:0.12);
@@ -449,7 +577,7 @@ function drawEye(t){
   ctx.strokeStyle = hexA(P.mid,0.7); ctx.lineWidth = 1.2*DPR;
   for (let i=0;i<72;i++){ const a = i/72*Math.PI*2, l = i%6===0 ? 0.08 : 0.035;
     ctx.beginPath(); ctx.moveTo(cx+Math.cos(a)*r*1.18, cy+Math.sin(a)*r*1.18); ctx.lineTo(cx+Math.cos(a)*r*(1.18+l), cy+Math.sin(a)*r*(1.18+l)); ctx.stroke(); }
-  ctx.fillStyle = hexA(P.mid,0.85); ctx.font = `${Math.round(H*0.022)}px "Special Elite", monospace`; ctx.textAlign="center";
+  ctx.fillStyle = hexA(P.mid,0.85); ctx.font = `${Math.round(H*0.022)}px ${FB}`; ctx.textAlign="center";
   ctx.textBaseline = "middle"; ctx.fillText("A V S T Ä M N I N G", cx, cy + r*1.42); ctx.textBaseline = "alphabetic";
 }
 
@@ -485,7 +613,7 @@ function drawMeter(x,y,w,h,val,idx,label){
   ctx.beginPath(); ctx.arc(px,py,rad+h*0.012,angOf(0.8),angOf(1)); ctx.stroke();
   // streck och siffror
   ctx.fillStyle = ink; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.font = `${Math.round(h*0.075)}px "Special Elite", monospace`;
+  ctx.font = `${Math.round(h*0.075)}px ${FB}`;
   for (const [db,p] of VU_PTS){
     const a = angOf(p), c = Math.cos(a), s = Math.sin(a);
     ctx.strokeStyle = db > 0 ? P.red : ink; ctx.lineWidth = Math.max(1, h*0.012);
@@ -496,9 +624,9 @@ function drawMeter(x,y,w,h,val,idx,label){
   for (let p=0;p<=1;p+=0.025){ const a = angOf(p);
     ctx.strokeStyle = ink; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(px+Math.cos(a)*rad, py+Math.sin(a)*rad); ctx.lineTo(px+Math.cos(a)*(rad+h*0.03), py+Math.sin(a)*(rad+h*0.03)); ctx.stroke(); }
-  ctx.font = `${Math.round(h*0.17)}px Limelight, serif`; ctx.fillStyle = ink;
+  ctx.font = `${Math.round(h*0.17)}px ${FT}`; ctx.fillStyle = ink;
   ctx.fillText("VU", px, y + h*0.62);
-  ctx.font = `${Math.round(h*0.06)}px "Special Elite", monospace`;
+  ctx.font = `${Math.round(h*0.06)}px ${FB}`;
   ctx.fillText(label, px, y + h*0.78);
   ctx.textAlign = "left"; ctx.fillText("−", x + w*0.08, y + h*0.2); ctx.textAlign = "right"; ctx.fillStyle = P.red; ctx.fillText("+", x + w*0.92, y + h*0.2);
   // nål med ballistik
@@ -520,7 +648,7 @@ function drawMeter(x,y,w,h,val,idx,label){
   ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
 }
 function drawVU(t){
-  ctx.globalCompositeOperation="source-over"; ctx.shadowBlur=0; ctx.fillStyle = P.bg; ctx.fillRect(0,0,W,H);
+  clearBg();
   const R = region(), gap = R.w*0.06, mw = (R.w - gap)/2, mh = Math.min(R.h*0.92, mw*0.62);
   const y = R.y + (R.h - mh)/2;
   drawMeter(R.x, y, mw, mh, L.rmsL, 0, "VÄNSTER");
@@ -529,7 +657,7 @@ function drawVU(t){
 
 // ---------- 4 Atomålder ----------
 function drawAtom(t){
-  fade(0.22);
+  fade(0.22*persistK());
   const R = region(), cx = R.x+R.w/2, cy = R.y+R.h/2, m = Math.min(R.w,R.h);
   const r0 = m*0.075*(1 + L.beat*0.35);
   const N = 72, spin = t*0.08;
@@ -567,7 +695,7 @@ function drawAtom(t){
 // ---------- 5 Ljusorgel ----------
 const peaks = new Float32Array(16);
 function drawOrgan(t){
-  ctx.globalCompositeOperation="source-over"; ctx.shadowBlur=0; ctx.fillStyle = P.bg; ctx.fillRect(0,0,W,H);
+  clearBg();
   const R = region(), cols = 16, rows = 12;
   const cw = R.w/cols, rh = R.h/rows, lw = cw*0.72, lh = rh*0.66;
   // kromlister
@@ -627,12 +755,14 @@ function drawTestcard(t){
   ctx.fillStyle = P.bg; ctx.fillRect(cx-bw2/2, cy-rr*0.08-bh, bw2, bh);
   ctx.strokeStyle = P.ink; ctx.strokeRect(cx-bw2/2, cy-rr*0.08-bh, bw2, bh);
   ctx.fillStyle = P.ink; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.font = `${Math.round(bh*0.55)}px Limelight, serif`;
-  ctx.fillText("RETROSPELAREN", cx, cy-rr*0.08-bh/2);
+  let fs = Math.round(bh*0.6); ctx.font = `${fs}px ${FT}`;
+  const brand = S.look.brand || " ";
+  while (fs > 8 && ctx.measureText(brand).width > bw2*0.88){ fs -= 2; ctx.font = `${fs}px ${FT}`; }
+  ctx.fillText(brand, cx, cy-rr*0.08-bh/2);
   const d = new Date(), hhmm = String(d.getHours()).padStart(2,"0") + (d.getSeconds()%2 ? ":" : " ") + String(d.getMinutes()).padStart(2,"0");
   ctx.fillStyle = P.bg; ctx.fillRect(cx-rr*0.32, cy+rr*0.5, rr*0.64, rr*0.2);
   ctx.strokeRect(cx-rr*0.32, cy+rr*0.5, rr*0.64, rr*0.2);
-  ctx.fillStyle = P.ink; ctx.font = `${Math.round(rr*0.13)}px "Special Elite", monospace`;
+  ctx.fillStyle = P.ink; ctx.font = `${Math.round(rr*0.13)}px ${FB}`;
   ctx.fillText(hhmm, cx, cy+rr*0.6);
   ctx.textBaseline = "alphabetic";
   // rullande ljus rand
@@ -650,7 +780,7 @@ function drawDial(prog, t){
   const x0 = w*0.14, x1 = w*0.9;
   const labels = ["55","60","70","80","100","120","140","160"];
   dctx.strokeStyle = hexA(P.mid,0.8); dctx.fillStyle = hexA(P.mid,0.9);
-  dctx.font = `${Math.round(h*0.3)}px "Special Elite", monospace`; dctx.textAlign = "center"; dctx.textBaseline = "middle";
+  dctx.font = `${Math.round(h*0.3)}px ${FB}`; dctx.textAlign = "center"; dctx.textBaseline = "middle";
   for (let i=0;i<=56;i++){ const x = x0 + (x1-x0)*i/56, big = i%8===0;
     dctx.lineWidth = big ? 1.6*DPR : 1*DPR;
     dctx.beginPath(); dctx.moveTo(x, h*0.12); dctx.lineTo(x, h*(big?0.42:0.28)); dctx.stroke();
@@ -659,7 +789,7 @@ function drawDial(prog, t){
   dctx.textAlign = "left"; dctx.fillText("MW", 0, h*0.72);
   dctx.textAlign = "right"; dctx.fillText("kHz", w, h*0.72);
   // tider
-  dctx.font = `${Math.round(h*0.28)}px "Special Elite", monospace`;
+  dctx.font = `${Math.round(h*0.28)}px ${FB}`;
   if (state.track){
     if (state.live){ dctx.textAlign = "left"; dctx.fillStyle = P.ink; dctx.fillText("● DIREKT", 0, h*0.25); }
     else { dctx.textAlign = "left"; dctx.fillStyle = P.ink; dctx.fillText(fmtTime(state.progressNow), 0, h*0.25);
@@ -679,21 +809,209 @@ function toHex(r,g,b){ return "#" + [r,g,b].map(v => Math.max(0,Math.min(255,Mat
 function mix(a,b,f){ const A = rgbOf(a), B = rgbOf(b); return toHex(A[0]+(B[0]-A[0])*f, A[1]+(B[1]-A[1])*f, A[2]+(B[2]-A[2])*f); }
 function shade(hex, f){ return f >= 0 ? mix(hex, "#ffffff", f) : mix(hex, "#000000", -f); }
 
-// ---------- brus vid kanalbyte ----------
+// ---------- bildrör: kontinuerliga effekter och störningar ----------
 let noiseUntil = 0;
 function channelNoise(ms=480){
   noiseUntil = performance.now() + ms;
   const sc = $("#screen"); sc.classList.remove("rolling"); void sc.offsetWidth; sc.classList.add("rolling");
 }
-function drawNoise(now){
-  const left = noiseUntil - now;
-  if (left <= 0){ nz.style.opacity = 0; return; }
-  const w = nz.width, h = nz.height, img = nctx.createImageData(w,h), d = img.data;
-  const band = (now/3) % h;
-  for (let y=0;y<h;y++){ const boost = Math.abs(y-band) < h*0.06 ? 60 : 0;
-    for (let x=0;x<w;x++){ const v = Math.random()*200 + boost, i = (y*w+x)*4; d[i]=d[i+1]=d[i+2]=v; d[i+3]=255; } }
-  nctx.putImageData(img,0,0);
-  nz.style.opacity = Math.min(1, left/200);
+const elContent = $("#content"), elPower = $("#power"), elHum = $("#hum"), elFlick = $("#flick");
+const wobT = $("#wobT"), wobD = $("#wobD");
+const FX = { burst:0, burstUntil:0, burstKind:"", roll:0, rollStart:0, rollDur:0, rollAmp:0, lastT:0, tearY:0, frameN:0 };
+
+function applyFxStatic(){
+  const v = fxv, r = document.documentElement.style;
+  r.setProperty("--scan", (v("scan")*0.55).toFixed(3));
+  r.setProperty("--vig", (v("vignette")*0.95).toFixed(3));
+  r.setProperty("--glare", (v("glare")*0.16).toFixed(3));
+  r.setProperty("--radx", (1 + v("curve")*6).toFixed(2) + "%");
+  r.setProperty("--rady", (1.3 + v("curve")*8).toFixed(2) + "%");
+  r.setProperty("--curve", (1 + v("curve")*10).toFixed(1) + "vh");
+  const f = [`brightness(${(0.7 + v("bright")*0.6).toFixed(3)})`, `contrast(${(0.7 + v("contrast")*0.6).toFixed(3)})`];
+  if (v("blur") > 0) f.push(`blur(${(v("blur")*1.4).toFixed(2)}px)`);
+  if (v("wobble") > 0) f.push("url(#wob)");
+  elContent.style.filter = f.join(" ");
+  // spökbild och färgfransar på texten (bilden får samma sak i postFx)
+  const g = v("ghost"), c = v("chroma"), ts = [];
+  if (g > 0) ts.push(`${(0.6+g*1.6).toFixed(2)}vh 0 ${hexA(P.ink, (0.15+g*0.3).toFixed(2))}`);
+  if (c > 0) ts.push(`${(-c*0.5).toFixed(2)}vh 0 rgba(255,40,40,${(c*0.6).toFixed(2)})`, `${(c*0.5).toFixed(2)}vh 0 rgba(0,190,255,${(c*0.6).toFixed(2)})`);
+  const extra = ts.join(", ");
+  for (const el of [$("#info"), $("#edges"), $("#osd")]) el.style.textShadow = extra;
+  $("#title").style.textShadow = `0 0 1.2vh ${hexA(P.ink, 0.45)}` + (extra ? ", " + extra : "");
+  $("#crt").classList.toggle("on", S.crt);
+  if (v("wobble") === 0){ wobD.setAttribute("scale", "0"); }
+}
+
+// bilden: kopiera arbetsytan till skärmen och lägg på spökbild och färgfransar (påverkar inte efterglöden)
+function postFx(){
+  vctx.globalCompositeOperation = "copy"; vctx.globalAlpha = 1; vctx.drawImage(cv, 0, 0);
+  const g = fxv("ghost"), c = fxv("chroma");
+  if (g <= 0 && c <= 0) return;
+  octx.globalCompositeOperation = "copy"; octx.drawImage(cv, 0, 0, off.width, off.height);
+  vctx.globalCompositeOperation = "lighter";
+  if (g > 0){ vctx.globalAlpha = 0.08 + g*0.3; vctx.drawImage(off, W*(0.006 + g*0.016), 0, W, H); }
+  if (c > 0){
+    for (const [col, dx] of [["#ff2a2a", -1], ["#00b4ff", 1]]){
+      otx.globalCompositeOperation = "copy"; otx.drawImage(off, 0, 0);
+      otx.globalCompositeOperation = "multiply"; otx.fillStyle = col; otx.fillRect(0,0,offT.width,offT.height);
+      vctx.globalAlpha = 0.2 + c*0.4; vctx.drawImage(offT, dx*W*(0.002 + c*0.006), 0, W, H);
+    }
+  }
+  vctx.globalAlpha = 1; vctx.globalCompositeOperation = "source-over";
+}
+
+function startBurst(now){
+  const kinds = ["snow","tear","hum","roll","wave"];
+  FX.burstKind = kinds[Math.floor(Math.random()*kinds.length)];
+  FX.burst = 0.4 + Math.random()*0.6;
+  FX.burstUntil = now + 150 + Math.random()*750;
+  FX.tearY = Math.random();
+  if (FX.burstKind === "roll") startRoll(now, 0.06 + Math.random()*0.12);
+}
+function startRoll(now, amp){ FX.rollStart = now; FX.rollDur = 500 + Math.random()*900; FX.rollAmp = amp; }
+
+function fxFrame(now){
+  const dt = Math.min(0.1, (now - (FX.lastT || now))/1000); FX.lastT = now; FX.frameN++;
+  const v = fxv, sc = elContent;
+  // tillfälliga störningar
+  if (now > FX.burstUntil) FX.burst = 0;
+  if (v("interf") > 0 && Math.random() < v("interf")*dt/5) startBurst(now);
+  const b = FX.burst, kind = FX.burstKind;
+  // vertikal bildrullning
+  if (v("roll") > 0 && !FX.rollDur && Math.random() < v("roll")*dt/18) startRoll(now, 0.04 + v("roll")*0.22*Math.random());
+  let ry = 0;
+  if (FX.rollDur){
+    const p = (now - FX.rollStart)/FX.rollDur;
+    if (p >= 1) FX.rollDur = 0; else ry = Math.sin(p*Math.PI) * FX.rollAmp * 100;
+  }
+  // skakning och reva
+  let jx = (Math.random()-0.5) * v("jitter") * 0.6;
+  if (Math.random() < v("jitter")*0.02) jx *= 6;
+  if (b && kind === "tear") jx += (Math.random()-0.5) * 6 * b;
+  sc.style.transform = (jx || ry) ? `translate(${jx.toFixed(2)}%, ${ry.toFixed(2)}%)` : "";
+  // flimmer
+  const fl = v("flicker");
+  elFlick.style.opacity = fl ? (Math.random()*fl*0.14 + (Math.random() < fl*0.05 ? fl*0.18 : 0)).toFixed(3) : "0";
+  // brumband
+  const humA = v("hum")*0.5 + (b && kind === "hum" ? b*0.5 : 0);
+  if (humA > 0.005){ elHum.style.opacity = Math.min(0.95, humA).toFixed(3); elHum.style.top = (((now/1000)*0.045) % 1.3*100 - 22).toFixed(2) + "%"; }
+  else elHum.style.opacity = "0";
+  // vågiga linjer
+  const wob = v("wobble") + (b && kind === "wave" ? b*0.8 : 0);
+  if (wob > 0 && FX.frameN % 2 === 0){
+    if (v("wobble") === 0 && !elContent.style.filter.includes("#wob")) elContent.style.filter += " url(#wob)";
+    wobT.setAttribute("seed", String(Math.floor(Math.random()*1000)));
+    wobT.setAttribute("baseFrequency", `0.0001 ${(0.01 + Math.random()*0.03).toFixed(4)}`);
+    wobD.setAttribute("scale", (wob*16).toFixed(1));
+  } else if (wob === 0 && v("wobble") === 0 && FX.wasWave){ applyFxStatic(); }
+  FX.wasWave = wob > 0;
+  // snö, revor och kanalbrus på en lågupplöst duk
+  const chan = Math.max(0, (noiseUntil - now)/200);
+  const snowA = Math.min(1, v("snow")*0.55 + (b && kind === "snow" ? b*0.8 : 0) + Math.min(1, chan));
+  const tear = b && (kind === "tear" || kind === "snow");
+  const w = fxc.width, h = fxc.height;
+  if (snowA < 0.01 && !tear && !FX.rollDur){ if (FX.fxOn){ fctx.clearRect(0,0,w,h); FX.fxOn = false; } return; }
+  FX.fxOn = true;
+  const img = fctx.createImageData(w, h), d = img.data;
+  const sA = snowA*255;
+  for (let i = 0; i < d.length; i += 4){
+    const n = Math.random();
+    const val = n*n*230;
+    d[i] = d[i+1] = d[i+2] = val; d[i+3] = sA;
+  }
+  if (tear){
+    const ty = Math.floor(FX.tearY*h), th = Math.max(1, Math.floor(h*0.015));
+    for (let y = ty; y < Math.min(h, ty+th); y++) for (let x = 0; x < w; x++){ const i = (y*w+x)*4; d[i]=d[i+1]=d[i+2]=200+Math.random()*55; d[i+3]=200*b; }
+    FX.tearY += (Math.random()-0.4)*0.05;
+  }
+  if (FX.rollDur && ry > 0.5){ // svart släckningsband överst när bilden glider
+    const bh = Math.floor(h*ry/100);
+    for (let y = 0; y < Math.min(h, bh); y++) for (let x = 0; x < w; x++){ const i = (y*w+x)*4; d[i]=d[i+1]=d[i+2]=0; d[i+3]=0; }
+  }
+  fctx.putImageData(img, 0, 0);
+}
+
+// uppvärmning och avstängning
+function warmUp(){
+  if (!S.warm || !elPower.animate) return;
+  elPower.animate([
+    { transform:"scale(1,0.004)", filter:"brightness(6)", opacity:0.9 },
+    { transform:"scale(1,0.004)", filter:"brightness(6)", opacity:1, offset:0.12 },
+    { transform:"scale(1,0.35)", filter:"brightness(2.2)", offset:0.4 },
+    { transform:"scale(1,1)", filter:"brightness(1)" }
+  ], { duration:1400, easing:"cubic-bezier(.3,.7,.2,1)" });
+}
+function powerOff(done){
+  if (!S.warm || !elPower.animate){ done && done(); return; }
+  const a = elPower.animate([
+    { transform:"scale(1,1)", filter:"brightness(1)", opacity:1 },
+    { transform:"scale(1,0.005)", filter:"brightness(5)", opacity:1, offset:0.45 },
+    { transform:"scale(0.004,0.005)", filter:"brightness(8)", opacity:1, offset:0.8 },
+    { transform:"scale(0,0)", filter:"brightness(8)", opacity:0 }
+  ], { duration:900, easing:"ease-in", fill:"forwards" });
+  a.onfinish = () => { done && done(); setTimeout(() => a.cancel(), 50); };
+}
+
+// ---------- kanter: datum, klocka, väder ----------
+const WX_TEXT = c => c===0?"Klart":c===1?"Mest klart":c===2?"Halvklart":c===3?"Mulet":(c===45||c===48)?"Dimma":
+  (c>=51&&c<=57)?"Duggregn":(c===61)?"Lätt regn":(c===63)?"Regn":(c===65)?"Kraftigt regn":(c===66||c===67)?"Underkylt regn":
+  (c===71)?"Lätt snöfall":(c===73)?"Snöfall":(c===75)?"Kraftigt snöfall":(c===77)?"Snökorn":(c>=80&&c<=82)?"Regnskurar":
+  (c===85||c===86)?"Snöbyar":(c>=95)?"Åska":"";
+const ICON = {
+  sun:'<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.3M12 19.2v2.3M2.5 12h2.3M19.2 12h2.3M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/>',
+  moon:'<path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z"/>',
+  cloud:'<path d="M7 18h10.5a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.2A3.4 3.4 0 0 0 7 18z"/>',
+  part:'<path d="M8 4.5v1.6M3.6 8.5H2M4.8 5.3l1.1 1.1M11.2 5.3l-1.1 1.1"/><path d="M5.6 11.2A3.2 3.2 0 0 1 10.9 8"/><path d="M8.5 19h9a3.6 3.6 0 0 0 .3-7.2 5 5 0 0 0-9.6 1.1A3 3 0 0 0 8.5 19z"/>',
+  rain:'<path d="M7 14.5h10.5a3.8 3.8 0 0 0 .4-7.6 5.3 5.3 0 0 0-10.2 1.1A3.3 3.3 0 0 0 7 14.5z"/><path d="M8.5 17.5l-1 2.5M12.5 17.5l-1 2.5M16.5 17.5l-1 2.5"/>',
+  snow:'<path d="M7 14.5h10.5a3.8 3.8 0 0 0 .4-7.6 5.3 5.3 0 0 0-10.2 1.1A3.3 3.3 0 0 0 7 14.5z"/><path d="M8.5 18.2h.01M12 19.6h.01M15.5 18.2h.01M10.2 21h.01M13.8 21h.01"/>',
+  fog:'<path d="M4 9h16M3 13h18M5 17h14"/>',
+  storm:'<path d="M7 14h10.5a3.8 3.8 0 0 0 .4-7.6 5.3 5.3 0 0 0-10.2 1.1A3.3 3.3 0 0 0 7 14z"/><path d="M12.5 14l-2 4h3l-2 4"/>'
+};
+function wxIcon(c, day){
+  const k = c===0 ? (day?"sun":"moon") : (c<=2 ? (day?"part":"moon") : c===3 ? "cloud" : (c===45||c===48) ? "fog" :
+    (c>=71&&c<=77)||c===85||c===86 ? "snow" : c>=95 ? "storm" : "rain");
+  return `<svg viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>`;
+}
+let WX = null, wxTimer = 0;
+async function loadWeather(){
+  const e = S.edge;
+  if (!e.wx){ WX = null; renderEdges(); return; }
+  try{
+    const u = `https://api.open-meteo.com/v1/forecast?latitude=${e.lat}&longitude=${e.lon}&current=temperature_2m,weather_code,is_day,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1`;
+    const j = await (await fetch(u)).json();
+    WX = { t:j.current.temperature_2m, c:j.current.weather_code, day:j.current.is_day === 1,
+           hi:j.daily?.temperature_2m_max?.[0], lo:j.daily?.temperature_2m_min?.[0], at:Date.now() };
+    $("#wxStatus").textContent = `Väder för ${e.place}: ${Math.round(WX.t)}°, ${WX_TEXT(WX.c).toLowerCase()}.`;
+  }catch(err){ $("#wxStatus").textContent = "Kunde inte hämta väder just nu."; }
+  renderEdges();
+}
+async function findPlace(name){
+  $("#wxStatus").textContent = "Söker...";
+  try{
+    const j = await (await fetch("https://geocoding-api.open-meteo.com/v1/search?count=1&language=sv&name=" + encodeURIComponent(name))).json();
+    const r = j.results && j.results[0];
+    if (!r){ $("#wxStatus").textContent = "Hittade ingen ort med det namnet."; return; }
+    Object.assign(S.edge, { place:r.name, lat:r.latitude, lon:r.longitude }); saveS();
+    $("#wxPlace").value = r.name; loadWeather();
+  }catch(err){ $("#wxStatus").textContent = "Ortsökningen svarar inte."; }
+}
+function isoWeek(d){ const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const n = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - n); const y = new Date(Date.UTC(t.getUTCFullYear(),0,1)); return Math.ceil(((t - y)/86400000 + 1)/7); }
+const DAYS = ["Söndag","Måndag","Tisdag","Onsdag","Torsdag","Fredag","Lördag"];
+const MONTHS = ["jan","feb","mars","april","maj","juni","juli","aug","sep","okt","nov","dec"];
+function renderEdges(){
+  const e = S.edge, d = new Date(), Lp = [], Rp = [];
+  if (e.date) Lp.push(`<span>${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}</span>`);
+  if (e.week) Lp.push(`<span>v.${isoWeek(d)}</span>`);
+  if (e.wx && WX){
+    Rp.push(`${wxIcon(WX.c, WX.day)}<span>${Math.round(WX.t)}°</span><span>${WX_TEXT(WX.c)}</span>` +
+      (WX.hi != null ? `<span class="sep">${Math.round(WX.hi)}° / ${Math.round(WX.lo)}°</span>` : "") + `<span class="sep">${e.place}</span>`);
+  }
+  if (e.clock) Rp.push(`<span class="clock">${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}</span>`);
+  const sep = '<span class="sep">·</span>';
+  const l = Lp.join(sep), r = Rp.join(sep);
+  if ($("#edgeL").innerHTML !== l) $("#edgeL").innerHTML = l;
+  if ($("#edgeR").innerHTML !== r) $("#edgeR").innerHTML = r;
 }
 
 // ================= huvudloop =================
@@ -711,6 +1029,7 @@ function frame(nowMs){
   const idle = !state.started || (!state.playing && simAmp < 0.02 && (nowMs - state.lastActive) > 1500);
   if (idle) drawTestcard(t);
   else { if (lastVizDrawn !== S.viz){ ctx.fillStyle = P.bg; ctx.fillRect(0,0,W,H); lastVizDrawn = S.viz; } VIZ[S.viz](t); }
+  postFx();
   if (idle) lastVizDrawn = 0;
   if (idle !== frame.wasIdle){ elInfo.classList.toggle("idle", idle); $("#dial").classList.toggle("idle", idle); frame.wasIdle = idle; }
   let prog;
@@ -719,8 +1038,10 @@ function frame(nowMs){
     const n = Math.max(1, state.stations.length), i = Math.max(0, state.stations.findIndex(s => state.station && s.id === state.station.id));
     prog = (i + 0.5)/n + 0.003*Math.sin(t*1.7);
   } else prog = state.duration ? state.progressNow/state.duration : 0;
-  drawDial(prog, t);
-  drawNoise(nowMs);
+  if (S.look.dial) drawDial(prog, t);
+  fxFrame(nowMs);
+  const spin = state.playing && S.look.cover === "vinyl";
+  if (spin !== frame.spin){ $(".cover").classList.toggle("spin", spin); frame.spin = spin; }
 }
 
 // ================= låtinfo =================
@@ -819,7 +1140,7 @@ let failCount = 0;
 function playStation(st){
   if (!st) return;
   ensureAudio();
-  if (!state.started){ state.started = true; $("#start").classList.add("gone"); }
+  if (!state.started){ state.started = true; $("#start").classList.add("gone"); warmUp(); }
   state.station = st; state.live = true; store.set("lastStation", st);
   channelNoise(600);
   audioEl.src = "/api/stream?url=" + encodeURIComponent(st.url);
@@ -1017,6 +1338,26 @@ function setPalette(name){
   segOn("#palSeg", name);
   if (name === "farg" && elCov.src) accentFrom(elCov);
   ctx.fillStyle = P.bg; ctx.fillRect(0,0,W,H);
+  if (typeof applyFxStatic === "function" && elContent) applyFxStatic();
+}
+function loadFonts(){
+  const fams = [...new Set([S.look.fontT, S.look.fontB])].map(f => "family=" + f.replace(/ /g, "+")).join("&");
+  $("#gfonts").href = "https://fonts.googleapis.com/css2?" + fams + "&display=swap";
+  const r = document.documentElement.style;
+  r.setProperty("--fT", `"${S.look.fontT}"`); r.setProperty("--fB", `"${S.look.fontB}"`);
+  FT = `"${S.look.fontT}", serif`; FB = `"${S.look.fontB}", monospace`;
+  if (document.fonts) document.fonts.load(`20px "${S.look.fontT}"`).then(() => document.fonts.load(`20px "${S.look.fontB}"`)).then(() => { if (state.track){ const t = state.track; state.trackKey = ""; setTrack(t); } }).catch(()=>{});
+}
+function applyLook(){
+  const Lk = S.look, r = document.documentElement.style;
+  r.setProperty("--sz", (Lk.size/100).toFixed(2));
+  $("#screen").classList.toggle("upper", !!Lk.upper);
+  $("#brandStart").textContent = Lk.brand || " ";
+  document.title = Lk.brand || "Spelare";
+  const cov = $(".cover"); cov.classList.remove("vinyl","none"); if (Lk.cover !== "square") cov.classList.add(Lk.cover);
+  $("#covPh").innerHTML = Lk.cover === "vinyl" ? "" : "&#9835;";
+  $("#dial").classList.toggle("hidden", !S.info || !Lk.dial);
+  resize();
 }
 function segOn(sel, v){ document.querySelectorAll(sel + " button").forEach(b => b.classList.toggle("on", (b.dataset.v ?? b.dataset.q) === v)); }
 
@@ -1036,7 +1377,7 @@ function start(){
   state.started = true;
   $("#start").classList.add("gone");
   ensureAudio();
-  channelNoise(700);
+  warmUp();
   if (S.source === "radio"){
     const last = store.get("lastStation", null);
     if (last) playStation(last); else osd("Tryck S och välj station");
@@ -1054,9 +1395,10 @@ async function pollCmd(){
   }catch(e){}
 }
 function runCmd(c){
-  if (c === "open"){ $("#blank").classList.remove("on"); state.blanked = false; start();
+  if (c === "open"){ const wasBlank = state.blanked; $("#blank").classList.remove("on"); state.blanked = false;
+    if (state.started && wasBlank) warmUp(); start();
     if (S.source === "radio"){ if (audioEl && audioEl.paused) radioToggle(); } else spCmd("play"); }
-  else if (c === "close"){ $("#blank").classList.add("on"); state.blanked = true;
+  else if (c === "close"){ state.blanked = true; powerOff(() => $("#blank").classList.add("on"));
     if (S.source === "radio"){ if (audioEl && !audioEl.paused) radioToggle(); } else spCmd("pause"); }
   else if (c === "next") next();
   else if (c === "prev") prev();
@@ -1080,13 +1422,61 @@ $("#palSeg").addEventListener("click", e => { const b = e.target.closest("button
 $("#vinSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.vizInput = b.dataset.v; saveS(); start(); applyVizInput(); });
 $("#vol").addEventListener("input", e => { S.volume = +e.target.value; saveS(); if (outGain) outGain.gain.value = S.volume; });
 $("#autoCh").addEventListener("change", e => { S.autoChannel = e.target.checked; saveS(); });
-$("#crtChk").addEventListener("change", e => { S.crt = e.target.checked; saveS(); $("#crt").classList.toggle("on", S.crt); });
+$("#crtChk").addEventListener("change", e => { S.crt = e.target.checked; saveS(); applyFxStatic(); });
 $("#infoChk").addEventListener("change", e => { S.info = e.target.checked; saveS(); applyInfoVis(); });
 $("#spLogin").addEventListener("click", spLogin);
 $("#spLogout").addEventListener("click", () => { store.del("sp.token"); state.spConnected = false; renderSp(); if (S.source === "spotify") setTrack(null); });
 $("#spClient").addEventListener("change", e => { S.clientId = e.target.value.trim(); saveS(); });
 
-function applyInfoVis(){ $("#info").classList.toggle("hidden", !S.info); $("#dial").classList.toggle("hidden", !S.info); $("#infoChk").checked = S.info; }
+function slider(host, key, label, obj, min, max, onChange){
+  const row = document.createElement("label"); row.className = "sl";
+  row.innerHTML = `<span>${label}</span><input type="range" min="${min}" max="${max}" step="1"><output></output>`;
+  const inp = row.querySelector("input"), out = row.querySelector("output");
+  const sync = () => { inp.value = obj()[key]; out.textContent = obj()[key]; };
+  inp.addEventListener("input", () => { obj()[key] = +inp.value; out.textContent = inp.value; saveS(); onChange(); });
+  host.appendChild(row); return sync;
+}
+const syncers = [];
+function buildControls(){
+  const fxObj = () => S.fx, lk = () => S.look;
+  const fxChange = () => { segOn("#presetSeg", ""); applyFxStatic(); };
+  for (const [k, l] of FX_PIC) syncers.push(slider($("#fxPic"), k, l, fxObj, 0, 100, fxChange));
+  for (const [k, l] of FX_DIST) syncers.push(slider($("#fxDist"), k, l, fxObj, 0, 100, fxChange));
+  syncers.push(slider($("#lookSl"), "size", "Textstorlek %", lk, 60, 160, applyLook));
+  syncers.push(slider($("#scrSl"), "scale", "Storlek %", lk, 40, 130, applyLook));
+  syncers.push(slider($("#scrSl"), "offX", "Sidled %", lk, -30, 30, applyLook));
+  syncers.push(slider($("#scrSl"), "offY", "Höjdled %", lk, -30, 30, applyLook));
+  for (const [sel, list, key] of [["#fontT", FONTS_T, "fontT"], ["#fontB", FONTS_B, "fontB"]]){
+    const el = $(sel); el.innerHTML = list.map(f => `<option>${f}</option>`).join("");
+    el.addEventListener("change", () => { S.look[key] = el.value; saveS(); loadFonts(); });
+  }
+  $("#presetSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return;
+    Object.assign(S.fx, PRESETS[b.dataset.v]); saveS(); syncAll(); segOn("#presetSeg", b.dataset.v); applyFxStatic(); });
+  $("#coverSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.look.cover = b.dataset.v; saveS(); segOn("#coverSeg", b.dataset.v); applyLook(); });
+  $("#fmtSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.look.format = b.dataset.v; saveS(); segOn("#fmtSeg", b.dataset.v); applyLook(); });
+  $("#brandIn").addEventListener("input", e => { S.look.brand = e.target.value; saveS(); applyLook(); });
+  $("#upperChk").addEventListener("change", e => { S.look.upper = e.target.checked; saveS(); applyLook(); });
+  $("#dialChk").addEventListener("change", e => { S.look.dial = e.target.checked; saveS(); applyLook(); });
+  $("#warmChk").addEventListener("change", e => { S.warm = e.target.checked; saveS(); });
+  for (const [id, key] of [["#edDate","date"],["#edWeek","week"],["#edClock","clock"],["#edWx","wx"]])
+    $(id).addEventListener("change", e => { S.edge[key] = e.target.checked; saveS(); if (key === "wx") loadWeather(); else renderEdges(); });
+  $("#wxBtn").addEventListener("click", () => { const v = $("#wxPlace").value.trim(); if (v) findPlace(v); });
+  $("#wxPlace").addEventListener("keydown", e => { if (e.key === "Enter") $("#wxBtn").click(); });
+  $("#resetBtn").addEventListener("click", () => {
+    const keep = { clientId:S.clientId, genre:S.genre, source:S.source, volume:S.volume };
+    store.set("settings", keep); location.reload();
+  });
+}
+function syncAll(){
+  syncers.forEach(f => f());
+  $("#fontT").value = S.look.fontT; $("#fontB").value = S.look.fontB; $("#brandIn").value = S.look.brand;
+  $("#upperChk").checked = !!S.look.upper; $("#dialChk").checked = !!S.look.dial; $("#warmChk").checked = !!S.warm;
+  $("#crtChk").checked = S.crt;
+  segOn("#coverSeg", S.look.cover); segOn("#fmtSeg", S.look.format);
+  $("#edDate").checked = S.edge.date; $("#edWeek").checked = S.edge.week; $("#edClock").checked = S.edge.clock; $("#edWx").checked = S.edge.wx;
+  $("#wxPlace").value = S.edge.place;
+}
+function applyInfoVis(){ $("#info").classList.toggle("hidden", !S.info); $("#dial").classList.toggle("hidden", !S.info || !S.look.dial); $("#infoChk").checked = S.info; }
 
 document.addEventListener("keydown", e => {
   if (e.target.matches("input, textarea")) { if (e.key === "Escape") e.target.blur(); return; }
@@ -1113,9 +1503,13 @@ document.addEventListener("mousemove", () => { document.body.classList.remove("h
   $("#spClient").value = S.clientId;
   $("#vol").value = S.volume;
   $("#autoCh").checked = S.autoChannel;
-  $("#crtChk").checked = S.crt; $("#crt").classList.toggle("on", S.crt);
+  buildControls(); syncAll();
+  loadFonts(); applyLook();
   applyInfoVis();
   setPalette(S.palette);
+  applyFxStatic();
+  renderEdges(); setInterval(renderEdges, 1000);
+  loadWeather(); setInterval(loadWeather, 15*60*1000);
   segOn("#vizSeg", String(S.viz)); segOn("#srcSeg", S.source); segOn("#vinSeg", S.vizInput); segOn("#genreSeg", S.genre);
   resize(); requestAnimationFrame(frame);
   if (location.pathname === "/callback"){

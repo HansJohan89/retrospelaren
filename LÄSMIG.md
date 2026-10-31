@@ -1,4 +1,4 @@
-# Retrospelaren
+# Retrospelaren (BLAUPUNKT)
 
 Retro-uppspelning för Blaupunkt-möbeln: 4:3-bild med CRT-känsla, fem visualiseringar i 50/60-talsstil, och information om vad som spelas från webbradio eller Spotify.
 
@@ -26,6 +26,22 @@ Klicka på skärmen för att "vrida på", tryck **S** för inställningar och v�
 Testbilden med klocka visas när inget spelar.
 
 Övriga tangenter: **C** nästa kanal, **B** färgläge (svartvit, sepia, grön fosfor, 60-talsfärg), **Mellanslag** spela/paus, **→/N** nästa, **←/P** föregående, **I** dölj info, **F** helskärm, **S** inställningar.
+
+## Bildrör och störningar
+
+Under **S → Bildrör** finns förinställningarna *Ren bild*, *Ny TV 1962*, *Sliten* och *Dålig mottagning*, och sedan reglage för allt:
+
+- **Bild:** ljusstyrka, kontrast, mjukhet, efterglöd (fosfor), välvning, vinjett, glasreflex, linjer
+- **Störningar:** flimmer, snö, brumband, skakning, vågiga linjer, bildrullning, tillfälliga störningar (korta skurar av snö, revor, brum eller rullning), spökbild, färgfransar
+- Uppvärmning när bilden startar och avstängning till en punkt vid `close`
+
+På Pi:n är *Vågiga linjer*, *Spökbild* och *Färgfransar* de tyngsta effekterna; sänk dem om bilden hackar.
+
+## Utseende, skärm och kanter
+
+- **Utseende:** märkning (standard BLAUPUNKT), rubrik- och brödtypsnitt, textstorlek, versaler, omslag som fyrkant, snurrande vinylskiva eller dolt
+- **Skärm:** 4:3, 16:9 eller fyll, samt storlek och förskjutning för att passa bilden bakom masken
+- **Kanter:** veckodag och datum, veckonummer, klocka och väder (Open-Meteo, standard Falun, valfri ort)
 
 ## Radio
 
