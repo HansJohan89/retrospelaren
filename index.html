@@ -18,7 +18,6 @@ html,body{margin:0;height:100%;background:#000;color:var(--ink);overflow:hidden}
 body{font-family:"Special Elite","Courier New",monospace}
 body.hidecursor,body.hidecursor *{cursor:none!important}
 
-/* ---------- skärmen (4:3) ---------- */
 #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
 #screen{position:relative;height:min(100vh,75vw);aspect-ratio:4/3;background:var(--bg);
   border-radius:3.2% / 4.2%;overflow:hidden;isolation:isolate;transition:background .6s}
@@ -28,7 +27,6 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 @keyframes roll{0%{transform:translateY(0)}40%{transform:translateY(-18%)}70%{transform:translateY(9%)}100%{transform:translateY(0)}}
 .content{position:absolute;inset:0}
 
-/* info: radioskala längst ner */
 #info{position:absolute;left:5%;right:5%;bottom:13.5%;height:17%;display:flex;gap:3.2%;align-items:center;
   transition:opacity .6s, transform .6s;z-index:3}
 #info.out{opacity:0;transform:translateY(6%)}
@@ -54,12 +52,10 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
   border-top:max(1px,.2vh) solid var(--dim);border-bottom:max(1px,.2vh) solid var(--dim)}
 #dial canvas{position:absolute;inset:0;width:100%;height:100%}
 
-/* OSD */
 #osd{position:absolute;top:5%;left:6%;z-index:4;font-size:2.6vh;letter-spacing:.2em;color:var(--ink);
   text-shadow:0 0 1vh var(--ink);opacity:0;transition:opacity .8s;text-transform:uppercase}
 #osd.on{opacity:.95;transition:opacity .1s}
 
-/* CRT-lager */
 #crt{position:absolute;inset:0;z-index:8;pointer-events:none}
 #crt.on::before{content:"";position:absolute;inset:0;
   background:repeating-linear-gradient(to bottom,rgba(0,0,0,.28) 0,rgba(0,0,0,.28) 1px,transparent 1px,transparent 3px);
@@ -73,7 +69,6 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #blank{position:absolute;inset:0;z-index:9;background:#000;opacity:0;pointer-events:none;transition:opacity 1.2s}
 #blank.on{opacity:1}
 
-/* start */
 #start{position:absolute;inset:0;z-index:7;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh;
   background:radial-gradient(circle at center,color-mix(in srgb,var(--bg) 70%,transparent),var(--bg));cursor:pointer;text-align:center}
 #start h1{font-family:Limelight,serif;font-weight:400;font-size:8vh;margin:0;letter-spacing:.04em;text-shadow:0 0 2vh var(--ink)}
@@ -82,7 +77,6 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #start .knob::after{content:"";position:absolute;left:50%;top:8%;width:.6vh;height:35%;background:var(--ink);transform:translateX(-50%)}
 #start.gone{display:none}
 
-/* ---------- inställningspanelen ---------- */
 #gear{position:fixed;right:14px;bottom:14px;z-index:20;width:38px;height:38px;border-radius:50%;border:2px solid #555;
   background:#111;color:#bbb;font:18px/34px "Special Elite",monospace;cursor:pointer;opacity:.25;transition:opacity .3s}
 #gear:hover,#gear:focus-visible{opacity:1}
@@ -238,7 +232,7 @@ kbd{font:12px "Special Elite",monospace;border:1px solid var(--panel-ink);border
 
 <script>
 "use strict";
-/* ================= lagring & inställningar ================= */
+// ================= lagring & inställningar =================
 const $ = s => document.querySelector(s);
 const store = {
   get(k, d){ try{ const v = localStorage.getItem("rs." + k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
@@ -263,14 +257,14 @@ const PALETTES = {
 };
 let P = Object.assign({}, PALETTES[S.palette] || PALETTES.svartvit);
 
-/* ================= tillstånd ================= */
+// ================= tillstånd =================
 const state = {
   started:false, playing:false, live:false,
   track:null, trackKey:"", progress:0, duration:0, polledAt:0,
   station:null, stations:[], spConnected:false, spDevice:"", lastActive:0, blanked:false
 };
 
-/* ================= ljud ================= */
+// ================= ljud =================
 let actx=null, inNode, anMix, anL, anR, outGain, audioEl=null, mediaSrc=null, micSrc=null, micStream=null;
 const FFT = 2048;
 const wave = new Float32Array(FFT), waveL = new Float32Array(FFT), waveR = new Float32Array(FFT);
@@ -311,7 +305,7 @@ function stopMic(){
   if (micStream){ micStream.getTracks().forEach(t => t.stop()); micStream = null; }
 }
 
-/* nivåer: äkta från analysatorn, annars simulerad takt */
+// nivåer: äkta från analysatorn, annars simulerad takt
 const L = { wave, bands:bandsSm, rms:0, rmsL:0, rmsR:0, beat:0, real:false, amp:0 };
 let bassAvg = 0, simAmp = 0;
 function rmsOf(a){ let s=0; for (let i=0;i<a.length;i+=2) s+=a[i]*a[i]; return Math.sqrt(s/(a.length/2)); }
@@ -357,7 +351,7 @@ function computeLevels(t){
   if (bass > bassAvg*1.25 && bass > 0.18) L.beat = 1; else L.beat *= 0.9;
 }
 
-/* ================= canvas ================= */
+// ================= canvas =================
 const cv = $("#viz"), ctx = cv.getContext("2d");
 const dialC = $("#dialC"), dctx = dialC.getContext("2d");
 const nz = $("#noise"), nctx = nz.getContext("2d");
@@ -385,7 +379,7 @@ function region(){ // visualiseringens yta ovanför radioskalan
 function fade(a){ ctx.globalCompositeOperation = "source-over"; ctx.shadowBlur = 0; ctx.fillStyle = hexA(P.bg, a); ctx.fillRect(0,0,W,H); }
 function glow(c, b){ ctx.shadowColor = c; ctx.shadowBlur = b*DPR; }
 
-/* ---------- 1 Oscilloskop ---------- */
+// ---------- 1 Oscilloskop ----------
 let oscGain = 2;
 function drawOsc(t){
   fade(0.3);
@@ -416,7 +410,7 @@ function drawOsc(t){
   ctx.stroke(); ctx.shadowBlur = 0; ctx.restore();
 }
 
-/* ---------- 2 Magiskt öga (EM34) ---------- */
+// ---------- 2 Magiskt öga (EM34) ----------
 let eyeA = 0, eyeB = 0;
 function drawEye(t){
   ctx.globalCompositeOperation="source-over"; ctx.shadowBlur=0; ctx.fillStyle = P.bg; ctx.fillRect(0,0,W,H);
@@ -459,7 +453,7 @@ function drawEye(t){
   ctx.textBaseline = "middle"; ctx.fillText("A V S T Ä M N I N G", cx, cy + r*1.42); ctx.textBaseline = "alphabetic";
 }
 
-/* ---------- 3 VU-mätare ---------- */
+// ---------- 3 VU-mätare ----------
 const VU_PTS = [[-20,0],[-10,.25],[-7,.37],[-5,.47],[-3,.6],[-2,.67],[-1,.73],[0,.8],[1,.87],[2,.935],[3,1]];
 function vuPos(db){
   if (db <= -20) return 0; if (db >= 3) return 1;
@@ -533,7 +527,7 @@ function drawVU(t){
   drawMeter(R.x + mw + gap, y, mw, mh, L.rmsR, 1, "HÖGER");
 }
 
-/* ---------- 4 Atomålder ---------- */
+// ---------- 4 Atomålder ----------
 function drawAtom(t){
   fade(0.22);
   const R = region(), cx = R.x+R.w/2, cy = R.y+R.h/2, m = Math.min(R.w,R.h);
@@ -570,7 +564,7 @@ function drawAtom(t){
   ctx.fillStyle = core; ctx.beginPath(); ctx.arc(cx,cy,r0*1.3,0,Math.PI*2); ctx.fill();
 }
 
-/* ---------- 5 Ljusorgel ---------- */
+// ---------- 5 Ljusorgel ----------
 const peaks = new Float32Array(16);
 function drawOrgan(t){
   ctx.globalCompositeOperation="source-over"; ctx.shadowBlur=0; ctx.fillStyle = P.bg; ctx.fillRect(0,0,W,H);
@@ -597,7 +591,7 @@ function drawOrgan(t){
   ctx.globalAlpha = 1; ctx.shadowBlur = 0;
 }
 
-/* ---------- 0 Testbild ---------- */
+// ---------- 0 Testbild ----------
 function drawTestcard(t){
   ctx.globalCompositeOperation="source-over"; ctx.shadowBlur = 0;
   ctx.fillStyle = shade(P.bg, 0.06); ctx.fillRect(0,0,W,H);
@@ -648,7 +642,7 @@ function drawTestcard(t){
   ctx.fillStyle = rg; ctx.fillRect(0, ry-H*0.06, W, H*0.12);
 }
 
-/* ---------- radioskalan ---------- */
+// ---------- radioskalan ----------
 function fmtTime(ms){ if (!isFinite(ms) || ms < 0) ms = 0; const s = Math.floor(ms/1000); return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0"); }
 function drawDial(prog, t){
   const w = dialC.width, h = dialC.height; if (!w || !h) return;
@@ -678,14 +672,14 @@ function drawDial(prog, t){
   dctx.beginPath(); dctx.moveTo(nx, 0); dctx.lineTo(nx, h); dctx.stroke(); dctx.shadowBlur = 0;
 }
 
-/* ---------- hjälpare ---------- */
+// ---------- hjälpare ----------
 function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 function rgbOf(hex){ const n = parseInt(hex.slice(1),16); return [(n>>16)&255,(n>>8)&255,n&255]; }
 function toHex(r,g,b){ return "#" + [r,g,b].map(v => Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,"0")).join(""); }
 function mix(a,b,f){ const A = rgbOf(a), B = rgbOf(b); return toHex(A[0]+(B[0]-A[0])*f, A[1]+(B[1]-A[1])*f, A[2]+(B[2]-A[2])*f); }
 function shade(hex, f){ return f >= 0 ? mix(hex, "#ffffff", f) : mix(hex, "#000000", -f); }
 
-/* ---------- brus vid kanalbyte ---------- */
+// ---------- brus vid kanalbyte ----------
 let noiseUntil = 0;
 function channelNoise(ms=480){
   noiseUntil = performance.now() + ms;
@@ -702,7 +696,7 @@ function drawNoise(now){
   nz.style.opacity = Math.min(1, left/200);
 }
 
-/* ================= huvudloop ================= */
+// ================= huvudloop =================
 const VIZ = { 1:drawOsc, 2:drawEye, 3:drawVU, 4:drawAtom, 5:drawOrgan };
 const VIZ_NAMES = { 1:"Oscilloskop", 2:"Magiskt öga", 3:"VU-mätare", 4:"Atomålder", 5:"Ljusorgel" };
 let lastVizDrawn = 0;
@@ -729,7 +723,7 @@ function frame(nowMs){
   drawNoise(nowMs);
 }
 
-/* ================= låtinfo ================= */
+// ================= låtinfo =================
 const elInfo = $("#info"), elTitle = $("#title"), elArtist = $("#artist"), elAlbum = $("#album"), elKicker = $("#kicker"), elCov = $("#cov"), elCovPh = $("#covPh");
 let infoTimer = 0;
 function setTrack(tr){
@@ -786,7 +780,7 @@ function accentFrom(img){
   }catch(e){ P.accent = base.accent; }
 }
 
-/* ================= radio ================= */
+// ================= radio =================
 let icyTimer = 0, icyUrl = "";
 async function loadStations(q){
   const ul = $("#stations");
@@ -852,10 +846,13 @@ async function pollIcy(){
     let artist = "", title = raw;
     const i = raw.indexOf(" - ");
     if (i > 0){ artist = raw.slice(0,i).trim(); title = raw.slice(i+3).trim(); }
-    const tr = { kicker:"Radio · " + (st.name || ""), title, artist, album:"", year:"", cover: st.favicon || "" };
+    const norm = x => (x||"").toLowerCase().replace(/[^a-z0-9åäö]+/g, " ").trim();
+    const ident = !artist || norm(artist) === norm(st.name) || norm(raw).includes(norm(st.name));
+    const tr = { kicker:"Radio · " + (st.name || ""), title, artist: ident && norm(artist) === norm(st.name) ? prettyTags(st.tags) : artist, album:"", year:"", cover: st.favicon || "" };
     const key = [tr.title, tr.artist, tr.kicker].join("|");
     if (key === state.trackKey) return;
     setTrack(tr);
+    if (ident) return;   // stationens egen skylt, inte en låt: ingen omslagssökning
     try{
       const c = await (await fetch("/api/cover?term=" + encodeURIComponent(raw.replace(" - "," ")))).json();
       if (state.trackKey === key && c && c.cover){
@@ -886,7 +883,7 @@ function radioToggle(){
   } else { audioEl.pause(); audioEl.removeAttribute("src"); audioEl.load(); state.playing = false; osd("Paus"); }
 }
 
-/* ================= Spotify ================= */
+// ================= Spotify =================
 const SP = {
   scope: "user-read-currently-playing user-read-playback-state user-modify-playback-state",
   redirect: location.origin + "/callback",
@@ -985,7 +982,7 @@ function renderSp(){
   else spStatus(state.spDevice ? `Ansluten. Spelar på: ${state.spDevice}` : "Ansluten. Starta musik i Spotify på valfri enhet.");
 }
 
-/* ================= källa, kanal, färg ================= */
+// ================= källa, kanal, färg =================
 function setSource(src){
   if (S.source === src && state.started) { segOn("#srcSeg", src); return; }
   S.source = src; saveS(); segOn("#srcSeg", src);
@@ -1033,7 +1030,7 @@ function playPause(){
 function next(){ S.source === "radio" ? radioStep(1) : spCmd("next"); }
 function prev(){ S.source === "radio" ? radioStep(-1) : spCmd("prev"); }
 
-/* ================= start ================= */
+// ================= start =================
 function start(){
   if (state.started){ ensureAudio(); return; }
   state.started = true;
@@ -1047,7 +1044,7 @@ function start(){
 }
 $("#start").addEventListener("click", start);
 
-/* ================= styrning utifrån ================= */
+// ================= styrning utifrån =================
 let cmdSince = -1;
 async function pollCmd(){
   try{
@@ -1069,7 +1066,7 @@ function runCmd(c){
 }
 setInterval(pollCmd, 1000);
 
-/* ================= panel och tangenter ================= */
+// ================= panel och tangenter =================
 const panel = $("#panel");
 function togglePanel(open){ panel.classList.toggle("open", open ?? !panel.classList.contains("open")); }
 $("#gear").addEventListener("click", () => togglePanel(true));
@@ -1110,7 +1107,7 @@ document.addEventListener("keydown", e => {
 let cursorTimer = 0;
 document.addEventListener("mousemove", () => { document.body.classList.remove("hidecursor"); clearTimeout(cursorTimer); cursorTimer = setTimeout(() => document.body.classList.add("hidecursor"), 2500); });
 
-/* ================= init ================= */
+// ================= init =================
 (async function init(){
   $("#spRedirect").textContent = SP.redirect;
   $("#spClient").value = S.clientId;

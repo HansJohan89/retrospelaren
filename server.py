@@ -231,15 +231,22 @@ class Handler(SimpleHTTPRequestHandler):
         term = term.strip()
         if not term:
             return self._json({})
-        qs = urllib.parse.urlencode({"term": term, "entity": "song", "limit": 1, "country": "SE"})
+        qs = urllib.parse.urlencode({"term": term, "entity": "song", "limit": 5, "country": "SE"})
         try:
             with open_url(f"https://itunes.apple.com/search?{qs}", timeout=8) as r:
                 res = json.loads(r.read().decode("utf-8")).get("results") or []
         except Exception as e:
             return self._json({"error": str(e)})
-        if not res:
+        import re
+        STOP = {"the", "and", "och", "feat", "ft", "with", "med", "de", "la", "le"}
+        words = lambda x: [w for w in re.split(r"[^a-z0-9åäöéü]+", re.sub(r"\(.*?\)|\[.*?\]", " ", (x or "").lower())) if len(w) > 1 and w not in STOP]
+        tw = set(words(term))
+        def hit(x):
+            w = words(x)
+            return bool(w) and sum(1 for v in w if v in tw) / len(w) >= 0.6
+        s = next((r for r in res if hit(r.get("artistName")) and hit(r.get("trackName"))), None)
+        if not s:
             return self._json({})
-        s = res[0]
         art = (s.get("artworkUrl100") or "").replace("100x100bb", "600x600bb")
         return self._json({
             "cover": art,

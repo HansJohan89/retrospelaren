@@ -68,6 +68,15 @@ Kioskläge med autostart utan klick:
 chromium --kiosk --autoplay-policy=no-user-gesture-required "http://127.0.0.1:8888/?autostart=1"
 ```
 
+## Testversion i molnet (Railway)
+
+Körs som Railway Function i projektet `retrospelaren`:
+https://retrospelaren-production.up.railway.app
+
+För Spotify där: lägg även till `https://retrospelaren-production.up.railway.app/callback` som Redirect URI.
+
+`railway/server.ts` är molnversionen av `server.py` (Bun). `railway/bygg.sh` bygger `railway/function.ts` = servern med `index.html` inbäddad, vilket är filen som ligger på Railway.
+
 ## Filer
 
 - `index.html` – hela spelaren (en fil)
