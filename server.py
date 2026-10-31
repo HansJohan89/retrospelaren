@@ -18,6 +18,7 @@ Vägar:
   /api/ogimage?url= delningsbilden (og:image) för en artikel som saknar bild i flödet
   /api/stops?q=     sök hållplats (ResRobot v2.1, nyckel i RESROBOT_API_KEY eller resrobot.key)
   /api/departures?id=  kommande avgångar från en hållplats (3 h, vid gles trafik upp till 12 h)
+  /api/trip?from=&to=  resor mellan två hållplatser: avgång, ankomst, linjer, byten (ResRobot)
   /api/album?url=   bildadresser ur ett publikt delat Google Foto-album (samma metod som e-ink-tavlan)
   /api/football     AIK i Allsvenskan via Highlightly (nyckel i HIGHLIGHTLY_API_KEY)
   /api/send?c=      skicka kommando till sidan: open, close, next, prev,
@@ -171,6 +172,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.stops(q.get("q", [""])[0])
             if path == "/api/departures":
                 return self.departures(q.get("id", [""])[0])
+            if path == "/api/trip":
+                return self.trip(q.get("from", [""])[0], q.get("to", [""])[0])
             if path == "/api/album":
                 return self.album(q.get("url", [""])[0])
             if path == "/api/football":
@@ -457,6 +460,48 @@ class Handler(SimpleHTTPRequestHandler):
                         "canceled": bool(d.get("cancelled")), "plat": d.get("rtTrack") or d.get("track") or ""})
         out.sort(key=lambda x: x["rt"] or x["sched"])
         DEP_CACHE[sid] = (time.time(), out)
+        return self._json(out)
+
+    def trip(self, src, dst):
+        """Resor från en hållplats till en annan (ResRobot /trip, som e-ink-tavlans fetch_trip): avgång, ankomst, linjer och byten."""
+        import time
+        src = "".join(ch for ch in src if ch.isalnum()); dst = "".join(ch for ch in dst if ch.isalnum())
+        if not src or not dst:
+            return self._json({"error": "ange from och to"}, 400)
+        key = src + ">" + dst
+        hit = DEP_CACHE.get(key)
+        if hit and time.time() - hit[0] < 60:
+            return self._json(hit[1])
+        try:
+            j = self.rr_get("trip", {"originId": src, "destId": dst, "numF": 6})
+        except LookupError as e:
+            return self._json({"error": str(e), "nokey": True}, 200)
+        except Exception as e:
+            return self._json({"error": str(e)}, 502)
+        trips = j.get("Trip") or []
+        if isinstance(trips, dict):          # en enda resa kommer som objekt, inte lista
+            trips = [trips]
+        out = []
+        for t in trips:
+            legs = (t.get("LegList") or {}).get("Leg") or []
+            if isinstance(legs, dict):
+                legs = [legs]
+            jny = [l for l in legs if l.get("type") == "JNY"]
+            if not jny:
+                continue
+            def line(l):
+                p = l.get("Product") or {}
+                if isinstance(p, list):
+                    p = p[0] if p else {}
+                return p.get("displayNumber") or p.get("num") or p.get("line") or ""
+            o, d = jny[0]["Origin"], jny[-1]["Destination"]
+            rt_dep = f"{o.get('rtDate') or o.get('date')}T{o['rtTime']}" if o.get("rtTime") else None
+            rt_arr = f"{d.get('rtDate') or d.get('date')}T{d['rtTime']}" if d.get("rtTime") else None
+            out.append({"line": "/".join(dict.fromkeys(line(l) for l in jny)), "sched": f"{o.get('date')}T{o.get('time')}", "rt": rt_dep,
+                        "arr": rt_arr or f"{d.get('date')}T{d.get('time')}", "changes": len(jny) - 1,
+                        "canceled": any(l.get("cancelled") for l in jny), "live": bool(rt_dep)})
+        out.sort(key=lambda x: x["rt"] or x["sched"])
+        DEP_CACHE[key] = (time.time(), out)
         return self._json(out)
 
     # --- Google Foto: publikt delade album, samma metod som e-ink-tavlan (fetchers/google_photos.py) ---

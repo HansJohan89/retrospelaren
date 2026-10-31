@@ -434,6 +434,8 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <label class="chk"><input type="checkbox" id="idBus"> Bussavgångar på vädersidan</label>
       <div class="row"><input type="search" id="busQ" placeholder="Sök hållplats, t.ex. Falun Centrum"><button class="btn" id="busBtn">Sök</button></div>
       <div class="row"><select id="busSel"><option value="">Ingen hållplats vald</option></select></div>
+      <div class="row"><input type="search" id="busToQ" placeholder="Framme vid (valfritt), t.ex. Falu lasarett"><button class="btn" id="busToBtn">Sök</button></div>
+      <div class="row"><select id="busToSel"><option value="">Ingen – visa vart bussen går</option></select></div>
       <div class="note" id="busStatus"></div>
       <label class="chk"><input type="checkbox" id="idNews"> Nyheter</label>
       <label class="chk"><input type="checkbox" id="idPhoto"> Foton från Google Foto</label>
@@ -518,7 +520,7 @@ S.fx = Object.assign({}, FX_DEF, S.fx || {}); if (S.warm === undefined) S.warm =
 S.look = Object.assign({}, LOOK_DEF, S.look || {});
 S.edge = Object.assign({}, EDGE_DEF, S.edge || {});
 const IDLE_DEF = { wx:true, news:true, test:true, secs:40, artSecs:15, feed:"svt", own:"" };
-const BUS_DEF = { on:true, id:"", name:"" };
+const BUS_DEF = { on:true, id:"", name:"", to:"", toName:"" };
 const PHOTO_DEF = { on:true, albums:"", secs:12, orig:false };
 const HOME_DEF = { on:true, clock:true, wx:true, bus:true, news:true, aik:true, photo:false };
 S.idle = Object.assign({}, IDLE_DEF, S.idle || {});
@@ -1234,20 +1236,24 @@ let DEP = { items:[], at:0, err:"", nokey:false };
 async function loadDeps(){
   if (!S.bus.on || !S.bus.id) return;
   try{
-    const j = await (await fetch("/api/departures?id=" + encodeURIComponent(S.bus.id))).json();
+    const url = S.bus.to ? `/api/trip?from=${encodeURIComponent(S.bus.id)}&to=${encodeURIComponent(S.bus.to)}` : "/api/departures?id=" + encodeURIComponent(S.bus.id);
+    const j = await (await fetch(url)).json();
     if (Array.isArray(j)) DEP = { items:j, at:Date.now(), err:"", nokey:false };
     else DEP = { items:[], at:Date.now(), err:j.error || "fel", nokey:!!j.nokey };
   }catch(e){ DEP = { items:[], at:Date.now(), err:"Avgångarna svarar inte.", nokey:false }; }
-  $("#busStatus").textContent = DEP.nokey ? "Servern saknar RESROBOT_API_KEY." : DEP.err ? DEP.err : `${DEP.items.length} kommande avgångar från ${S.bus.name}.`;
+  $("#busStatus").textContent = DEP.nokey ? "Servern saknar RESROBOT_API_KEY." : DEP.err ? DEP.err :
+    S.bus.to ? `${DEP.items.length} resor från ${stopName(S.bus.name)} till ${stopName(S.bus.toName)}.` : `${DEP.items.length} kommande avgångar från ${stopName(S.bus.name)}.`;
   renderBoard();
 }
-async function findStops(q){
+const stopName = n => String(n || "").replace(/\s*\([^)]*\)\s*$/, "");
+async function findStops(q, sel = "#busSel"){
   $("#busStatus").textContent = "Söker...";
   try{
     const j = await (await fetch("/api/stops?q=" + encodeURIComponent(q))).json();
     if (!Array.isArray(j)){ $("#busStatus").textContent = j.nokey ? "Servern saknar RESROBOT_API_KEY." : (j.error || "Sökningen misslyckades."); return; }
     if (!j.length){ $("#busStatus").textContent = "Hittade ingen hållplats."; return; }
-    $("#busSel").innerHTML = '<option value="">Välj hållplats...</option>' + j.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join("");
+    $(sel).innerHTML = (sel === "#busToSel" ? '<option value="">Ingen – visa vart bussen går</option>' : '<option value="">Välj hållplats...</option>') +
+      j.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join("");
     $("#busStatus").textContent = `${j.length} träffar. Välj i listan.`;
   }catch(e){ $("#busStatus").textContent = "Sökningen svarar inte."; }
 }
@@ -1255,7 +1261,7 @@ function depTime(d){ return new Date(d.rt || d.sched); }
 function renderBus(max = 7){
   const b = S.bus;
   if (!b.id) return `<div class="bus"><div class="bh">Avgångar</div><div class="msg">Välj hållplats under S → När inget spelar.</div></div>`;
-  const head = `<div class="bh">Avgångar · ${esc(b.name)}</div>`;
+  const head = `<div class="bh">${b.to ? `${esc(stopName(b.name))} → ${esc(stopName(b.toName))}` : `Avgångar · ${esc(stopName(b.name))}`}</div>`;
   if (DEP.err) return `<div class="bus">${head}<div class="msg">${DEP.nokey ? "RESROBOT_API_KEY saknas på servern." : esc(DEP.err)}</div></div>`;
   const now = Date.now();
   const rows = DEP.items.filter(d => depTime(d).getTime() > now - 30e3).slice(0, max).map(d => {
@@ -1263,9 +1269,10 @@ function renderBus(max = 7){
     const other = t.toDateString() !== new Date().toDateString();
     const when = d.canceled ? "Inställd" : min <= 0 ? "Nu" : min <= 15 ? `${min} min` : (other ? DAYS_SHORT[t.getDay()].toLowerCase() + " " : "") + hhmm(t);
     const late = !d.canceled && d.rt && d.sched && new Date(d.rt) - new Date(d.sched) >= 120e3 ? `<small>(${hhmm(new Date(d.sched))})</small>` : "";
-    return `<li class="${d.canceled ? "x" : min <= 3 ? "soon" : ""}"><span class="ln">${esc(d.line)}</span><span class="ds">${esc(d.dest)}</span><span class="tm">${when}${late}</span></li>`;
+    const ds = b.to ? `framme ${hhmm(new Date(d.arr))}${d.changes ? ` · ${d.changes} byte` : ""}` : esc(d.dest);
+    return `<li class="${d.canceled ? "x" : min <= 3 ? "soon" : ""}"><span class="ln">${esc(d.line)}</span><span class="ds">${ds}</span><span class="tm">${when}${late}</span></li>`;
   });
-  return `<div class="bus">${head}${rows.length ? `<ul>${rows.join("")}</ul>` : `<div class="msg">${DEP.at ? "Inga avgångar de närmaste tolv timmarna." : "Hämtar avgångar..."}</div>`}</div>`;
+  return `<div class="bus">${head}${rows.length ? `<ul>${rows.join("")}</ul>` : `<div class="msg">${DEP.at ? (b.to ? "Inga resor hittades." : "Inga avgångar de närmaste tolv timmarna.") : "Hämtar avgångar..."}</div>`}</div>`;
 }
 function renderWxPage(){
   const W2 = WX, e = S.edge; if (!W2 || !W2.hourly) return "";
@@ -1286,8 +1293,7 @@ function renderWxPage(){
   }
   const sr = D2.sunrise?.[0] ? hhmm(new Date(D2.sunrise[0])) : "–", ss = D2.sunset?.[0] ? hhmm(new Date(D2.sunset[0])) : "–";
   const bus = S.bus.on, fb = S.idle.wxFb && FOOT.ok && FOOT.teams[0];
-  return `<div class="kick"><span>Väder · ${esc(e.place)}</span><span>Uppdaterat ${hhmm(new Date(W2.at))}</span></div>
-    <div class="wxA"><div class="wxL">
+  return `<div class="wxA"><div class="wxL">
       <div class="wxNow">${wxIcon(W2.c, W2.day)}<span class="tmp">${Math.round(W2.t)}°</span>
         <div class="txt"><span class="big">${WX_TEXT(W2.c)}</span><span class="sub">Känns som ${Math.round(W2.feel)}°</span><span class="sub">Idag ${Math.round(W2.hi)}° / ${Math.round(W2.lo)}°</span></div></div>
       <div class="wxFacts"><span>Vind <b>${Math.round(W2.wind)} m/s ${COMPASS[Math.round((W2.dir || 0)/45) % 8]}</b>${W2.gust ? ` (byar ${Math.round(W2.gust)})` : ""}</span>
@@ -1995,6 +2001,10 @@ function buildControls(){
   $("#idFb").addEventListener("change", e => { S.idle.fb = e.target.checked; saveS(); BOARD.until = 0; loadFootball(); });
   $("#idBus").addEventListener("change", e => { S.bus.on = e.target.checked; saveS(); loadDeps(); renderBoard(); });
   $("#busBtn").addEventListener("click", () => { const v = $("#busQ").value.trim(); if (v) findStops(v); });
+  $("#busToBtn").addEventListener("click", () => { const v = $("#busToQ").value.trim(); if (v) findStops(v, "#busToSel"); });
+  $("#busToQ").addEventListener("keydown", e => { if (e.key === "Enter") $("#busToBtn").click(); });
+  $("#busToSel").addEventListener("change", e => { const o = e.target.selectedOptions[0];
+    S.bus.to = o ? o.value : ""; S.bus.toName = o && o.value ? o.textContent : ""; saveS(); DEP = { items:[], at:0, err:"", nokey:false }; loadDeps(); });
   $("#busQ").addEventListener("keydown", e => { if (e.key === "Enter") $("#busBtn").click(); });
   $("#busSel").addEventListener("change", e => { const o = e.target.selectedOptions[0]; if (!o || !o.value) return;
     S.bus.id = o.value; S.bus.name = o.textContent; saveS(); DEP = { items:[], at:0, err:"", nokey:false }; loadDeps(); });
@@ -2023,6 +2033,7 @@ function syncAll(){
   $("#idHome").checked = S.home.on; document.querySelectorAll("#homeSeg button").forEach(b => b.classList.toggle("on", !!S.home[b.dataset.v]));
   $("#idPhoto").checked = S.photo.on; $("#albums").value = S.photo.albums; $("#photoOrig").checked = !!S.photo.orig; $("#idFb").checked = S.idle.fb; $("#idWxFb").checked = S.idle.wxFb;
   if (S.bus.id) $("#busSel").innerHTML = `<option value="${esc(S.bus.id)}">${esc(S.bus.name)}</option>`;
+  if (S.bus.to) $("#busToSel").innerHTML = `<option value="">Ingen – visa vart bussen går</option><option value="${esc(S.bus.to)}" selected>${esc(S.bus.toName)}</option>`;
   $("#idWx").checked = S.idle.wx; $("#idNews").checked = S.idle.news; $("#idTest").checked = S.idle.test;
   $("#feedSel").value = S.idle.feed; $("#feedOwn").value = S.idle.own; $("#feedOwnRow").style.display = S.idle.feed === "own" ? "" : "none";
 }
