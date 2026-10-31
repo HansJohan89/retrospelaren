@@ -190,6 +190,8 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .mt .r img{width:3vh;height:3vh;object-fit:contain;filter:var(--cover-filter)}
 /* Detaljerad tabell: spelade, vunna, oavgjorda, förlorade, målskillnad, mål och poäng. Mål döljs när spalten är smal. */
 .fbBox{container-type:inline-size}
+.fbBox .fbWait{margin:auto;display:flex;flex-direction:column;align-items:center;gap:1vh;color:var(--mid);letter-spacing:.2em;text-transform:uppercase}
+.fbBox .fbWait small{letter-spacing:.05em;text-transform:none;font-size:.75em}
 .mt .r.x,.fbBox .mh{grid-template-columns:2.6ch 3.6vh minmax(0,1fr) repeat(4,2.6ch) 3.4ch 5.4ch 3ch;gap:1.4vh;text-align:right}
 .fbBox .mh{display:grid;flex:none;padding:0 .8vh .4vh;color:var(--mid);border-bottom:max(1px,.15vh) solid var(--dim);margin-bottom:.4vh}
 .mt .r.x img{width:3.6vh;height:3.6vh;justify-self:center}
@@ -1509,7 +1511,8 @@ function renderWxPage(){
       `<span class="p">${(D2.precipitation_sum[i] ?? 0).toFixed(1).replace(".", ",")}<span class="u"> mm</span></span></div>`);
   }
   const sr = D2.sunrise?.[0] ? hhmm(new Date(D2.sunrise[0])) : "–", ss = D2.sunset?.[0] ? hhmm(new Date(D2.sunset[0])) : "–";
-  const bus = S.bus.on, fb = S.idle.wxFb && FOOT.ok && FOOT.teams[0];
+  // Fotbollen behåller sin plats även när datan saknas för stunden, så att sidan inte byter utseende
+  const bus = S.bus.on, fb = S.idle.wxFb && FOOT.ok && FOOT.teams[0], fbWant = S.idle.wxFb;
   return `<div class="wxA"><div class="wxL">
       <div class="wxNow">${wxIcon(W2.c, W2.day)}<span class="tmp">${Math.round(W2.t)}°</span>
         <div class="txt"><span class="big">${WX_TEXT(W2.c)}</span><span class="sub">Känns som ${Math.round(W2.feel)}°</span><span class="sub">Idag ${Math.round(W2.hi)}° / ${Math.round(W2.lo)}°</span></div></div>
@@ -1517,7 +1520,7 @@ function renderWxPage(){
         <span>Fukt <b>${Math.round(W2.hum)}%</b></span><span>Tryck <b>${Math.round(W2.pres)} hPa</b></span>
         <span>Sol <b>${sr}</b> – <b>${ss}</b></span></div>
     </div><div class="wxRow wxDays" style="grid-template-columns:repeat(${days.length},1fr)">${days.join("")}</div></div>
-    ${fb ? `<div class="wxB duo"><div class="wxC">${hoursRow(hours.slice(0, 4))}${bus ? renderBus() : ""}</div>${renderFbBox(fb)}</div>`
+    ${fbWant ? `<div class="wxB duo"><div class="wxC">${hoursRow(hours.slice(0, 4))}${bus ? renderBus() : ""}</div>${fb ? renderFbBox(fb) : `<div class="fbBox"><div class="fbWait">Allsvenskan<small>Tabellen hämtas igen om en stund.</small></div></div>`}</div>`
       : hoursRow(hours) + (bus ? `<div class="wxB solo">${renderBus()}</div>` : "")}`;
 }
 function hoursRow(hours){ return `<div class="wxRow wxHours" style="grid-template-columns:repeat(${hours.length},1fr)">${hours.join("")}</div>`; }
