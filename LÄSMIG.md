@@ -41,7 +41,7 @@ På Pi:n är *Vågiga linjer*, *Spökbild* och *Färgfransar* de tyngsta effekte
 
 - **Utseende:** märkning (standard BLAUPUNKT), rubrik- och brödtypsnitt, textstorlek, versaler, omslag som fyrkant, snurrande vinylskiva eller dolt
 - **Skärm:** 4:3, 16:9 eller fyll, samt storlek och förskjutning för att passa bilden bakom masken
-- **Kanter:** datum, veckonummer, aktuellt väder och klocka överst på alla sidor, alla i samma stora storlek (Open-Meteo, standard Falun, valfri ort). Storleken ställs med "Datum och klocka %" under Utseende; sidornas innehåll och visualiseringarna flyttar sig så att inget krockar.
+- **Kanter:** datum, veckonummer, steg och klocka överst och aktuellt väder (med dagens högsta och lägsta) längs nederkanten, alla i samma stora storlek (Open-Meteo, standard Falun, valfri ort). Storleken ställs med "Datum och klocka %" under Utseende; sidornas innehåll och visualiseringarna flyttar sig så att inget krockar.
 
 ### Stegräknare
 

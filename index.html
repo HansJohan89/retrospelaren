@@ -33,7 +33,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 @keyframes roll{0%{transform:translateY(0)}40%{transform:translateY(-18%)}70%{transform:translateY(9%)}100%{transform:translateY(0)}}
 .content{position:absolute;inset:0;will-change:transform}
 
-#info{position:absolute;left:5%;right:5%;bottom:13.5%;height:17%;display:flex;gap:3.2%;align-items:center;
+#info{position:absolute;left:5%;right:5%;bottom:calc(13.5% + var(--bb,0px));height:17%;display:flex;gap:3.2%;align-items:center;
   transition:opacity .6s, transform .6s;z-index:3}
 #info.out{opacity:0;transform:translateY(6%)}
 #info.hidden,#dial.hidden{display:none}
@@ -64,7 +64,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .artist{font-size:calc(3.1vh*var(--sz));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
 .album{font-size:calc(2vh*var(--sz));color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-#dial{position:absolute;left:5%;right:5%;bottom:4.2%;height:7.2%;z-index:3;
+#dial{position:absolute;left:5%;right:5%;bottom:calc(4.2% + var(--bb,0px));height:7.2%;z-index:3;
   border-top:max(1px,.2vh) solid var(--dim);border-bottom:max(1px,.2vh) solid var(--dim)}
 #dial canvas{position:absolute;inset:0;width:100%;height:100%}
 
@@ -74,7 +74,13 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
   text-shadow:0 0 1.4vh color-mix(in srgb,var(--ink) 45%,transparent)}
 #edges .grp{display:flex;align-items:center;gap:.5em;min-width:0}
 #edges .wk{color:var(--mid)}
-#edges .wxe{display:flex;align-items:center;gap:.35em}
+#edges .wxe,#edgesB .wxe{display:flex;align-items:center;gap:.35em}
+#edgesB{position:absolute;left:6%;right:6%;bottom:3.4%;z-index:4;display:flex;justify-content:center;align-items:center;gap:.6em;
+  font-family:var(--fT),serif;line-height:1.1;letter-spacing:.02em;color:var(--ink);white-space:nowrap;overflow:hidden;pointer-events:none;
+  text-shadow:0 0 1.4vh color-mix(in srgb,var(--ink) 45%,transparent)}
+#edgesB:empty{display:none}
+#edgesB svg{width:1.05em;height:1.05em;flex:none;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+#edgesB .lo{color:var(--mid)}
 #edges .stp{display:flex;align-items:center;gap:.3em}
 #edges .stp .paws{width:1.15em;height:1.15em;stroke:none;fill:currentColor}
 #edges .stp .rul{width:2.6em;height:.9em;stroke:currentColor;fill:none}
@@ -84,7 +90,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
   text-shadow:0 0 1vh var(--ink);opacity:0;transition:opacity .8s;text-transform:uppercase}
 #osd.on{opacity:.95;transition:opacity .1s}
 
-#board{position:absolute;left:6%;right:6%;top:calc(4% + 7.5vh*var(--esz,1));bottom:7%;z-index:3;color:var(--ink);font-size:calc(2.75vh*var(--sz));
+#board{position:absolute;left:6%;right:6%;top:calc(4% + 7.5vh*var(--esz,1));bottom:calc(7% + var(--bb,0px));z-index:3;color:var(--ink);font-size:calc(2.75vh*var(--sz));
   opacity:0;pointer-events:none;transition:opacity .5s}
 #board.on{opacity:1}
 #board svg{stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
@@ -293,6 +299,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
     <div class="power" id="power"><div class="content" id="content">
       <canvas id="viz"></canvas>
       <div id="edges"><div class="grp" id="edgeL"></div><div class="grp" id="edgeR"></div></div>
+      <div id="edgesB"></div>
       <div id="info" class="out">
         <div class="cover"><img id="cov" src="" alt=""><div class="ph" id="covPh">&#9835;</div></div>
         <div class="meta">
@@ -668,7 +675,13 @@ function layoutScreen(){
   sc.style.transform = `translate(${L2.offX/100*vw}px, ${L2.offY/100*vh}px)`;
 }
 let EDGE_B = 0.12;   // kanternas nederkant som andel av skärmhöjden, så visualiseringarna börjar under datum och klocka
+let EDGE_BB = 0;     // väderradens höjd (med luft) som andel av skärmhöjden
 function measureEdges(){
+  const scr = $("#screen"), sr = scr.getBoundingClientRect(), eb = $("#edgesB");
+  const bb = eb.innerHTML.trim() ? sr.bottom - eb.getBoundingClientRect().top - sr.height*0.035 + sr.height*0.012 : 0;
+  const px = Math.max(0, Math.round(bb)) + "px";
+  if (scr.style.getPropertyValue("--bb") !== px) scr.style.setProperty("--bb", px);
+  EDGE_BB = sr.height ? Math.max(0, bb) / sr.height : 0;
   const sc = $("#screen").getBoundingClientRect(), ed = $("#edges").getBoundingClientRect();
   EDGE_B = $("#edges").innerHTML.trim() && sc.height ? (ed.bottom - sc.top) / sc.height : 0.05;
 }
@@ -695,7 +708,7 @@ function hexA(hex, a){
 }
 function region(){ // visualiseringens yta mellan kanterna och radioskalan
   const infoOn = S.info && state.track;
-  const top = Math.max(0.15, EDGE_B + 0.02), bottom = infoOn ? 0.62 : 0.85;
+  const top = Math.max(0.15, EDGE_B + 0.02), bottom = (infoOn ? 0.62 : 0.85) - EDGE_BB;
   return { x:W*0.06, y:H*top, w:W*0.88, h:H*(bottom - top) };
 }
 function fade(a){ ctx.globalCompositeOperation = "source-over"; ctx.shadowBlur = 0; ctx.fillStyle = hexA(P.bg, a); ctx.fillRect(0,0,W,H); }
@@ -1233,16 +1246,22 @@ function renderEdges(){
   if (e.date) Lp.push(`<span>${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS_L[d.getMonth()]}</span>`);
   if (e.week) Lp.push(`<span class="wk">v.${isoWeek(d)}</span>`);
   const st = stepsHtml(); if (st) Rp.push(st);
-  if (e.wx && WX && BOARD.page !== "wx" && !(BOARD.page === "hem" && S.home.wx))
-    Rp.push(`<span class="wxe">${wxIcon(WX.c, WX.day)}<span>${Math.round(WX.t)}° ${WX_TEXT(WX.c).toLowerCase()}</span></span>`);
+  // Vädret ligger i nedre kanten, i samma storlek som raden överst
+  const wb = e.wx && WX && BOARD.page !== "wx" && !(BOARD.page === "hem" && S.home.wx)
+    ? `<span class="wxe">${wxIcon(WX.c, WX.day)}<span>${Math.round(WX.t)}° ${WX_TEXT(WX.c).toLowerCase()}</span></span>` +
+      (WX.hi != null ? `<span class="lo">${Math.round(WX.hi)}° / ${Math.round(WX.lo)}°</span>` : "") : "";
   if (e.clock && !(BOARD.page === "hem" && S.home.clock)) Rp.push(`<span class="clock">${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}</span>`);
   const l = Lp.join(""), r = Rp.join("");
   if ($("#edgeL").innerHTML !== l){ $("#edgeL").innerHTML = l; renderEdges.fitted = false; }
   if ($("#edgeR").innerHTML !== r){ $("#edgeR").innerHTML = r; fitEdges(); }
   else if (!renderEdges.fitted){ fitEdges(); }
+  const eb = $("#edgesB");
+  if (eb.innerHTML !== wb){ eb.innerHTML = wb; renderEdges.bfit = false; }
+  if (!renderEdges.bfit){ eb.style.fontSize = getComputedStyle($("#edges")).fontSize; renderEdges.bfit = true; }
   measureEdges();
 }
 function fitEdges(){
+  renderEdges.bfit = false;
   const ed = $("#edges"), L = $("#edgeL"), R = $("#edgeR");
   ed.style.fontSize = "";
   const need = L.scrollWidth + R.scrollWidth + parseFloat(getComputedStyle(ed).columnGap || 0), have = ed.clientWidth;
