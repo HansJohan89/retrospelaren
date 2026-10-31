@@ -472,16 +472,35 @@ class Handler(SimpleHTTPRequestHandler):
         hit = DEP_CACHE.get(key)
         if hit and time.time() - hit[0] < 60:
             return self._json(hit[1])
+        # ResRobot ger högst 6 resor per sökning: hämtar en andra omgång från minuten efter den sista avgången
+        trips, params = [], {"originId": src, "destId": dst, "numF": 6}
         try:
-            j = self.rr_get("trip", {"originId": src, "destId": dst, "numF": 6})
+            for _ in range(2):
+                j = self.rr_get("trip", params)
+                got = j.get("Trip") or []
+                if isinstance(got, dict):    # en enda resa kommer som objekt, inte lista
+                    got = [got]
+                trips += got
+                if len(got) < 6:
+                    break
+                last = None
+                for t in got:
+                    legs = (t.get("LegList") or {}).get("Leg") or []
+                    legs = [legs] if isinstance(legs, dict) else legs
+                    o = next((l.get("Origin") for l in legs if l.get("type") == "JNY"), None)
+                    if o and o.get("date") and o.get("time"):
+                        last = max(last or "", f"{o['date']}T{o['time']}")
+                if not last:
+                    break
+                import datetime as _dt
+                nxt = _dt.datetime.fromisoformat(last) + _dt.timedelta(minutes=1)
+                params = {**params, "date": nxt.strftime("%Y-%m-%d"), "time": nxt.strftime("%H:%M")}
         except LookupError as e:
             return self._json({"error": str(e), "nokey": True}, 200)
         except Exception as e:
-            return self._json({"error": str(e)}, 502)
-        trips = j.get("Trip") or []
-        if isinstance(trips, dict):          # en enda resa kommer som objekt, inte lista
-            trips = [trips]
-        out = []
+            if not trips:
+                return self._json({"error": str(e)}, 502)
+        out, seen = [], set()
         for t in trips:
             legs = (t.get("LegList") or {}).get("Leg") or []
             if isinstance(legs, dict):
@@ -497,7 +516,12 @@ class Handler(SimpleHTTPRequestHandler):
             o, d = jny[0]["Origin"], jny[-1]["Destination"]
             rt_dep = f"{o.get('rtDate') or o.get('date')}T{o['rtTime']}" if o.get("rtTime") else None
             rt_arr = f"{d.get('rtDate') or d.get('date')}T{d['rtTime']}" if d.get("rtTime") else None
-            out.append({"line": "/".join(dict.fromkeys(line(l) for l in jny)), "sched": f"{o.get('date')}T{o.get('time')}", "rt": rt_dep,
+            sched = f"{o.get('date')}T{o.get('time')}"
+            lines = "/".join(dict.fromkeys(line(l) for l in jny))
+            if (sched, lines) in seen:
+                continue
+            seen.add((sched, lines))
+            out.append({"line": lines, "sched": sched, "rt": rt_dep,
                         "arr": rt_arr or f"{d.get('date')}T{d.get('time')}", "changes": len(jny) - 1,
                         "canceled": any(l.get("cancelled") for l in jny), "live": bool(rt_dep)})
         out.sort(key=lambda x: x["rt"] or x["sched"])

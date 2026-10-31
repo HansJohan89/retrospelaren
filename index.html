@@ -1269,8 +1269,10 @@ function renderBus(max = 7){
     const other = t.toDateString() !== new Date().toDateString();
     const when = d.canceled ? "Inställd" : min <= 0 ? "Nu" : min <= 15 ? `${min} min` : (other ? DAYS_SHORT[t.getDay()].toLowerCase() + " " : "") + hhmm(t);
     const late = !d.canceled && d.rt && d.sched && new Date(d.rt) - new Date(d.sched) >= 120e3 ? `<small>(${hhmm(new Date(d.sched))})</small>` : "";
-    const ds = b.to ? `framme ${hhmm(new Date(d.arr))}${d.changes ? ` · ${d.changes} byte` : ""}` : esc(d.dest);
-    return `<li class="${d.canceled ? "x" : min <= 3 ? "soon" : ""}"><span class="ln">${esc(d.line)}</span><span class="ds">${ds}</span><span class="tm">${when}${late}</span></li>`;
+    // Med vald hållplats att åka till: linje, avgång, framme (och byten). Annars: linje, slutdestination, avgång.
+    if (b.to) return `<li class="${d.canceled ? "x" : min <= 3 ? "soon" : ""}"><span class="ln">${esc(d.line)}</span><span class="ds">${when}${late}</span>` +
+      `<span class="tm">framme ${hhmm(new Date(d.arr))}${d.changes ? `<small>${d.changes} byte</small>` : ""}</span></li>`;
+    return `<li class="${d.canceled ? "x" : min <= 3 ? "soon" : ""}"><span class="ln">${esc(d.line)}</span><span class="ds">${esc(d.dest)}</span><span class="tm">${when}${late}</span></li>`;
   });
   return `<div class="bus">${head}${rows.length ? `<ul>${rows.join("")}</ul>` : `<div class="msg">${DEP.at ? (b.to ? "Inga resor hittades." : "Inga avgångar de närmaste tolv timmarna.") : "Hämtar avgångar..."}</div>`}</div>`;
 }
