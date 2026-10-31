@@ -103,6 +103,13 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .wxRow .p{font-size:.75em;color:var(--mid)}
 .wxTop{display:grid;grid-template-columns:1.05fr 1fr;gap:5vh;align-items:start}
 #pgWx{gap:2.2vh}
+#pgWx .wxTop{flex:1 1 auto;min-height:0;overflow:hidden;align-items:stretch;grid-template-rows:minmax(0,1fr)}
+#pgWx .wxL{align-self:start}
+#pgWx .wxRow,#pgWx .kick{flex:none}
+#pgWx.tight .wxDays{display:none}
+.bus{display:flex;flex-direction:column;min-height:0;height:100%}
+.bus ul{flex:1 1 auto;min-height:0;overflow:hidden}
+.tile .bus{flex:1 1 auto;height:auto}
 #pgWx .wxRow{font-size:.9em}
 .wxTop.solo{grid-template-columns:1fr}
 .wxL{display:flex;flex-direction:column;gap:2.6vh;min-width:0}
@@ -1271,7 +1278,7 @@ function renderWxPage(){
         <span>Sol <b>${sr}</b> – <b>${ss}</b></span></div>
     </div>${bus ? renderBus() : ""}</div>
     <div class="wxRow" style="grid-template-columns:repeat(${hours.length},1fr)">${hours.join("")}</div>
-    <div class="wxRow" style="grid-template-columns:repeat(${days.length},1fr)">${days.join("")}</div>`;
+    <div class="wxRow wxDays" style="grid-template-columns:repeat(${days.length},1fr)">${days.join("")}</div>`;
 }
 function newsHost(link){ try{ return new URL(link).hostname.replace(/^www\./, ""); }catch(e){ return ""; } }
 async function ensureImg(x){
@@ -1416,14 +1423,35 @@ function renderHomePage(){
   return `<div class="hg" style="grid-template-columns:repeat(${cols},1fr);grid-template-rows:repeat(${rows},1fr)">${html}</div>`;
 }
 
+// Lägger in sidans HTML bara när den ändrats, och tar bort de sista raderna i listor som inte får plats
+// (bussavgångar), så att inget hamnar ovanpå prognosen oavsett skärmformat och textstorlek.
+function setPage(el, h){
+  if (el._h === h) return;
+  el._h = h; el.classList.remove("tight"); el.innerHTML = h;
+  requestAnimationFrame(() => { if (el.id === "pgWx" && wxCramped(el)) el.classList.add("tight"); fitLists(el); });
+}
+// Vädersidan är trång när färre än 5 avgångar (eller alla, om de är färre) får plats, eller när vädret till vänster inte får plats
+function wxCramped(el){
+  const top = el.querySelector(".wxTop"), wl = el.querySelector(".wxL"), ul = el.querySelector(".bus ul");
+  if (wl && top && wl.scrollHeight > top.clientHeight + 1) return true;
+  if (!ul || !ul.children.length) return false;
+  const li = ul.children[0].getBoundingClientRect().height, gap = parseFloat(getComputedStyle(ul).rowGap) || 0;
+  return Math.floor((ul.clientHeight + gap) / (li + gap)) < Math.min(5, ul.children.length);
+}
+function fitLists(el){
+  el.querySelectorAll(".bus ul").forEach(ul => {
+    while (ul.children.length > 1 && ul.scrollHeight > ul.clientHeight + 1) ul.lastElementChild.remove();
+  });
+}
+window.addEventListener("resize", () => document.querySelectorAll("#board .pg").forEach(el => { el._h = ""; }));
 function renderBoard(){
   const wx = $("#pgWx"), nw = $("#pgNews");
-  if (BOARD.page === "wx"){ const h = renderWxPage(); if (wx.innerHTML !== h) wx.innerHTML = h; }
-  if (BOARD.page === "news"){ const h = renderNewsPage(); if (nw.innerHTML !== h) nw.innerHTML = h; }
+  if (BOARD.page === "wx") setPage(wx, renderWxPage());
+  if (BOARD.page === "news") setPage(nw, renderNewsPage());
   const fb = $("#pgFb");
-  if (BOARD.page === "fotboll"){ const h = renderFbPage(); if (fb.innerHTML !== h) fb.innerHTML = h; }
+  if (BOARD.page === "fotboll") setPage(fb, renderFbPage());
   const hm = $("#pgHome");
-  if (BOARD.page === "hem"){ const h = renderHomePage(); if (hm.innerHTML !== h) hm.innerHTML = h; }
+  if (BOARD.page === "hem") setPage(hm, renderHomePage());
   hm.classList.toggle("on", BOARD.page === "hem");
   fb.classList.toggle("on", BOARD.page === "fotboll");
   $("#photo").classList.toggle("on", BOARD.page === "foto");
@@ -1441,7 +1469,7 @@ function boardStep(idle, now){
     if (BOARD.page && next !== BOARD.page) channelNoise(380);
     BOARD.page = next; BOARD.until = now + S.idle.secs*1000;
     BOARD.newsUntil = now + S.idle.artSecs*1000;
-    if (next === "news") $("#pgNews").innerHTML = "";
+    if (next === "news"){ $("#pgNews").innerHTML = ""; $("#pgNews")._h = ""; }
     if (next === "hem"){ BOARD.homePhoto = (BOARD.homePhoto || 0) + 1; BOARD.photoUntil = now + S.photo.secs*1000; }
     if (next === "foto"){ showPhoto(); BOARD.photoUntil = now + S.photo.secs*1000; }
     if (next === "wx" && S.bus.on && S.bus.id && Date.now() - DEP.at > 45e3) loadDeps();
