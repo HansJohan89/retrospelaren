@@ -103,10 +103,25 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .wxRow .p{font-size:.75em;color:var(--mid)}
 .wxTop{display:grid;grid-template-columns:1.05fr 1fr;gap:5vh;align-items:start}
 #pgWx{gap:2.2vh}
-#pgWx .wxTop{flex:1 1 auto;min-height:0;overflow:hidden;align-items:stretch;grid-template-rows:minmax(0,1fr)}
-#pgWx .wxL{align-self:start}
+#pgWx .wxA{flex:none;display:grid;grid-template-columns:1.1fr 1fr;gap:4vh;align-items:center}
+#pgWx .wxA .wxNow svg{width:12vh;height:12vh}
+#pgWx .wxA .wxDays{font-size:.85em}
+#pgWx .wxB{flex:1 1 auto;min-height:0;overflow:hidden;display:grid;grid-template-columns:1fr 1fr;gap:4vh;grid-template-rows:minmax(0,1fr)}
+#pgWx .wxB.solo{grid-template-columns:1fr}
 #pgWx .wxRow,#pgWx .kick{flex:none}
-#pgWx.tight .wxDays{display:none}
+#pgWx.tight .wxHours{display:none}
+.fbBox{display:flex;flex-direction:column;min-height:0;min-width:0}
+.fbBox > .bh,.fbBox > .nx,.bus > .bh{flex:none}
+.fbBox .bh{font-size:.8em;letter-spacing:.3em;text-transform:uppercase;color:var(--mid);margin-bottom:.6vh;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fbBox .nx{color:var(--mid);font-size:.85em;margin-bottom:1vh;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fbBox .nx b{color:var(--ink);font-weight:400}
+.mt{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;overflow:hidden}
+.mt .r{display:grid;grid-template-columns:3ch 3vh 1fr auto;gap:1.2vh;align-items:center;padding:.3vh .8vh;flex:none}
+.mt .r img{width:3vh;height:3vh;object-fit:contain;filter:var(--cover-filter)}
+.mt .r .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mt .r.me{background:var(--ink);color:var(--bg)}
+.mt .r.me img{filter:none}
+.mt .r.off{display:none}
 .bus{display:flex;flex-direction:column;min-height:0;height:100%}
 .bus ul{flex:1 1 auto;min-height:0;overflow:hidden}
 .tile .bus{flex:1 1 auto;height:auto}
@@ -426,6 +441,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <label class="chk"><input type="checkbox" id="photoOrig"> Foton i originalfärg (annars bildrörets färgläge)</label>
       <div class="note" id="photoStatus"></div>
       <label class="chk"><input type="checkbox" id="idFb"> Fotboll (AIK)</label>
+      <label class="chk"><input type="checkbox" id="idWxFb"> AIK-tabell bredvid bussarna på vädersidan</label>
       <div class="note" id="fbStatus"></div>
       <label class="chk"><input type="checkbox" id="idTest"> Testbild</label>
       <div id="idleSl"></div>
@@ -510,6 +526,7 @@ S.bus = Object.assign({}, BUS_DEF, S.bus || {});
 S.photo = Object.assign({}, PHOTO_DEF, S.photo || {});
 S.home = Object.assign({}, HOME_DEF, S.home || {});
 if (S.idle.fb === undefined) S.idle.fb = true;
+if (S.idle.wxFb === undefined) S.idle.wxFb = true;
 const FEEDS = {
   svt:     { name:"SVT Nyheter",  url:"https://www.svt.se/nyheter/rss.xml" },
   dalarna: { name:"SVT Dalarna",  url:"https://www.svt.se/nyheter/lokalt/dalarna/rss.xml" },
@@ -1268,17 +1285,26 @@ function renderWxPage(){
       `<span class="p">${(D2.precipitation_sum[i] ?? 0).toFixed(1).replace(".", ",")} mm</span></div>`);
   }
   const sr = D2.sunrise?.[0] ? hhmm(new Date(D2.sunrise[0])) : "–", ss = D2.sunset?.[0] ? hhmm(new Date(D2.sunset[0])) : "–";
-  const bus = S.bus.on;
+  const bus = S.bus.on, fb = S.idle.wxFb && FOOT.ok && FOOT.teams[0];
   return `<div class="kick"><span>Väder · ${esc(e.place)}</span><span>Uppdaterat ${hhmm(new Date(W2.at))}</span></div>
-    <div class="wxTop${bus ? "" : " solo"}"><div class="wxL">
+    <div class="wxA"><div class="wxL">
       <div class="wxNow">${wxIcon(W2.c, W2.day)}<span class="tmp">${Math.round(W2.t)}°</span>
         <div class="txt"><span class="big">${WX_TEXT(W2.c)}</span><span class="sub">Känns som ${Math.round(W2.feel)}°</span><span class="sub">Idag ${Math.round(W2.hi)}° / ${Math.round(W2.lo)}°</span></div></div>
       <div class="wxFacts"><span>Vind <b>${Math.round(W2.wind)} m/s ${COMPASS[Math.round((W2.dir || 0)/45) % 8]}</b>${W2.gust ? ` (byar ${Math.round(W2.gust)})` : ""}</span>
         <span>Fukt <b>${Math.round(W2.hum)}%</b></span><span>Tryck <b>${Math.round(W2.pres)} hPa</b></span>
         <span>Sol <b>${sr}</b> – <b>${ss}</b></span></div>
-    </div>${bus ? renderBus() : ""}</div>
-    <div class="wxRow" style="grid-template-columns:repeat(${hours.length},1fr)">${hours.join("")}</div>
-    <div class="wxRow wxDays" style="grid-template-columns:repeat(${days.length},1fr)">${days.join("")}</div>`;
+    </div><div class="wxRow wxDays" style="grid-template-columns:repeat(${days.length},1fr)">${days.join("")}</div></div>
+    <div class="wxRow wxHours" style="grid-template-columns:repeat(${hours.length},1fr)">${hours.join("")}</div>
+    ${bus || fb ? `<div class="wxB${bus && fb ? "" : " solo"}">${bus ? renderBus() : ""}${fb ? renderFbBox(fb) : ""}</div>` : ""}`;
+}
+// AIK-tabellen bredvid bussarna: alla lag renderas, fitLists visar sedan så många som får plats med AIK i mitten
+function renderFbBox(T){
+  const st = T.standing || {}, nm = T.next_match;
+  const nd = nm ? new Date(nm.date) : null;
+  const next = nm ? `Nästa: <b>${esc(nm.opponent)}</b> · ${nm.is_home ? "hemma" : "borta"} · ${SV_DAYS[nd.getDay()]} ${nd.getDate()}/${nd.getMonth()+1} ${hhmm(nd)}` : "";
+  const rows = (T.table || []).map(r => `<div class="r${r.id === T.team_id ? " me" : ""}"><span>${r.position}</span>${logo(r.logo)}<span class="t">${esc(r.id === T.team_id ? T.team_name : r.name)}</span><span>${r.points}</span></div>`).join("");
+  return `<div class="fbBox"><div class="bh">${esc(T.league)}${st.position ? ` · ${esc(T.team_name)} ${ordinal(st.position)} · ${st.points} p` : ""}</div>
+    ${next ? `<div class="nx">${next}</div>` : ""}<div class="mt">${rows}</div></div>`;
 }
 function newsHost(link){ try{ return new URL(link).hostname.replace(/^www\./, ""); }catch(e){ return ""; } }
 async function ensureImg(x){
@@ -1336,7 +1362,7 @@ function showPhoto(){
 // ---------- fotboll (Highlightly via servern, samma lag som e-ink-tavlan) ----------
 let FOOT = { ok:false, teams:[], at:0 };
 async function loadFootball(){
-  if (!S.idle.fb){ $("#fbStatus").textContent = ""; return; }
+  if (!S.idle.fb && !S.idle.wxFb && !S.home.aik){ $("#fbStatus").textContent = ""; return; }
   try{
     const j = await (await fetch("/api/football")).json();
     if (j.ok){ FOOT = j; $("#fbStatus").textContent = `Tabeller hämtade ${hhmm(new Date(j.at))}.`; }
@@ -1429,18 +1455,32 @@ function setPage(el, h){
   if (el._h === h) return;
   el._h = h; el.classList.remove("tight"); el.innerHTML = h;
   requestAnimationFrame(() => { if (el.id === "pgWx" && wxCramped(el)) el.classList.add("tight"); fitLists(el); });
+  // Typsnitt och emblem kan ladda in efteråt och ändra radhöjden: anpassa igen när de är klara
+  if (document.fonts) document.fonts.ready.then(() => requestAnimationFrame(() => fitLists(el)));
+  setTimeout(() => fitLists(el), 1500);
 }
 // Vädersidan är trång när färre än 5 avgångar (eller alla, om de är färre) får plats, eller när vädret till vänster inte får plats
 function wxCramped(el){
-  const top = el.querySelector(".wxTop"), wl = el.querySelector(".wxL"), ul = el.querySelector(".bus ul");
-  if (wl && top && wl.scrollHeight > top.clientHeight + 1) return true;
+  const ul = el.querySelector(".bus ul");
   if (!ul || !ul.children.length) return false;
   const li = ul.children[0].getBoundingClientRect().height, gap = parseFloat(getComputedStyle(ul).rowGap) || 0;
-  return Math.floor((ul.clientHeight + gap) / (li + gap)) < Math.min(5, ul.children.length);
+  return Math.floor((ul.clientHeight + gap) / (li + gap)) < Math.min(4, ul.children.length);
 }
 function fitLists(el){
   el.querySelectorAll(".bus ul").forEach(ul => {
     while (ul.children.length > 1 && ul.scrollHeight > ul.clientHeight + 1) ul.lastElementChild.remove();
+  });
+  el.querySelectorAll(".mt").forEach(mt => {
+    const rows = [...mt.children]; rows.forEach(r => r.classList.remove("off"));
+    if (!rows.length) return;
+    // Tabellen slutar i jämnhöjd med bussavgångarna när de står bredvid varandra, annars vid sin egen nederkant
+    const ul = el.querySelector(".wxB .bus ul");
+    const limit = ul && ul.lastElementChild ? ul.lastElementChild.getBoundingClientRect().bottom : mt.getBoundingClientRect().bottom;
+    const space = Math.min(mt.getBoundingClientRect().bottom, limit) - mt.getBoundingClientRect().top;
+    const n = Math.max(1, Math.min(rows.length, Math.floor((space + 1) / rows[0].getBoundingClientRect().height)));
+    const me = Math.max(0, rows.findIndex(r => r.classList.contains("me")));
+    const lo = Math.max(0, Math.min(me - Math.floor((n - 1) / 2), rows.length - n));
+    rows.forEach((r, i) => r.classList.toggle("off", i < lo || i >= lo + n));
   });
 }
 window.addEventListener("resize", () => document.querySelectorAll("#board .pg").forEach(el => { el._h = ""; }));
@@ -1951,6 +1991,7 @@ function buildControls(){
   $("#idHome").addEventListener("change", e => { S.home.on = e.target.checked; saveS(); BOARD.until = 0; });
   $("#homeSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return;
     S.home[b.dataset.v] = !S.home[b.dataset.v]; saveS(); b.classList.toggle("on", S.home[b.dataset.v]); renderBoard(); renderEdges(); });
+  $("#idWxFb").addEventListener("change", e => { S.idle.wxFb = e.target.checked; saveS(); loadFootball(); renderBoard(); });
   $("#idFb").addEventListener("change", e => { S.idle.fb = e.target.checked; saveS(); BOARD.until = 0; loadFootball(); });
   $("#idBus").addEventListener("change", e => { S.bus.on = e.target.checked; saveS(); loadDeps(); renderBoard(); });
   $("#busBtn").addEventListener("click", () => { const v = $("#busQ").value.trim(); if (v) findStops(v); });
@@ -1980,7 +2021,7 @@ function syncAll(){
   $("#wxPlace").value = S.edge.place;
   $("#idBus").checked = S.bus.on;
   $("#idHome").checked = S.home.on; document.querySelectorAll("#homeSeg button").forEach(b => b.classList.toggle("on", !!S.home[b.dataset.v]));
-  $("#idPhoto").checked = S.photo.on; $("#albums").value = S.photo.albums; $("#photoOrig").checked = !!S.photo.orig; $("#idFb").checked = S.idle.fb;
+  $("#idPhoto").checked = S.photo.on; $("#albums").value = S.photo.albums; $("#photoOrig").checked = !!S.photo.orig; $("#idFb").checked = S.idle.fb; $("#idWxFb").checked = S.idle.wxFb;
   if (S.bus.id) $("#busSel").innerHTML = `<option value="${esc(S.bus.id)}">${esc(S.bus.name)}</option>`;
   $("#idWx").checked = S.idle.wx; $("#idNews").checked = S.idle.news; $("#idTest").checked = S.idle.test;
   $("#feedSel").value = S.idle.feed; $("#feedOwn").value = S.idle.own; $("#feedOwnRow").style.display = S.idle.feed === "own" ? "" : "none";

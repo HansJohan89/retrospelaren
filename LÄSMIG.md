@@ -48,7 +48,7 @@ På Pi:n är *Vågiga linjer*, *Spökbild* och *Färgfransar* de tyngsta effekte
 I stället för bara testbilden växlar skärmen mellan sidor (S → När inget spelar):
 
 - **Hemskärm:** flera rutor samtidigt, du väljer vilka: klocka, väder, bussar, nyhet, AIK och foto. Rutnätet anpassar sig efter hur många som är valda; fotot tar två rader. Nyheten och fotot byts medan hemskärmen visas. Väljer du bara hemskärmen stannar den kvar.
-- **Väder och bussar:** nuläge, känns som, vind och byar, luftfuktighet, lufttryck, sol upp/ned, prognos varannan timme och fem dagar framåt. Bredvid vädret visas nästa timmes avgångar från vald hållplats, med realtid, förseningar och inställda turer.
+- **Väder, bussar och AIK:** överst nuläge (känns som, vind och byar, luftfuktighet, lufttryck, sol upp/ned) med fem dagars prognos bredvid, under det prognos varannan timme. Nederst kommande avgångar från vald hållplats (realtid, förseningar, inställda turer) och bredvid dem Allsvenskan-tabellen, lika hög som avgångarna, med AIK i mitten och nästa match. Tabellen kan stängas av. När det är trångt döljs timprognosen och listorna kortas, så att inget hamnar ovanpå något annat.
 - **Nyheter:** en artikel i taget med rubrik, ingress och bild, från SVT Nyheter, SVT Dalarna, Ekot eller valfritt RSS-flöde. Saknar flödet bild hämtas artikelns delningsbild. En stapel visar när nästa artikel kommer.
 - **Foton:** bilder ur ett eller flera publikt delade Google Foto-album, i helskärm med långsam inzoomning och mjuk övertoning. Visas i bildrörets färgläge eller i originalfärg.
 - **Fotboll:** AIK i Allsvenskan: placering, nästa match, de tre senaste resultaten och hela tabellen.
