@@ -1137,14 +1137,14 @@ async function loadDeps(){
     if (Array.isArray(j)) DEP = { items:j, at:Date.now(), err:"", nokey:false };
     else DEP = { items:[], at:Date.now(), err:j.error || "fel", nokey:!!j.nokey };
   }catch(e){ DEP = { items:[], at:Date.now(), err:"Avgångarna svarar inte.", nokey:false }; }
-  $("#busStatus").textContent = DEP.nokey ? "Servern saknar Trafiklab-nyckel (TRAFIKLAB_KEY)." : DEP.err ? DEP.err : `${DEP.items.length} avgångar närmaste timmen från ${S.bus.name}.`;
+  $("#busStatus").textContent = DEP.nokey ? "Servern saknar RESROBOT_API_KEY." : DEP.err ? DEP.err : `${DEP.items.length} kommande avgångar från ${S.bus.name}.`;
   renderBoard();
 }
 async function findStops(q){
   $("#busStatus").textContent = "Söker...";
   try{
     const j = await (await fetch("/api/stops?q=" + encodeURIComponent(q))).json();
-    if (!Array.isArray(j)){ $("#busStatus").textContent = j.nokey ? "Servern saknar Trafiklab-nyckel (TRAFIKLAB_KEY)." : (j.error || "Sökningen misslyckades."); return; }
+    if (!Array.isArray(j)){ $("#busStatus").textContent = j.nokey ? "Servern saknar RESROBOT_API_KEY." : (j.error || "Sökningen misslyckades."); return; }
     if (!j.length){ $("#busStatus").textContent = "Hittade ingen hållplats."; return; }
     $("#busSel").innerHTML = '<option value="">Välj hållplats...</option>' + j.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join("");
     $("#busStatus").textContent = `${j.length} träffar. Välj i listan.`;
@@ -1155,7 +1155,7 @@ function renderBus(){
   const b = S.bus;
   if (!b.id) return `<div class="bus"><div class="bh">Avgångar</div><div class="msg">Välj hållplats under S → När inget spelar.</div></div>`;
   const head = `<div class="bh">Avgångar · ${esc(b.name)}</div>`;
-  if (DEP.err) return `<div class="bus">${head}<div class="msg">${DEP.nokey ? "Trafiklab-nyckel saknas på servern." : esc(DEP.err)}</div></div>`;
+  if (DEP.err) return `<div class="bus">${head}<div class="msg">${DEP.nokey ? "RESROBOT_API_KEY saknas på servern." : esc(DEP.err)}</div></div>`;
   const now = Date.now();
   const rows = DEP.items.filter(d => depTime(d).getTime() > now - 30e3).slice(0, 7).map(d => {
     const t = depTime(d), min = Math.round((t.getTime() - now)/60e3);
@@ -1163,7 +1163,7 @@ function renderBus(){
     const late = !d.canceled && d.rt && d.sched && new Date(d.rt) - new Date(d.sched) >= 120e3 ? `<small>(${hhmm(new Date(d.sched))})</small>` : "";
     return `<li class="${d.canceled ? "x" : min <= 3 ? "soon" : ""}"><span class="ln">${esc(d.line)}</span><span class="ds">${esc(d.dest)}</span><span class="tm">${when}${late}</span></li>`;
   });
-  return `<div class="bus">${head}${rows.length ? `<ul>${rows.join("")}</ul>` : `<div class="msg">${DEP.at ? "Inga avgångar närmaste timmen." : "Hämtar avgångar..."}</div>`}</div>`;
+  return `<div class="bus">${head}${rows.length ? `<ul>${rows.join("")}</ul>` : `<div class="msg">${DEP.at ? "Inga avgångar de närmaste två timmarna." : "Hämtar avgångar..."}</div>`}</div>`;
 }
 function renderWxPage(){
   const W2 = WX, e = S.edge; if (!W2 || !W2.hourly) return "";

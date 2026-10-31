@@ -16,8 +16,8 @@ Vägar:
   /api/cover?term=  omslag, album och år för en radiolåt (iTunes sök-API)
   /api/rss?url=     rubriker, ingress och bild ur ett RSS/Atom-flöde (nyhetssidan)
   /api/ogimage?url= delningsbilden (og:image) för en artikel som saknar bild i flödet
-  /api/stops?q=     sök hållplats (Trafiklab, kräver nyckel i TRAFIKLAB_KEY eller trafiklab.key)
-  /api/departures?id=  avgångar närmaste timmen från en hållplats
+  /api/stops?q=     sök hållplats (ResRobot v2.1, nyckel i RESROBOT_API_KEY eller resrobot.key)
+  /api/departures?id=  avgångar närmaste två timmarna från en hållplats
   /api/send?c=      skicka kommando till sidan: open, close, next, prev,
                     playpause, viz:1-5, palette:svartvit|sepia|fosfor|farg
 
@@ -25,6 +25,7 @@ Bara Pythons standardbibliotek. Inget att installera.
 """
 import argparse
 import json
+import re
 import os
 import socket
 import ssl
@@ -48,12 +49,12 @@ OG_CACHE = {}
 DEP_CACHE = {}
 
 
-def trafiklab_key():
-    """Trafiklab-nyckeln: miljövariabeln TRAFIKLAB_KEY, annars filen trafiklab.key bredvid servern."""
-    k = os.environ.get("TRAFIKLAB_KEY", "").strip()
+def resrobot_key():
+    """ResRobot-nyckeln (samma som e-ink-tavlan): miljövariabeln RESROBOT_API_KEY, annars filen resrobot.key bredvid servern."""
+    k = os.environ.get("RESROBOT_API_KEY", "").strip()
     if not k:
         try:
-            with open(os.path.join(ROOT, "trafiklab.key"), encoding="utf-8") as f:
+            with open(os.path.join(ROOT, "resrobot.key"), encoding="utf-8") as f:
                 k = f.read().strip()
         except OSError:
             pass
@@ -386,12 +387,13 @@ class Handler(SimpleHTTPRequestHandler):
         OG_CACHE[url] = img
         return self._json({"img": img})
 
-    # --- kollektivtrafik via Trafiklab Realtime API (nyckel i miljövariabeln TRAFIKLAB_KEY eller filen trafiklab.key) ---
-    def tl_get(self, path):
-        key = trafiklab_key()
+    # --- kollektivtrafik via Trafiklab ResRobot v2.1, samma API och nyckel som e-ink-tavlan (fetchers/bus.py) ---
+    def rr_get(self, endpoint, params):
+        key = resrobot_key()
         if not key:
-            raise LookupError("Ingen Trafiklab-nyckel på servern")
-        with open_url("https://realtime-api.trafiklab.se/v1/" + path + ("&" if "?" in path else "?") + "key=" + urllib.parse.quote(key), timeout=10) as r:
+            raise LookupError("Ingen RESROBOT_API_KEY på servern")
+        qs = urllib.parse.urlencode({**params, "format": "json", "accessId": key})
+        with open_url(f"https://api.resrobot.se/v2.1/{endpoint}?{qs}", timeout=10) as r:
             return json.loads(r.read().decode("utf-8"))
 
     def stops(self, q):
@@ -399,14 +401,13 @@ class Handler(SimpleHTTPRequestHandler):
         if not q:
             return self._json([])
         try:
-            j = self.tl_get("stops/name/" + urllib.parse.quote(q))
+            j = self.rr_get("location.name", {"input": q})
         except LookupError as e:
             return self._json({"error": str(e), "nokey": True}, 200)
         except Exception as e:
             return self._json({"error": str(e)}, 502)
-        out = [{"id": g.get("id"), "name": g.get("name"), "modes": g.get("transport_modes") or [],
-                "daily": g.get("average_daily_stop_times") or 0} for g in j.get("stop_groups") or []]
-        out.sort(key=lambda x: -x["daily"])
+        out = [{"id": s["StopLocation"].get("extId"), "name": s["StopLocation"].get("name")}
+               for s in j.get("stopLocationOrCoordLocation") or [] if "StopLocation" in s]
         return self._json(out[:15])
 
     def departures(self, sid):
@@ -415,22 +416,30 @@ class Handler(SimpleHTTPRequestHandler):
         if not sid:
             return self._json({"error": "ange id"}, 400)
         hit = DEP_CACHE.get(sid)
-        if hit and time.time() - hit[0] < 30:
+        if hit and time.time() - hit[0] < 60:
             return self._json(hit[1])
         try:
-            j = self.tl_get("departures/" + sid)
+            # 120 min framåt: ResRobot letar annars bara 60 min, för lite vid gles trafik
+            j = self.rr_get("departureBoard", {"id": sid, "duration": 120, "maxJourneys": 20})
         except LookupError as e:
             return self._json({"error": str(e), "nokey": True}, 200)
         except Exception as e:
             return self._json({"error": str(e)}, 502)
+        deps = j.get("Departure") or []
+        if isinstance(deps, dict):          # ResRobot ger ett objekt i stället för en lista när det bara finns en avgång
+            deps = [deps]
         out = []
-        for d in j.get("departures") or []:
-            rt = d.get("route") or {}
-            plat = (d.get("realtime_platform") or d.get("scheduled_platform") or {}).get("designation") or ""
-            out.append({"line": rt.get("designation") or rt.get("name") or "", "dest": (rt.get("destination") or {}).get("name") or rt.get("direction") or "",
-                        "mode": rt.get("transport_mode") or "", "sched": d.get("scheduled"), "rt": d.get("realtime"),
-                        "live": bool(d.get("is_realtime")), "canceled": bool(d.get("canceled")), "plat": plat})
-        out.sort(key=lambda x: x["rt"] or x["sched"] or "")
+        for d in deps:
+            prod = d.get("ProductAtStop") or d.get("Product") or {}
+            if isinstance(prod, list):
+                prod = prod[0] if prod else {}
+            sched = f"{d.get('date', '')}T{d.get('time', '')}"
+            rt = f"{d.get('rtDate') or d.get('date', '')}T{d['rtTime']}" if d.get("rtTime") else None
+            out.append({"line": prod.get("displayNumber") or prod.get("line") or prod.get("num") or "",
+                        "dest": re.sub(r"\s*\(.*?\)\s*$", "", d.get("direction") or ""),
+                        "mode": prod.get("catOutL") or "", "sched": sched, "rt": rt, "live": bool(rt),
+                        "canceled": bool(d.get("cancelled")), "plat": d.get("rtTrack") or d.get("track") or ""})
+        out.sort(key=lambda x: x["rt"] or x["sched"])
         DEP_CACHE[sid] = (time.time(), out)
         return self._json(out)
 

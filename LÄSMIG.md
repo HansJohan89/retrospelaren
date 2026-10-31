@@ -53,17 +53,14 @@ I stället för bara testbilden växlar skärmen mellan sidor (S → När inget 
 
 Välj vilka sidor som ingår, sekunder per sida och sekunder per artikel.
 
-### Bussavgångar (Trafiklab)
+### Bussavgångar (ResRobot)
 
-Avgångarna kommer från Trafiklabs Realtime API, som har Dalatrafik med realtid. Det kräver en gratis nyckel:
+Avgångarna hämtas från Trafiklabs ResRobot v2.1, samma API och samma nyckel som e-ink-tavlan använder (`RESROBOT_API_KEY`). Nyckeln ligger på servern, aldrig i koden:
 
-1. Skapa konto på https://developer.trafiklab.se, skapa ett projekt och lägg till **Trafiklab Realtime APIs**.
-2. Lägg nyckeln på servern, inte i koden:
-   - lokalt: en fil `trafiklab.key` bredvid `server.py` (den finns i `.gitignore`), eller miljövariabeln `TRAFIKLAB_KEY`
-   - på Railway: variabeln `TRAFIKLAB_KEY` på tjänsten
-3. Sök hållplats under S → När inget spelar och välj i listan.
+- på Railway: variabeln `RESROBOT_API_KEY` på tjänsten `retrospelaren` (samma värde som på SoumayAPP)
+- lokalt: en fil `resrobot.key` bredvid `server.py` (den finns i `.gitignore`), eller miljövariabeln `RESROBOT_API_KEY`
 
-Servern frågar Trafiklab högst var 30:e sekund per hållplats.
+Sök sedan hållplats under S → När inget spelar och välj i listan. Servern frågar ResRobot högst en gång per minut och hållplats.
 
 ## Radio
 
