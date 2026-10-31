@@ -126,13 +126,13 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #pgWx .wxRow,#pgWx .kick{flex:none}
 #pgWx.tight .wxHours{display:none}
 /* Hållplatsskylt i Dalatrafiks stil: rött namnfält, vita rader med röda linjer, rött fält med webb och telefon */
-.sign{--dt:#c8102e;background:#fff;color:#161616;border:max(2px,.3vh) solid var(--dt);border-radius:1.4vh;overflow:hidden;text-shadow:none;letter-spacing:0;
+.sign{--dt:#e00034;background:#fff;color:#161616;border:max(2px,.3vh) solid var(--dt);border-radius:1.4vh;overflow:hidden;text-shadow:none;letter-spacing:0;
   font-family:Arial,"Helvetica Neue",Helvetica,sans-serif;font-weight:700;box-shadow:0 .8vh 2.4vh rgba(0,0,0,.55);min-height:0}
 .sign.pal{filter:var(--cover-filter)}
 .sign .sh{flex:none;background:var(--dt);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:1.5vh;padding:.9vh 1.8vh;font-size:1.3em;line-height:1.15}
 .sign .sh .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sign .sh .to{display:block;font-size:.62em;font-weight:400;opacity:.95}
-.sign .sh img{height:1.5em;flex:none}
+.sign .sh img{height:1.45em;flex:none;margin:-.15em 0}
 .bus.sign ul{padding:0 1.6vh;gap:0}
 .bus.sign li{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:1.2vh;padding:.75vh 0;border-bottom:max(1px,.22vh) solid var(--dt)}
 .bus.sign li:last-child{border-bottom:none}
@@ -1365,7 +1365,7 @@ const BUS_PICTO = `<g fill="#fff"><rect x="13" y="11" width="22" height="24" rx=
 function busBadge(mode){
   const red = /express|snabb|regional|tåg|tag/i.test(mode || "");
   const bump = Array.from({length:10}, (_, i) => { const a = i/10*Math.PI*2; return `<circle cx="${24 + Math.cos(a)*16}" cy="${24 + Math.sin(a)*16}" r="7"/>`; }).join("");
-  return red ? `<span class="bdg"><svg viewBox="0 0 48 48" style="color:#c8102e"><rect x="3" y="3" width="42" height="42" rx="10" fill="#c8102e"/>${BUS_PICTO}</svg></span>`
+  return red ? `<span class="bdg"><svg viewBox="0 0 48 48" style="color:#e00034"><rect x="3" y="3" width="42" height="42" rx="10" fill="#e00034"/>${BUS_PICTO}</svg></span>`
              : `<span class="bdg"><svg viewBox="0 0 48 48" style="color:#2e9b48"><g fill="#2e9b48"><circle cx="24" cy="24" r="17"/>${bump}</g>${BUS_PICTO}</svg></span>`;
 }
 function renderBus(max = 7){
