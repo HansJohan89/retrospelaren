@@ -85,7 +85,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #edgesB .stp{display:flex;align-items:center;gap:.3em}
 #edgesB .stp .paws{width:1.15em;height:1.15em;stroke:none;fill:currentColor}
 #edgesB .stp .rul{width:2.6em;height:.9em;stroke:currentColor;fill:none}
-#edges .stp{display:flex;align-items:center;gap:.3em}
+#edges .stp{display:flex;align-items:center;gap:.3em;margin-right:1.1em}
 #edges .stp .paws{width:1.15em;height:1.15em;stroke:none;fill:currentColor}
 #edges .stp .rul{width:2.6em;height:.9em;stroke:currentColor;fill:none}
 #edges svg{width:1.05em;height:1.05em;flex:none;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
@@ -129,10 +129,10 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .sign{--dt:#e00034;background:#fff;color:#161616;border:max(2px,.3vh) solid var(--dt);border-radius:1.4vh;overflow:hidden;text-shadow:none;letter-spacing:0;
   font-family:Arial,"Helvetica Neue",Helvetica,sans-serif;font-weight:700;box-shadow:0 .8vh 2.4vh rgba(0,0,0,.55);min-height:0}
 .sign.pal{filter:var(--cover-filter)}
-.sign .sh{flex:none;background:var(--dt);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:1.5vh;padding:.9vh 1.8vh;font-size:1.3em;line-height:1.15}
+.sign .sh{flex:none;background:var(--dt);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:1.5vh;padding:1.6vh 2vh;font-size:1.65em;line-height:1.15}
 .sign .sh .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sign .sh .to{display:block;font-size:.62em;font-weight:400;opacity:.95}
-.sign .sh img{height:1.45em;flex:none;margin:-.15em 0}
+.sign .sh .to{display:block;font-size:.55em;font-weight:400;opacity:.95;margin-top:.2em}
+.sign .sh img{height:1.55em;flex:none;margin:-.2em 0}
 .bus.sign ul{padding:0 1.6vh;gap:0}
 .bus.sign li{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:1.2vh;padding:.75vh 0;border-bottom:max(1px,.22vh) solid var(--dt)}
 .bus.sign li:last-child{border-bottom:none}
@@ -1282,8 +1282,9 @@ function renderEdges(){
   const wxB = e.wx && WX && BOARD.page !== "wx" && !(BOARD.page === "hem" && S.home.wx)
     ? `<span class="wxe">${wxIcon(WX.c, WX.day)}<span>${Math.round(WX.t)}°</span></span>` +
       (WX.hi != null ? `<span class="lo">${Math.round(WX.hi)}° / ${Math.round(WX.lo)}°</span>` : "") : "";
-  const stB = stepsHtml();
+  const stB = BOARD.page === "wx" ? "" : stepsHtml();
   const wb = wxB || stB ? `<div class="grp">${wxB}</div><div class="grp">${stB}</div>` : "";
+  if (BOARD.page === "wx"){ const st = stepsHtml(); if (st) Rp.push(st); }   // på vädersidan ligger stegen överst, före klockan
   if (e.clock && !(BOARD.page === "hem" && S.home.clock)) Rp.push(`<span class="clock">${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}</span>`);
   const l = Lp.join(""), r = Rp.join("");
   if ($("#edgeL").innerHTML !== l){ $("#edgeL").innerHTML = l; renderEdges.fitted = false; }
@@ -1577,11 +1578,15 @@ function renderHomePage(){
 // (bussavgångar), så att inget hamnar ovanpå prognosen oavsett skärmformat och textstorlek.
 function setPage(el, h){
   if (el._h === h) return;
-  el._h = h; el.classList.remove("tight"); el.innerHTML = h;
+  el._h = h; layoutPage(el, h);
+  // Typsnitt och emblem kan ladda in efteråt och ändra höjderna: lägg ut sidan på nytt när de är klara
+  const again = () => { if (el._h === h) layoutPage(el, h); };
+  if (document.fonts) document.fonts.ready.then(() => requestAnimationFrame(again));
+  setTimeout(again, 1500);
+}
+function layoutPage(el, h){
+  el.classList.remove("tight"); el.innerHTML = h;
   requestAnimationFrame(() => { if (el.id === "pgWx" && wxCramped(el)) el.classList.add("tight"); fitLists(el); });
-  // Typsnitt och emblem kan ladda in efteråt och ändra radhöjden: anpassa igen när de är klara
-  if (document.fonts) document.fonts.ready.then(() => requestAnimationFrame(() => fitLists(el)));
-  setTimeout(() => fitLists(el), 1500);
 }
 // Vädersidan är trång när färre än 5 avgångar (eller alla, om de är färre) får plats, eller när vädret till vänster inte får plats
 function wxCramped(el){
@@ -1595,16 +1600,18 @@ function fitLists(el){
     while (ul.children.length > 1 && ul.scrollHeight > ul.clientHeight + 1) ul.lastElementChild.remove();
   });
   el.querySelectorAll(".mt").forEach(mt => {
-    const rows = [...mt.children]; rows.forEach(r => r.classList.remove("off"));
+    const rows = [...mt.children]; rows.forEach(r => { r.classList.remove("off"); r.style.height = ""; });
     if (!rows.length) return;
-    // Tabellen slutar i jämnhöjd med bussavgångarna när de står bredvid varandra, annars vid sin egen nederkant
-    const ul = el.querySelector(".wxB .bus ul");
-    const limit = ul && ul.lastElementChild ? ul.lastElementChild.getBoundingClientRect().bottom : mt.getBoundingClientRect().bottom;
+    // Tabellen slutar i jämnhöjd med hållplatsskylten när de står bredvid varandra, annars vid sin egen nederkant
+    const sign = el.querySelector(".wxB .bus");
+    const limit = sign ? sign.getBoundingClientRect().bottom : mt.getBoundingClientRect().bottom;
     const space = Math.min(mt.getBoundingClientRect().bottom, limit) - mt.getBoundingClientRect().top;
     const n = Math.max(1, Math.min(rows.length, Math.floor((space + 1) / rows[0].getBoundingClientRect().height)));
     const me = Math.max(0, rows.findIndex(r => r.classList.contains("me")));
     const lo = Math.max(0, Math.min(me - Math.floor((n - 1) / 2), rows.length - n));
     rows.forEach((r, i) => r.classList.toggle("off", i < lo || i >= lo + n));
+    // Fördela höjden jämnt så att sista raden slutar precis vid skyltens nederkant
+    if (sign && space > 0) rows.forEach((r, i) => { if (i >= lo && i < lo + n) r.style.height = (space / n).toFixed(2) + "px"; });
   });
 }
 window.addEventListener("resize", () => document.querySelectorAll("#board .pg").forEach(el => { el._h = ""; }));
