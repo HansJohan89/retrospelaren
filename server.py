@@ -19,6 +19,7 @@ Vägar:
   /api/stops?q=     sök hållplats (ResRobot v2.1, nyckel i RESROBOT_API_KEY eller resrobot.key)
   /api/departures?id=  kommande avgångar från en hållplats (3 h, vid gles trafik upp till 12 h)
   /api/trip?from=&to=  resor mellan två hållplatser: avgång, ankomst, linjer, byten (ResRobot)
+  /api/steps        dagens steg från SoumayApp (samma som e-ink-tavlan)
   /api/album?url=   bildadresser ur ett publikt delat Google Foto-album (samma metod som e-ink-tavlan)
   /api/football     AIK i Allsvenskan via Highlightly (nyckel i HIGHLIGHTLY_API_KEY)
   /api/send?c=      skicka kommando till sidan: open, close, next, prev,
@@ -52,6 +53,8 @@ OG_CACHE = {}
 DEP_CACHE = {}
 ALBUM_CACHE = {}
 FOOTBALL_CACHE = {"data": None, "at": 0}
+STEPS_CACHE = {"data": None, "at": 0}
+SOUMAYAPP_URL = os.environ.get("SOUMAYAPP_BASE_URL", "https://soumayapp-production.up.railway.app").rstrip("/")
 
 
 def secret(name):
@@ -174,6 +177,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.departures(q.get("id", [""])[0])
             if path == "/api/trip":
                 return self.trip(q.get("from", [""])[0], q.get("to", [""])[0])
+            if path == "/api/steps":
+                return self.steps()
             if path == "/api/album":
                 return self.album(q.get("url", [""])[0])
             if path == "/api/football":
@@ -526,6 +531,21 @@ class Handler(SimpleHTTPRequestHandler):
                         "canceled": any(l.get("cancelled") for l in jny), "live": bool(rt_dep)})
         out.sort(key=lambda x: x["rt"] or x["sched"])
         DEP_CACHE[key] = (time.time(), out)
+        return self._json(out)
+
+    # --- Steg: samma källa som e-ink-tavlan (fetchers/steps.py): SoumayApps /api/steps, dagens summa ---
+    def steps(self):
+        import time
+        if STEPS_CACHE["data"] and time.time() - STEPS_CACHE["at"] < 60:
+            return self._json(STEPS_CACHE["data"])
+        try:
+            with open_url(SOUMAYAPP_URL + "/api/steps", timeout=10) as r:
+                d = json.loads(r.read().decode("utf-8"))
+        except Exception as e:
+            return self._json({"ok": False, "error": f"Kunde inte hämta steg: {e}"})
+        out = {"ok": True, "date": d.get("date"), "steps": int(d.get("steps") or 0),
+               "has_data": bool(d.get("has_data")), "updated": d.get("updated")}
+        STEPS_CACHE.update(data=out, at=time.time())
         return self._json(out)
 
     # --- Google Foto: publikt delade album, samma metod som e-ink-tavlan (fetchers/google_photos.py) ---

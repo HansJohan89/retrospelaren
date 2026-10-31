@@ -75,6 +75,9 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #edges .grp{display:flex;align-items:center;gap:.5em;min-width:0}
 #edges .wk{color:var(--mid)}
 #edges .wxe{display:flex;align-items:center;gap:.35em}
+#edges .stp{display:flex;align-items:center;gap:.3em}
+#edges .stp .paws{width:1.15em;height:1.15em;stroke:none;fill:currentColor}
+#edges .stp .rul{width:2.6em;height:.9em;stroke:currentColor;fill:none}
 #edges svg{width:1.05em;height:1.05em;flex:none;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 #edges .sep{opacity:.5}
 #osd{position:absolute;top:calc(4% + 7.5vh*var(--esz,1));left:0;right:0;text-align:center;z-index:4;font-size:calc(2.6vh*var(--sz));letter-spacing:.2em;color:var(--ink);
@@ -461,6 +464,8 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <label class="chk"><input type="checkbox" id="edWeek"> Veckonummer</label>
       <label class="chk"><input type="checkbox" id="edClock"> Klocka</label>
       <label class="chk"><input type="checkbox" id="edWx"> Väder</label>
+      <label class="chk"><input type="checkbox" id="edSteps"> Stegräknare (samma som e-ink-tavlan)</label>
+      <div class="row"><span class="lbl">Dagsmål steg</span><input type="text" id="stepsGoal" inputmode="numeric" style="max-width:110px"></div>
       <div class="row"><input type="search" id="wxPlace" placeholder="Ort för vädret"><button class="btn" id="wxBtn">Sök ort</button></div>
       <div class="note" id="wxStatus"></div>
     </section>
@@ -515,7 +520,7 @@ const PRESETS = {
 };
 const LOOK_DEF = { brand:"BLAUPUNKT", fontT:"Limelight", fontB:"Special Elite", size:100, edgeSize:100, upper:false, cover:"square", dial:true,
   format:"4:3", scale:100, offX:0, offY:0 };
-const EDGE_DEF = { date:true, week:true, clock:true, wx:true, place:"Falun", lat:60.6065, lon:15.6355 };
+const EDGE_DEF = { date:true, week:true, clock:true, wx:true, steps:true, stepsGoal:10000, place:"Falun", lat:60.6065, lon:15.6355 };
 const FONTS_T = ["Limelight","Monoton","Poiret One","Righteous","Abril Fatface","Playfair Display","Bebas Neue","Federo","Josefin Sans","Pacifico","Lobster","Yesteryear"];
 const FONTS_B = ["Special Elite","Courier Prime","Cutive Mono","Josefin Sans","Jost","Oswald","Libre Baskerville","Bebas Neue"];
 S.fx = Object.assign({}, FX_DEF, S.fx || {}); if (S.warm === undefined) S.warm = true;
@@ -1198,10 +1203,36 @@ function isoWeek(d){ const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), 
 const DAYS = ["Söndag","Måndag","Tisdag","Onsdag","Torsdag","Fredag","Lördag"];
 const MONTHS = ["jan","feb","mars","april","maj","juni","juli","aug","sep","okt","nov","dec"];
 const MONTHS_L = ["januari","februari","mars","april","maj","juni","juli","augusti","september","oktober","november","december"];
+// ---------- steg (SoumayApp via servern), ritas som e-ink-tavlan: tassar, linjal med 10 streck, tusental ----------
+let STEPS = { ok:false, steps:0, date:"" };
+async function loadSteps(){
+  if (!S.edge.steps) return;
+  try{ const j = await (await fetch("/api/steps")).json(); STEPS = j.ok ? j : STEPS; }catch(e){}
+  renderEdges.fitted = false; renderEdges();
+}
+function todayKey(){ const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+function stepsLabel(n){ const k = Math.round(n / 100) / 10; return String(k).replace(/\.0$/, ""); }   // 1300 -> "1.3", 10000 -> "10"
+const PAW = `<ellipse cx="48" cy="89" rx="24" ry="27"/><ellipse cx="80" cy="89" rx="24" ry="27"/><path d="M30 96 L98 96 L64 124 Z"/>
+  <ellipse cx="19" cy="53" rx="11" ry="17"/><ellipse cx="45" cy="28" rx="11" ry="20"/><ellipse cx="83" cy="28" rx="11" ry="20"/><ellipse cx="109" cy="53" rx="11" ry="17"/>`;
+const PAWS_SVG = `<svg class="paws" viewBox="-10 -14 270 216" aria-hidden="true"><g transform="translate(0,62) rotate(31 64 64)">${PAW}</g><g transform="translate(118,0) rotate(19 64 64)">${PAW}</g></svg>`;
+function stepsHtml(){
+  if (!S.edge.steps || !STEPS.ok || !STEPS.has_data || STEPS.date !== todayKey()) return "";
+  const goal = Math.max(1000, +S.edge.stepsGoal || 10000), n = 10, done = Math.min(n, Math.floor(STEPS.steps / (goal / n)));
+  // I 60-talsfärg: gjorda streck går från rött via orange till grönt mot dagsmålet, resten dämpade; siffran får färgen för hur långt man kommit
+  const color = S.palette === "farg", grad = f => f < .5 ? mix("#d9483b", "#f2a541", f*2) : mix("#f2a541", "#6fbf5a", (f - .5)*2);
+  let ticks = "";
+  for (let i = 0; i < n; i++){
+    const x = 4 + i * 92 / (n - 1), c = color ? ` stroke="${i < done ? grad(i/(n - 1)) : hexA(P.mid, .6)}"` : "";
+    ticks += i < done ? `<line x1="${x}" y1="4" x2="${x}" y2="36" stroke-width="7"${c}/>` : `<line x1="${x}" y1="13" x2="${x}" y2="27" stroke-width="3"${c}/>`;
+  }
+  const lc = color && done ? ` style="color:${grad(Math.min(1, (done - 1)/(n - 1)))}"` : "";
+  return `<span class="stp" title="${STEPS.steps} steg">${PAWS_SVG}<svg class="rul" viewBox="0 0 100 40" aria-hidden="true">${ticks}</svg><span${lc}>${stepsLabel(STEPS.steps)}</span></span>`;
+}
 function renderEdges(){
   const e = S.edge, d = new Date(), Lp = [], Rp = [];
   if (e.date) Lp.push(`<span>${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS_L[d.getMonth()]}</span>`);
   if (e.week) Lp.push(`<span class="wk">v.${isoWeek(d)}</span>`);
+  const st = stepsHtml(); if (st) Rp.push(st);
   if (e.wx && WX && BOARD.page !== "wx" && !(BOARD.page === "hem" && S.home.wx))
     Rp.push(`<span class="wxe">${wxIcon(WX.c, WX.day)}<span>${Math.round(WX.t)}° ${WX_TEXT(WX.c).toLowerCase()}</span></span>`);
   if (e.clock && !(BOARD.page === "hem" && S.home.clock)) Rp.push(`<span class="clock">${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}</span>`);
@@ -2007,6 +2038,8 @@ function buildControls(){
   $("#upperChk").addEventListener("change", e => { S.look.upper = e.target.checked; saveS(); applyLook(); });
   $("#dialChk").addEventListener("change", e => { S.look.dial = e.target.checked; saveS(); applyLook(); });
   $("#warmChk").addEventListener("change", e => { S.warm = e.target.checked; saveS(); });
+  $("#edSteps").addEventListener("change", e => { S.edge.steps = e.target.checked; saveS(); loadSteps(); renderEdges.fitted = false; renderEdges(); });
+  $("#stepsGoal").addEventListener("change", e => { const v = parseInt(e.target.value.replace(/\D/g, ""), 10); S.edge.stepsGoal = v >= 1000 ? v : 10000; e.target.value = S.edge.stepsGoal; saveS(); renderEdges(); });
   for (const [id, key] of [["#edDate","date"],["#edWeek","week"],["#edClock","clock"],["#edWx","wx"]])
     $(id).addEventListener("change", e => { S.edge[key] = e.target.checked; saveS(); if (key === "wx") loadWeather(); else renderEdges(); });
   syncers.push(slider($("#idleSl"), "secs", "Sekunder per sida", () => S.idle, 10, 180, () => {}));
@@ -2048,6 +2081,7 @@ function syncAll(){
   $("#upperChk").checked = !!S.look.upper; $("#dialChk").checked = !!S.look.dial; $("#warmChk").checked = !!S.warm;
   $("#crtChk").checked = S.crt;
   segOn("#coverSeg", S.look.cover); segOn("#fmtSeg", S.look.format);
+  $("#edSteps").checked = !!S.edge.steps; $("#stepsGoal").value = S.edge.stepsGoal;
   $("#edDate").checked = S.edge.date; $("#edWeek").checked = S.edge.week; $("#edClock").checked = S.edge.clock; $("#edWx").checked = S.edge.wx;
   $("#wxPlace").value = S.edge.place;
   $("#idBus").checked = S.bus.on;
@@ -2093,6 +2127,7 @@ document.addEventListener("mousemove", () => { document.body.classList.remove("h
   renderEdges(); setInterval(renderEdges, 1000);
   loadWeather(); setInterval(loadWeather, 15*60*1000);
   loadNews(); setInterval(loadNews, 10*60*1000);
+  loadSteps(); setInterval(loadSteps, 2*60*1000);
   loadPhotos(); setInterval(loadPhotos, 60*60*1000);
   loadFootball(); setInterval(loadFootball, 30*60*1000);
   setInterval(renderBoard, 15*1000);

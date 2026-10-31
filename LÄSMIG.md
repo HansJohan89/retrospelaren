@@ -43,6 +43,10 @@ På Pi:n är *Vågiga linjer*, *Spökbild* och *Färgfransar* de tyngsta effekte
 - **Skärm:** 4:3, 16:9 eller fyll, samt storlek och förskjutning för att passa bilden bakom masken
 - **Kanter:** datum, veckonummer, aktuellt väder och klocka överst på alla sidor, alla i samma stora storlek (Open-Meteo, standard Falun, valfri ort). Storleken ställs med "Datum och klocka %" under Utseende; sidornas innehåll och visualiseringarna flyttar sig så att inget krockar.
 
+### Stegräknare
+
+Samma som e-ink-tavlan: dagens steg hämtas från SoumayApp (`/api/steps`, som telefonen fyller via Health Connect och HC Webhook). De visas i raden överst, lika stort som datum och klocka: tassavtryck, en linjal med 10 streck mot dagsmålet (standard 10 000, ett streck per 1 000 steg) och antalet i tusental (1.3 = 1 300). I 60-talsfärg går strecken från rött via orange till grönt. Syns bara när det finns steg för idag. Slås av och på och dagsmålet ställs under S → Kanter.
+
 ## När inget spelar
 
 I stället för bara testbilden växlar skärmen mellan sidor (S → När inget spelar):
