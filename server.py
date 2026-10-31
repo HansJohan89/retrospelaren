@@ -22,6 +22,8 @@ Vägar:
   /api/steps        dagens steg från SoumayApp (samma som e-ink-tavlan)
   /api/album?url=   bildadresser ur ett publikt delat Google Foto-album (samma metod som e-ink-tavlan)
   /api/football     AIK i Allsvenskan via Highlightly (nyckel i HIGHLIGHTLY_API_KEY)
+  /api/state        GET/POST: sparade inställningar, favoriter och senaste station
+                    (fil i DATA_DIR, t.ex. en Railway-volym, så de överlever omstarter)
   /api/send?c=      skicka kommando till sidan: open, close, next, prev,
                     playpause, viz:1-5, palette:svartvit|sepia|fosfor|farg
 
@@ -54,7 +56,42 @@ DEP_CACHE = {}
 ALBUM_CACHE = {}
 FOOTBALL_CACHE = {"data": None, "at": 0}
 STEPS_CACHE = {"data": None, "at": 0}
+# Var inställningarna sparas. På Railway: volymens monteringspunkt (RAILWAY_VOLUME_MOUNT_PATH).
+DATA_DIR = (os.environ.get("DATA_DIR") or os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") or os.path.join(ROOT, "data")).strip()
+STATE_FILE = os.path.join(DATA_DIR, "state.json")
+STATE_KEYS = ("settings", "favs", "lastStation")
+STATE_LOCK = __import__("threading").Lock()
 SOUMAYAPP_URL = os.environ.get("SOUMAYAPP_BASE_URL", "https://soumayapp-production.up.railway.app").rstrip("/")
+
+
+def load_state():
+    try:
+        with open(STATE_FILE, encoding="utf-8") as f:
+            d = json.load(f)
+        return d if isinstance(d, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def save_state(patch):
+    """Slår ihop de kända nycklarna i patch med det sparade och skriver filen atomärt."""
+    with STATE_LOCK:
+        d = load_state()
+        for k in STATE_KEYS:
+            if k in patch:
+                if patch[k] is None:
+                    d.pop(k, None)
+                else:
+                    d[k] = patch[k]
+        try:
+            os.makedirs(DATA_DIR, exist_ok=True)
+            tmp = STATE_FILE + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(d, f, ensure_ascii=False)
+            os.replace(tmp, STATE_FILE)
+        except OSError as e:
+            return {"ok": False, "error": str(e)}
+    return {"ok": True}
 
 
 def secret(name):
@@ -190,6 +227,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.send_cmd(q.get("c", [""])[0])
             if path == "/api/cmd":
                 return self.poll_cmd(int(q.get("since", ["0"])[0] or 0))
+            if path == "/api/state":
+                return self._json(load_state())
             if path == "/api/ping":
                 return self._json({"ok": True})
             if path == "/api/logo":
@@ -201,6 +240,21 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json({"error": "hittades inte"}, 404)
         except (BrokenPipeError, ConnectionResetError):
             pass
+
+    def do_POST(self):
+        path = urllib.parse.urlparse(self.path).path
+        if path != "/api/state":
+            return self._json({"error": "hittades inte"}, 404)
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+            if n <= 0 or n > 512 * 1024:
+                return self._json({"error": "fel storlek"}, 400)
+            data = json.loads(self.rfile.read(n).decode("utf-8"))
+            if not isinstance(data, dict):
+                raise ValueError("inte ett objekt")
+        except Exception as e:
+            return self._json({"error": "ogiltig data: %s" % e}, 400)
+        return self._json(save_state(data))
 
     def asset(self, name):
         """Bilder i mappen assets (t.ex. Dalatrafiks logotyp). Bara enkla filnamn och bildformat."""

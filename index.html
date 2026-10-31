@@ -544,11 +544,34 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
 "use strict";
 // ================= lagring & inställningar =================
 const $ = s => document.querySelector(s);
+// Inställningar, favoriter och senaste station sparas även på servern (/api/state, en fil på
+// Railway-volymen), så de överlever omstarter och är desamma på alla enheter. Spotify-inloggningen
+// stannar i webbläsaren.
+const SHARED = ["settings", "favs", "lastStation"];
+const remote = { pend:{}, t:0,
+  push(k, v){ this.pend[k] = v === undefined ? null : v; clearTimeout(this.t); this.t = setTimeout(() => this.flush(), 600); },
+  flush(){
+    if (!Object.keys(this.pend).length) return;
+    const body = JSON.stringify(this.pend); this.pend = {}; clearTimeout(this.t);
+    try{ fetch("/api/state", { method:"POST", headers:{ "Content-Type":"application/json" }, body, keepalive:true }).catch(() => {}); }catch(e){}
+  }
+};
+addEventListener("pagehide", () => remote.flush());
 const store = {
   get(k, d){ try{ const v = localStorage.getItem("rs." + k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
-  set(k, v){ try{ localStorage.setItem("rs." + k, JSON.stringify(v)); }catch(e){} },
-  del(k){ try{ localStorage.removeItem("rs." + k); }catch(e){} }
+  set(k, v){ try{ localStorage.setItem("rs." + k, JSON.stringify(v)); }catch(e){} if (SHARED.includes(k)) remote.push(k, v); },
+  del(k){ try{ localStorage.removeItem("rs." + k); }catch(e){} if (SHARED.includes(k)) remote.push(k, null); }
 };
+// Hämta det sparade innan inställningarna läses in. Synkront med flit: S byggs direkt nedanför.
+(function(){
+  try{
+    const x = new XMLHttpRequest(); x.open("GET", "/api/state", false); x.send();
+    if (x.status !== 200) return;
+    const srv = JSON.parse(x.responseText || "{}");
+    if (!Object.keys(srv).length){ SHARED.forEach(k => { const v = store.get(k, undefined); if (v !== undefined) remote.push(k, v); }); return; }
+    SHARED.forEach(k => { try{ if (k in srv) localStorage.setItem("rs." + k, JSON.stringify(srv[k])); }catch(e){} });
+  }catch(e){}
+})();
 const S = Object.assign({
   source: "radio", viz: 1, palette: "svartvit", crt: true, info: true, autoChannel: false,
   vizInput: "sim", clientId: "", genre: "tag=60s", volume: 0.8

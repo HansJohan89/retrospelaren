@@ -140,3 +140,12 @@ För Spotify där: lägg även till `https://retrospelaren-production.up.railway
 - `starta.bat` / `starta.sh` – startar servern och öppnar webbläsaren
 
 Inställningar, favoriter och Spotify-inloggning sparas i webbläsarens lokala lagring.
+
+
+## Sparade inställningar (volym)
+
+Inställningar, favoritstationer och senaste station sparas både i webbläsaren och på servern
+(`/api/state`, filen `state.json`). På Railway ligger filen på en volym monterad på `/data`
+(servern läser `RAILWAY_VOLUME_MOUNT_PATH`, eller `DATA_DIR` om den är satt), så allt finns kvar
+efter omstarter och nya versioner, och är detsamma på alla enheter som öppnar sidan.
+Lokalt hamnar filen i mappen `data/`. Spotify-inloggningen sparas bara i webbläsaren.
