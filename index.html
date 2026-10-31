@@ -90,11 +90,11 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #edges .stp .rul{width:2.6em;height:.9em;stroke:currentColor;fill:none}
 #edges svg{width:1.05em;height:1.05em;flex:none;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 #edges .sep{opacity:.5}
-#osd{position:absolute;top:calc(4% + 7.5vh*var(--esz,1));left:0;right:0;text-align:center;z-index:4;font-size:calc(2.6vh*var(--sz));letter-spacing:.2em;color:var(--ink);
+#osd{position:absolute;top:var(--bt,calc(4% + 7.5vh*var(--esz,1)));left:0;right:0;text-align:center;z-index:4;font-size:calc(2.6vh*var(--sz));letter-spacing:.2em;color:var(--ink);
   text-shadow:0 0 1vh var(--ink);opacity:0;transition:opacity .8s;text-transform:uppercase}
 #osd.on{opacity:.95;transition:opacity .1s}
 
-#board{position:absolute;left:6%;right:6%;top:calc(4% + 7.5vh*var(--esz,1));bottom:calc(7% + var(--bb,0px));z-index:3;color:var(--ink);font-size:calc(2.75vh*var(--sz));
+#board{position:absolute;left:6%;right:6%;top:var(--bt,calc(4% + 7.5vh*var(--esz,1)));bottom:calc(3.4% + var(--bb,0px));z-index:3;color:var(--ink);font-size:calc(2.75vh*var(--sz));
   opacity:0;pointer-events:none;transition:opacity .5s}
 #board.on{opacity:1}
 #board svg{stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
@@ -147,13 +147,14 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .bus.sign li.soon .tm{color:var(--dt)}
 .bus.sign li.x{opacity:.45}
 .bus.sign .msg{color:#444;padding:1.6vh;font-weight:400}
-.sign .sf{flex:none;background:var(--dt);color:#fff;display:flex;justify-content:space-between;padding:.5vh 1.8vh;font-size:.78em;margin-top:auto}
+.sign .sf{flex:none;background:var(--dt);height:1.4vh;margin-top:auto}
 .tile.tsign{padding:0;border:none;background:none}
 .tile.tsign .sign{height:100%}
 .fbBox{display:flex;flex-direction:column;min-height:0;min-width:0}
 .fbBox > .bh,.fbBox > .nx,.fbBox > .nxm,.bus > .bh{flex:none}
 .fbBox .nxm{display:flex;align-items:center;gap:1.4vh;margin-bottom:1.2vh;color:var(--mid)}
-.fbBox .nxm img{width:5.2vh;height:5.2vh;object-fit:contain;filter:var(--cover-filter)}
+.fbBox .nxm img{width:7vh;height:7vh;object-fit:contain;filter:var(--cover-filter)}
+.fbBox .nxm b{font-weight:400;color:var(--ink)}
 .fbBox .nxm i{font-style:normal;color:var(--ink)}
 .fbBox .nxm span{margin-left:auto;color:var(--ink);white-space:nowrap}
 .fbBox .bh{font-size:.8em;letter-spacing:.3em;text-transform:uppercase;color:var(--mid);margin-bottom:.6vh;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -711,19 +712,25 @@ function layoutScreen(){
 let EDGE_B = 0.12;   // kanternas nederkant som andel av skärmhöjden, så visualiseringarna börjar under datum och klocka
 let EDGE_BB = 0;     // väderradens höjd (med luft) som andel av skärmhöjden
 function measureEdges(){
-  const scr = $("#screen"), sr = scr.getBoundingClientRect(), eb = $("#edgesB");
-  const bb = eb.innerHTML.trim() ? sr.bottom - eb.getBoundingClientRect().top - sr.height*0.035 + sr.height*0.012 : 0;
+  // Layoutmått (offsetTop/offsetHeight) i stället för skärmpositioner: påverkas inte av bildrörets skakning och rullning
+  const scr = $("#screen"), H = $("#content").offsetHeight || scr.offsetHeight, eb = $("#edgesB"), ed = $("#edges");
+  if (!H) return;
+  const bb = eb.innerHTML.trim() ? H - eb.offsetTop - H*0.035 + H*0.012 : 0;
   const px = Math.max(0, Math.round(bb)) + "px";
-  if (scr.style.getPropertyValue("--bb") !== px){
-    scr.style.setProperty("--bb", px);
-    // Nederkanten ändrade höjd: rita om sidan så att listor och tabell anpassas till det nya utrymmet
+  EDGE_BB = Math.max(0, bb) / H;
+  EDGE_B = ed.innerHTML.trim() ? (ed.offsetTop + ed.offsetHeight) / H : 0.05;
+  // Sidorna börjar strax under kantraden, så en större klocka flyttar ner innehållet i stället för att krympa det
+  const bt = Math.round((EDGE_B + 0.022) * H) + "px";
+  let changed = false;
+  if (scr.style.getPropertyValue("--bb") !== px){ scr.style.setProperty("--bb", px); changed = true; }
+  if (scr.style.getPropertyValue("--bt") !== bt){ scr.style.setProperty("--bt", bt); changed = true; }
+  if (changed){
+    // Kanterna ändrade höjd: rita om sidan så att listor och tabell anpassas till det nya utrymmet
     document.querySelectorAll("#board .pg").forEach(el => { el._h = ""; });
     if (typeof renderBoard === "function") requestAnimationFrame(renderBoard);
   }
-  EDGE_BB = sr.height ? Math.max(0, bb) / sr.height : 0;
-  const sc = $("#screen").getBoundingClientRect(), ed = $("#edges").getBoundingClientRect();
-  EDGE_B = $("#edges").innerHTML.trim() && sc.height ? (ed.bottom - sc.top) / sc.height : 0.05;
 }
+
 function resize(){
   layoutScreen();
   renderEdges.fitted = false;
@@ -1393,7 +1400,7 @@ function renderBus(max = 4){
   const pal = S.bus.signOrig === false ? " pal" : "";
   const logo = SIGN_LOGO ? `<img src="${SIGN_LOGO}" alt="">` : "";
   const head = `<div class="sh"><span class="nm">${esc(stopName(b.name) || "Hållplats")}</span>${logo}</div>`;
-  const foot = `<div class="sf"><span>dalatrafik.se</span><span>0771-95 95 95</span></div>`;
+  const foot = `<div class="sf"></div>`;
   const wrap = inner => `<div class="bus sign fill${pal}">${head}${inner}${foot}</div>`;
   if (!b.id) return wrap(`<div class="msg">Välj hållplats under S → När inget spelar.</div>`);
   if (DEP.err) return wrap(`<div class="msg">${DEP.nokey ? "RESROBOT_API_KEY saknas på servern." : esc(DEP.err)}</div>`);
@@ -1447,7 +1454,7 @@ function renderFbBox(T){
   const nd = nm ? new Date(nm.date) : null;
   // Nästa match som två emblem (hemmalaget först) och tid, i stället för text
   const own = st.team && st.team.logo ? logo(st.team.logo) : "", opp = nm ? logo(nm.opponent_logo) : "";
-  const next = nm ? `<div class="nxm">${nm.is_home ? own + "<i>–</i>" + opp : opp + "<i>–</i>" + own}<span>${SV_DAYS[nd.getDay()]} ${nd.getDate()}/${nd.getMonth()+1} ${hhmm(nd)}</span></div>` : "";
+  const next = nm ? `<div class="nxm"><b>Nästa:</b>${nm.is_home ? own + "<i>–</i>" + opp : opp + "<i>–</i>" + own}<span>${SV_DAYS[nd.getDay()]} ${nd.getDate()}/${nd.getMonth()+1} ${hhmm(nd)}</span></div>` : "";
   const rows = (T.table || []).map(r => `<div class="r${r.id === T.team_id ? " me" : ""}"><span>${r.position}</span>${logo(r.logo)}<span class="t">${esc(r.id === T.team_id ? T.team_name : r.name)}</span><span>${r.points}</span></div>`).join("");
   return `<div class="fbBox">${next}<div class="mt">${rows}</div></div>`;
 }
