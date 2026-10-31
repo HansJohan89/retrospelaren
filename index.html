@@ -1236,11 +1236,12 @@ function renderBus(max = 7){
   const now = Date.now();
   const rows = DEP.items.filter(d => depTime(d).getTime() > now - 30e3).slice(0, max).map(d => {
     const t = depTime(d), min = Math.round((t.getTime() - now)/60e3);
-    const when = d.canceled ? "Inställd" : min <= 0 ? "Nu" : min <= 15 ? `${min} min` : hhmm(t);
+    const other = t.toDateString() !== new Date().toDateString();
+    const when = d.canceled ? "Inställd" : min <= 0 ? "Nu" : min <= 15 ? `${min} min` : (other ? DAYS_SHORT[t.getDay()].toLowerCase() + " " : "") + hhmm(t);
     const late = !d.canceled && d.rt && d.sched && new Date(d.rt) - new Date(d.sched) >= 120e3 ? `<small>(${hhmm(new Date(d.sched))})</small>` : "";
     return `<li class="${d.canceled ? "x" : min <= 3 ? "soon" : ""}"><span class="ln">${esc(d.line)}</span><span class="ds">${esc(d.dest)}</span><span class="tm">${when}${late}</span></li>`;
   });
-  return `<div class="bus">${head}${rows.length ? `<ul>${rows.join("")}</ul>` : `<div class="msg">${DEP.at ? "Inga avgångar de närmaste två timmarna." : "Hämtar avgångar..."}</div>`}</div>`;
+  return `<div class="bus">${head}${rows.length ? `<ul>${rows.join("")}</ul>` : `<div class="msg">${DEP.at ? "Inga avgångar de närmaste tolv timmarna." : "Hämtar avgångar..."}</div>`}</div>`;
 }
 function renderWxPage(){
   const W2 = WX, e = S.edge; if (!W2 || !W2.hourly) return "";

@@ -17,7 +17,7 @@ Vägar:
   /api/rss?url=     rubriker, ingress och bild ur ett RSS/Atom-flöde (nyhetssidan)
   /api/ogimage?url= delningsbilden (og:image) för en artikel som saknar bild i flödet
   /api/stops?q=     sök hållplats (ResRobot v2.1, nyckel i RESROBOT_API_KEY eller resrobot.key)
-  /api/departures?id=  avgångar närmaste två timmarna från en hållplats
+  /api/departures?id=  kommande avgångar från en hållplats (3 h, vid gles trafik upp till 12 h)
   /api/album?url=   bildadresser ur ett publikt delat Google Foto-album (samma metod som e-ink-tavlan)
   /api/football     AIK i Allsvenskan via Highlightly (nyckel i HIGHLIGHTLY_API_KEY)
   /api/send?c=      skicka kommando till sidan: open, close, next, prev,
@@ -432,15 +432,18 @@ class Handler(SimpleHTTPRequestHandler):
         if hit and time.time() - hit[0] < 60:
             return self._json(hit[1])
         try:
-            # 120 min framåt: ResRobot letar annars bara 60 min, för lite vid gles trafik
-            j = self.rr_get("departureBoard", {"id": sid, "duration": 120, "maxJourneys": 20})
+            # Minst 8 avgångar om det går: först 3 timmar framåt, vid gles trafik (t.ex. en avgång i timmen) upp till 12 timmar
+            for minutes in (180, 720):
+                j = self.rr_get("departureBoard", {"id": sid, "duration": minutes, "maxJourneys": 40})
+                deps = j.get("Departure") or []
+                if isinstance(deps, dict):  # ResRobot ger ett objekt i stället för en lista när det bara finns en avgång
+                    deps = [deps]
+                if len(deps) >= 8:
+                    break
         except LookupError as e:
             return self._json({"error": str(e), "nokey": True}, 200)
         except Exception as e:
             return self._json({"error": str(e)}, 502)
-        deps = j.get("Departure") or []
-        if isinstance(deps, dict):          # ResRobot ger ett objekt i stället för en lista när det bara finns en avgång
-            deps = [deps]
         out = []
         for d in deps:
             prod = d.get("ProductAtStop") or d.get("Product") or {}

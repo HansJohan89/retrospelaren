@@ -76,7 +76,7 @@ Avgångarna hämtas från Trafiklabs ResRobot v2.1, samma API och samma nyckel s
 - på Railway: variabeln `RESROBOT_API_KEY` på tjänsten `retrospelaren` (samma värde som på SoumayAPP)
 - lokalt: en fil `resrobot.key` bredvid `server.py` (den finns i `.gitignore`), eller miljövariabeln `RESROBOT_API_KEY`
 
-Sök sedan hållplats under S → När inget spelar och välj i listan. Servern frågar ResRobot högst en gång per minut och hållplats.
+Sök sedan hållplats under S → När inget spelar och välj i listan. Servern frågar ResRobot högst en gång per minut och hållplats, tre timmar framåt och upp till tolv timmar vid gles trafik, så att det alltid finns flera avgångar att visa.
 
 ## Radio
 
