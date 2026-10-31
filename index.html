@@ -133,7 +133,8 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .sign .sh{flex:none;background:var(--dt);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:1.5vh;padding:1.5vh 3.4vh 1.5vh 2vh;font-size:1.95em;line-height:1.1}
 .sign .sh .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sign .sh .to{display:block;font-size:.55em;font-weight:400;opacity:.95;margin-top:.2em}
-.sign .sh img{height:1.35em;flex:none;margin:-.15em 0}
+.sign .sh img{height:1.35em;flex:none;margin:-.15em 0;filter:var(--logo-fx,none)}
+.sign .bdg svg{filter:var(--logo-fx,none)}
 .bus.sign ul{padding:0 1.6vh;gap:0;display:flex;flex-direction:column}
 .bus.sign.fill li{flex:1 0 auto;align-content:center}
 .bus.sign li{font-size:1.12em;display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:1.2vh;padding:.75vh 0;border-bottom:max(1px,.22vh) solid var(--dt)}
@@ -150,7 +151,11 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .tile.tsign{padding:0;border:none;background:none}
 .tile.tsign .sign{height:100%}
 .fbBox{display:flex;flex-direction:column;min-height:0;min-width:0}
-.fbBox > .bh,.fbBox > .nx,.bus > .bh{flex:none}
+.fbBox > .bh,.fbBox > .nx,.fbBox > .nxm,.bus > .bh{flex:none}
+.fbBox .nxm{display:flex;align-items:center;gap:1.4vh;margin-bottom:1.2vh;color:var(--mid)}
+.fbBox .nxm img{width:5.2vh;height:5.2vh;object-fit:contain;filter:var(--cover-filter)}
+.fbBox .nxm i{font-style:normal;color:var(--ink)}
+.fbBox .nxm span{margin-left:auto;color:var(--ink);white-space:nowrap}
 .fbBox .bh{font-size:.8em;letter-spacing:.3em;text-transform:uppercase;color:var(--mid);margin-bottom:.6vh;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fbBox .nx{color:var(--mid);font-size:.85em;margin-bottom:1vh;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fbBox .nx b{color:var(--ink);font-weight:400}
@@ -1090,6 +1095,10 @@ function applyFxStatic(){
   const rs = document.documentElement.style;
   rs.setProperty("--sign-ts", sts.join(", ") || "none");
   rs.setProperty("--sign-fx", sdf.join(" ") || "drop-shadow(0 0 0 transparent)");
+  const lf = [];
+  if (g > 0) lf.push(`drop-shadow(${(0.6+g*1.6).toFixed(2)}vh 0 0 rgba(255,255,255,${(0.2+g*0.4).toFixed(2)}))`);
+  if (c > 0) lf.push(`drop-shadow(${(-c*0.5).toFixed(2)}vh 0 0 rgba(255,40,40,${(c*0.7).toFixed(2)})) drop-shadow(${(c*0.5).toFixed(2)}vh 0 0 rgba(0,190,255,${(c*0.7).toFixed(2)}))`);
+  rs.setProperty("--logo-fx", lf.join(" ") || "none");
   $("#crt").classList.toggle("on", S.crt);
   if (v("wobble") === 0){ wobD.setAttribute("scale", "0"); }
 }
@@ -1436,10 +1445,11 @@ function renderWxPage(){
 function renderFbBox(T){
   const st = T.standing || {}, nm = T.next_match;
   const nd = nm ? new Date(nm.date) : null;
-  const next = nm ? `Nästa: <b>${esc(nm.opponent)}</b> · ${nm.is_home ? "hemma" : "borta"} · ${SV_DAYS[nd.getDay()]} ${nd.getDate()}/${nd.getMonth()+1} ${hhmm(nd)}` : "";
+  // Nästa match som två emblem (hemmalaget först) och tid, i stället för text
+  const own = st.team && st.team.logo ? logo(st.team.logo) : "", opp = nm ? logo(nm.opponent_logo) : "";
+  const next = nm ? `<div class="nxm">${nm.is_home ? own + "<i>–</i>" + opp : opp + "<i>–</i>" + own}<span>${SV_DAYS[nd.getDay()]} ${nd.getDate()}/${nd.getMonth()+1} ${hhmm(nd)}</span></div>` : "";
   const rows = (T.table || []).map(r => `<div class="r${r.id === T.team_id ? " me" : ""}"><span>${r.position}</span>${logo(r.logo)}<span class="t">${esc(r.id === T.team_id ? T.team_name : r.name)}</span><span>${r.points}</span></div>`).join("");
-  return `<div class="fbBox"><div class="bh">${esc(T.league)}${st.position ? ` · ${esc(T.team_name)} ${ordinal(st.position)} · ${st.points} p` : ""}</div>
-    ${next ? `<div class="nx">${next}</div>` : ""}<div class="mt">${rows}</div></div>`;
+  return `<div class="fbBox">${next}<div class="mt">${rows}</div></div>`;
 }
 function newsHost(link){ try{ return new URL(link).hostname.replace(/^www\./, ""); }catch(e){ return ""; } }
 async function ensureImg(x){
