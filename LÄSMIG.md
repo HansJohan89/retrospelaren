@@ -41,11 +41,11 @@ På Pi:n är *Vågiga linjer*, *Spökbild* och *Färgfransar* de tyngsta effekte
 
 - **Utseende:** märkning (standard BLAUPUNKT), rubrik- och brödtypsnitt, textstorlek, versaler, omslag som fyrkant, snurrande vinylskiva eller dolt
 - **Skärm:** 4:3, 16:9 eller fyll, samt storlek och förskjutning för att passa bilden bakom masken
-- **Kanter:** datum, veckonummer, steg och klocka överst och aktuellt väder (med dagens högsta och lägsta) längs nederkanten, alla i samma stora storlek (Open-Meteo, standard Falun, valfri ort). Storleken ställs med "Datum och klocka %" under Utseende; sidornas innehåll och visualiseringarna flyttar sig så att inget krockar.
+- **Kanter:** datum och veckonummer till vänster och klocka till höger överst; längs nederkanten vädret till vänster (symbol, temperatur, dagens högsta och lägsta) och stegräknaren till höger, alla i samma stora storlek (Open-Meteo, standard Falun, valfri ort). Storleken ställs med "Datum och klocka %" under Utseende; sidornas innehåll och visualiseringarna flyttar sig så att inget krockar.
 
 ### Stegräknare
 
-Samma som e-ink-tavlan: dagens steg hämtas från SoumayApp (`/api/steps`, som telefonen fyller via Health Connect och HC Webhook). De visas i raden överst, lika stort som datum och klocka: tassavtryck, en linjal med 10 streck mot dagsmålet (standard 10 000, ett streck per 1 000 steg) och antalet i tusental (1.3 = 1 300). I 60-talsfärg går strecken från rött via orange till grönt. Syns bara när det finns steg för idag. Slås av och på och dagsmålet ställs under S → Kanter.
+Samma som e-ink-tavlan: dagens steg hämtas från SoumayApp (`/api/steps`, som telefonen fyller via Health Connect och HC Webhook). De visas till höger längs nederkanten, lika stort som datum och klocka: tassavtryck, en linjal med 10 streck mot dagsmålet (standard 10 000, ett streck per 1 000 steg) och antalet i tusental (1.3 = 1 300). I 60-talsfärg går strecken från rött via orange till grönt. Syns bara när det finns steg för idag. Slås av och på och dagsmålet ställs under S → Kanter.
 
 ## När inget spelar
 

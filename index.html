@@ -75,12 +75,16 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #edges .grp{display:flex;align-items:center;gap:.5em;min-width:0}
 #edges .wk{color:var(--mid)}
 #edges .wxe,#edgesB .wxe{display:flex;align-items:center;gap:.35em}
-#edgesB{position:absolute;left:6%;right:6%;bottom:3.4%;z-index:4;display:flex;justify-content:center;align-items:center;gap:.6em;
+#edgesB{position:absolute;left:6%;right:6%;bottom:3.4%;z-index:4;display:flex;justify-content:space-between;align-items:center;gap:.6em;
   font-family:var(--fT),serif;line-height:1.1;letter-spacing:.02em;color:var(--ink);white-space:nowrap;overflow:hidden;pointer-events:none;
   text-shadow:0 0 1.4vh color-mix(in srgb,var(--ink) 45%,transparent)}
 #edgesB:empty{display:none}
 #edgesB svg{width:1.05em;height:1.05em;flex:none;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 #edgesB .lo{color:var(--mid)}
+#edgesB .grp{display:flex;align-items:center;gap:.5em;min-width:0}
+#edgesB .stp{display:flex;align-items:center;gap:.3em}
+#edgesB .stp .paws{width:1.15em;height:1.15em;stroke:none;fill:currentColor}
+#edgesB .stp .rul{width:2.6em;height:.9em;stroke:currentColor;fill:none}
 #edges .stp{display:flex;align-items:center;gap:.3em}
 #edges .stp .paws{width:1.15em;height:1.15em;stroke:none;fill:currentColor}
 #edges .stp .rul{width:2.6em;height:.9em;stroke:currentColor;fill:none}
@@ -680,7 +684,12 @@ function measureEdges(){
   const scr = $("#screen"), sr = scr.getBoundingClientRect(), eb = $("#edgesB");
   const bb = eb.innerHTML.trim() ? sr.bottom - eb.getBoundingClientRect().top - sr.height*0.035 + sr.height*0.012 : 0;
   const px = Math.max(0, Math.round(bb)) + "px";
-  if (scr.style.getPropertyValue("--bb") !== px) scr.style.setProperty("--bb", px);
+  if (scr.style.getPropertyValue("--bb") !== px){
+    scr.style.setProperty("--bb", px);
+    // Nederkanten ändrade höjd: rita om sidan så att listor och tabell anpassas till det nya utrymmet
+    document.querySelectorAll("#board .pg").forEach(el => { el._h = ""; });
+    if (typeof renderBoard === "function") requestAnimationFrame(renderBoard);
+  }
   EDGE_BB = sr.height ? Math.max(0, bb) / sr.height : 0;
   const sc = $("#screen").getBoundingClientRect(), ed = $("#edges").getBoundingClientRect();
   EDGE_B = $("#edges").innerHTML.trim() && sc.height ? (ed.bottom - sc.top) / sc.height : 0.05;
@@ -1245,11 +1254,13 @@ function renderEdges(){
   const e = S.edge, d = new Date(), Lp = [], Rp = [];
   if (e.date) Lp.push(`<span>${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS_L[d.getMonth()]}</span>`);
   if (e.week) Lp.push(`<span class="wk">v.${isoWeek(d)}</span>`);
-  const st = stepsHtml(); if (st) Rp.push(st);
   // Vädret ligger i nedre kanten, i samma storlek som raden överst
-  const wb = e.wx && WX && BOARD.page !== "wx" && !(BOARD.page === "hem" && S.home.wx)
-    ? `<span class="wxe">${wxIcon(WX.c, WX.day)}<span>${Math.round(WX.t)}° ${WX_TEXT(WX.c).toLowerCase()}</span></span>` +
+  // Nederkanten: vädret till vänster (symbol, temperatur, dagens högsta/lägsta), stegräknaren till höger
+  const wxB = e.wx && WX && BOARD.page !== "wx" && !(BOARD.page === "hem" && S.home.wx)
+    ? `<span class="wxe">${wxIcon(WX.c, WX.day)}<span>${Math.round(WX.t)}°</span></span>` +
       (WX.hi != null ? `<span class="lo">${Math.round(WX.hi)}° / ${Math.round(WX.lo)}°</span>` : "") : "";
+  const stB = stepsHtml();
+  const wb = wxB || stB ? `<div class="grp">${wxB}</div><div class="grp">${stB}</div>` : "";
   if (e.clock && !(BOARD.page === "hem" && S.home.clock)) Rp.push(`<span class="clock">${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}</span>`);
   const l = Lp.join(""), r = Rp.join("");
   if ($("#edgeL").innerHTML !== l){ $("#edgeL").innerHTML = l; renderEdges.fitted = false; }
