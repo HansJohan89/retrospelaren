@@ -147,16 +147,17 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .bus.sign li.soon .tm{color:var(--dt)}
 .bus.sign li.x{opacity:.45}
 .bus.sign .msg{color:#444;padding:1.6vh;font-weight:400}
-.sign .sf{flex:none;background:var(--dt);height:1.4vh;margin-top:auto}
+.sign .sf{flex:none;background:var(--dt);padding:.5vh 1.8vh;font-size:.78em;margin-top:auto}
 .tile.tsign{padding:0;border:none;background:none}
 .tile.tsign .sign{height:100%}
 .fbBox{display:flex;flex-direction:column;min-height:0;min-width:0}
 .fbBox > .bh,.fbBox > .nx,.fbBox > .nxm,.bus > .bh{flex:none}
-.fbBox .nxm{display:flex;align-items:center;gap:1.1vh;margin-bottom:1.2vh;color:var(--mid);min-width:0}
+.fbBox .nxm{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:1.1vh;margin-bottom:1.2vh;color:var(--mid);min-width:0}
+.fbBox .nxm .vs{display:flex;align-items:center;justify-content:center;gap:1.1vh}
 .fbBox .nxm img{width:6.4vh;height:6.4vh;object-fit:contain;filter:var(--cover-filter);flex:none}
 .fbBox .nxm b{font-weight:400;color:var(--ink)}
 .fbBox .nxm i{font-style:normal;color:var(--ink)}
-.fbBox .nxm span{margin-left:auto;color:var(--ink);white-space:nowrap;font-size:.9em;flex:none}
+.fbBox .nxm .dt{color:var(--ink);white-space:nowrap;font-size:.9em}
 .fbBox .bh{font-size:.8em;letter-spacing:.3em;text-transform:uppercase;color:var(--mid);margin-bottom:.6vh;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fbBox .nx{color:var(--mid);font-size:.85em;margin-bottom:1vh;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fbBox .nx b{color:var(--ink);font-weight:400}
@@ -1400,7 +1401,7 @@ function renderBus(max = 4){
   const pal = S.bus.signOrig === false ? " pal" : "";
   const logo = SIGN_LOGO ? `<img src="${SIGN_LOGO}" alt="">` : "";
   const head = `<div class="sh"><span class="nm">${esc(stopName(b.name) || "Hållplats")}</span>${logo}</div>`;
-  const foot = `<div class="sf"></div>`;
+  const foot = `<div class="sf">&nbsp;</div>`;
   const wrap = inner => `<div class="bus sign fill${pal}">${head}${inner}${foot}</div>`;
   if (!b.id) return wrap(`<div class="msg">Välj hållplats under S → När inget spelar.</div>`);
   if (DEP.err) return wrap(`<div class="msg">${DEP.nokey ? "RESROBOT_API_KEY saknas på servern." : esc(DEP.err)}</div>`);
@@ -1454,7 +1455,7 @@ function renderFbBox(T){
   const nd = nm ? new Date(nm.date) : null;
   // Nästa match som två emblem (hemmalaget först) och tid, i stället för text
   const own = st.team && st.team.logo ? logo(st.team.logo) : "", opp = nm ? logo(nm.opponent_logo) : "";
-  const next = nm ? `<div class="nxm"><b>Nästa:</b>${nm.is_home ? own + "<i>–</i>" + opp : opp + "<i>–</i>" + own}<span>${SV_DAYS[nd.getDay()]} ${nd.getDate()}/${nd.getMonth()+1} ${hhmm(nd)}</span></div>` : "";
+  const next = nm ? `<div class="nxm"><b>Nästa:</b><span class="vs">${nm.is_home ? own + "<i>–</i>" + opp : opp + "<i>–</i>" + own}</span><span class="dt">${SV_DAYS[nd.getDay()]} ${nd.getDate()}/${nd.getMonth()+1} ${hhmm(nd)}</span></div>` : "";
   const rows = (T.table || []).map(r => `<div class="r${r.id === T.team_id ? " me" : ""}"><span>${r.position}</span>${logo(r.logo)}<span class="t">${esc(r.id === T.team_id ? T.team_name : r.name)}</span><span>${r.points}</span></div>`).join("");
   return `<div class="fbBox">${next}<div class="mt">${rows}</div></div>`;
 }
