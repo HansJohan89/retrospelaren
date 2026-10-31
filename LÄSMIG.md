@@ -49,9 +49,24 @@ I stället för bara testbilden växlar skärmen mellan sidor (S → När inget 
 
 - **Väder och bussar:** nuläge, känns som, vind och byar, luftfuktighet, lufttryck, sol upp/ned, prognos varannan timme och fem dagar framåt. Bredvid vädret visas nästa timmes avgångar från vald hållplats, med realtid, förseningar och inställda turer.
 - **Nyheter:** en artikel i taget med rubrik, ingress och bild, från SVT Nyheter, SVT Dalarna, Ekot eller valfritt RSS-flöde. Saknar flödet bild hämtas artikelns delningsbild. En stapel visar när nästa artikel kommer.
+- **Foton:** bilder ur ett eller flera publikt delade Google Foto-album, i helskärm med långsam inzoomning och mjuk övertoning. Visas i bildrörets färgläge eller i originalfärg.
+- **Fotboll:** AIK i Allsvenskan och Bayern München i Bundesliga, varannan gång: placering, nästa match, de tre senaste resultaten och hela tabellen.
 - **Testbild**
 
-Välj vilka sidor som ingår, sekunder per sida och sekunder per artikel.
+Välj vilka sidor som ingår, sekunder per sida, per artikel och per foto.
+
+### Foton från Google Foto
+
+Samma metod som e-ink-tavlan: Googles API för det här är stängt sedan mars 2025, så servern läser bildadresserna ur albumets publika sida. Ingen nyckel behövs.
+
+1. Öppna albumet i Google Foto, tryck Dela och välj **Skapa länk** (inte "Bjud in personer").
+2. Klistra in länken under S → När inget spelar, en per rad om du har flera album.
+
+Albumen läses om en gång i timmen, så nya bilder dyker upp av sig själva.
+
+### Fotboll (Highlightly)
+
+Samma källa som e-ink-tavlan: Highlightly, med nyckeln `HIGHLIGHTLY_API_KEY` (på Railway som variabel, lokalt i filen `highlightly.key`). Gratisnivån ger 100 anrop per dygn och delas med e-ink-tavlan, som använder ungefär 58. Den här servern hämtar därför högst var sjätte timme (24 anrop per dygn).
 
 ### Bussavgångar (ResRobot)
 

@@ -18,6 +18,8 @@ Vägar:
   /api/ogimage?url= delningsbilden (og:image) för en artikel som saknar bild i flödet
   /api/stops?q=     sök hållplats (ResRobot v2.1, nyckel i RESROBOT_API_KEY eller resrobot.key)
   /api/departures?id=  avgångar närmaste två timmarna från en hållplats
+  /api/album?url=   bildadresser ur ett publikt delat Google Foto-album (samma metod som e-ink-tavlan)
+  /api/football     AIK/Allsvenskan och Bayern/Bundesliga via Highlightly (nyckel i HIGHLIGHTLY_API_KEY)
   /api/send?c=      skicka kommando till sidan: open, close, next, prev,
                     playpause, viz:1-5, palette:svartvit|sepia|fosfor|farg
 
@@ -47,18 +49,25 @@ CMD_LOCK = __import__("threading").Lock()
 CMD_STATE = {"id": 0, "list": []}
 OG_CACHE = {}
 DEP_CACHE = {}
+ALBUM_CACHE = {}
+FOOTBALL_CACHE = {"data": None, "at": 0}
 
 
-def resrobot_key():
-    """ResRobot-nyckeln (samma som e-ink-tavlan): miljövariabeln RESROBOT_API_KEY, annars filen resrobot.key bredvid servern."""
-    k = os.environ.get("RESROBOT_API_KEY", "").strip()
+def secret(name):
+    """Hemlig nyckel: miljövariabeln NAME, annars filen name.key bredvid servern (filerna finns i .gitignore)."""
+    k = os.environ.get(name, "").strip()
     if not k:
         try:
-            with open(os.path.join(ROOT, "resrobot.key"), encoding="utf-8") as f:
+            with open(os.path.join(ROOT, name.lower().replace("_api_key", "") + ".key"), encoding="utf-8") as f:
                 k = f.read().strip()
         except OSError:
             pass
     return k
+
+
+def resrobot_key():
+    """ResRobot-nyckeln (samma som e-ink-tavlan): RESROBOT_API_KEY eller filen resrobot.key."""
+    return secret("RESROBOT_API_KEY")
 
 
 def open_url(url, headers=None, timeout=10):
@@ -162,6 +171,10 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.stops(q.get("q", [""])[0])
             if path == "/api/departures":
                 return self.departures(q.get("id", [""])[0])
+            if path == "/api/album":
+                return self.album(q.get("url", [""])[0])
+            if path == "/api/football":
+                return self.football()
             if path == "/api/send":
                 return self.send_cmd(q.get("c", [""])[0])
             if path == "/api/cmd":
@@ -443,6 +456,87 @@ class Handler(SimpleHTTPRequestHandler):
         DEP_CACHE[sid] = (time.time(), out)
         return self._json(out)
 
+    # --- Google Foto: publikt delade album, samma metod som e-ink-tavlan (fetchers/google_photos.py) ---
+    # Inte Googles API (stängt för det här sedan mars 2025) utan bildadresserna som ligger inbäddade i
+    # albumets publika sida. Bara /pw/-adresser är albumbilder; profilbilder och Googles standardavatar filtreras bort.
+    def album(self, url):
+        import re
+        import time
+        url = url.strip()
+        if not re.match(r"^https://(photos\.app\.goo\.gl|photos\.google\.com|goo\.gl)/", url):
+            return self._json({"error": "Länken måste vara en delningslänk från Google Foto (photos.app.goo.gl/...)"}, 400)
+        hit = ALBUM_CACHE.get(url)
+        if hit and time.time() - hit[0] < 3600:
+            return self._json({"urls": hit[1]})
+        try:
+            with open_url(url, {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                                              "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"}, timeout=15) as r:
+                page = r.read(8 * 1024 * 1024).decode("utf-8", "ignore")
+        except Exception as e:
+            if hit:
+                return self._json({"urls": hit[1], "error": f"{e} (visar sparad lista)"})
+            return self._json({"error": f"Nätverksfel: {e}"}, 502)
+        found = re.findall(r"https:\\?/\\?/lh3\.googleusercontent\.com\\?/pw(?:\\?/[A-Za-z0-9_.\-]+)+", page)
+        urls = list(dict.fromkeys(u.replace("\\/", "/") for u in found if "AAAAAAAAAAI/AAAAAAAAAAA" not in u))
+        if not urls:
+            return self._json({"error": "Hittade inga bilder. Är länken skapad med 'Skapa länk' (inte 'Bjud in personer')?"})
+        ALBUM_CACHE[url] = (time.time(), urls)
+        return self._json({"urls": urls})
+
+    # --- Fotboll: Highlightly, samma lag och ligor som e-ink-tavlan (fetchers/football.py) ---
+    # Gratisnivån ger 100 anrop/dygn och delas med e-ink-tavlan (~58/dygn). Den här servern hämtar
+    # högst var sjätte timme (6 anrop per hämtning = 24/dygn), så de båda tillsammans håller sig under taket.
+    def football(self):
+        import time
+        if FOOTBALL_CACHE["data"] and time.time() - FOOTBALL_CACHE["at"] < 6 * 3600:
+            return self._json(FOOTBALL_CACHE["data"])
+        key = secret("HIGHLIGHTLY_API_KEY")
+        if not key:
+            return self._json({"ok": False, "nokey": True, "error": "Ingen HIGHLIGHTLY_API_KEY på servern"})
+
+        def get(path, params):
+            qs = urllib.parse.urlencode(params)
+            with open_url(f"https://soccer.highlightly.net{path}?{qs}", {"x-rapidapi-key": key}, timeout=12) as r:
+                return json.loads(r.read().decode("utf-8"))
+
+        def standings(league):
+            return (get("/standings", {"leagueId": league, "season": 2026}).get("groups") or [{}])[0].get("standings", [])
+
+        def matches(team):
+            # API:et ger listorna i fallande datumordning per lista; sorterar själva i stället för att lita på ordningen
+            allm = get("/matches", {"homeTeamId": team, "limit": 15}).get("data", []) + \
+                   get("/matches", {"awayTeamId": team, "limit": 15}).get("data", [])
+            up = [m for m in allm if (m.get("state") or {}).get("description") == "Not started"]
+            done = [m for m in allm if (m.get("state") or {}).get("description") == "Finished"]
+            return (min(up, key=lambda m: m["date"]) if up else None), sorted(done, key=lambda m: m["date"], reverse=True)[:3]
+
+        def summary(team, m):
+            if not m:
+                return None
+            home = m["homeTeam"]["id"] == team
+            opp = m["awayTeam"] if home else m["homeTeam"]
+            return {"opponent": opp.get("name"), "opponent_logo": opp.get("logo"), "is_home": home,
+                    "date": m.get("date"), "score": ((m.get("state") or {}).get("score") or {}).get("current")}
+
+        def team_block(name, league_name, league, team):
+            table = sorted(standings(league), key=lambda s: s.get("position", 99))
+            nxt, recent = matches(team)
+            return {"team_name": name, "team_id": team, "league": league_name,
+                    "standing": next((s for s in table if s["team"]["id"] == team), None),
+                    "table": [{"position": s.get("position"), "points": s.get("points"),
+                               "name": s["team"].get("name"), "id": s["team"].get("id"), "logo": s["team"].get("logo")} for s in table],
+                    "next_match": summary(team, nxt), "recent_results": [summary(team, m) for m in recent]}
+        try:
+            data = {"ok": True, "at": int(time.time() * 1000),
+                    "teams": [team_block("AIK", "Allsvenskan", 96947, 321611),
+                              team_block("Bayern München", "Bundesliga", 67162, 134391)]}
+        except Exception as e:
+            if FOOTBALL_CACHE["data"]:
+                return self._json(FOOTBALL_CACHE["data"])
+            return self._json({"ok": False, "error": f"Highlightly: {e}"})
+        FOOTBALL_CACHE.update(data=data, at=time.time())
+        return self._json(data)
+
     # --- styrning utifrån (t.ex. jalusins reedbrytare på Pi:n) ---
     # curl "http://127.0.0.1:8888/api/send?c=open"   (open, close, next, prev, playpause, viz:3)
     def send_cmd(self, c):
@@ -467,7 +561,7 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json({"error": "ogiltig url"}, 400)
         try:
             with open_url(url, timeout=8) as r:
-                data = r.read(4 * 1024 * 1024)
+                data = r.read(8 * 1024 * 1024)
                 ctype = r.headers.get("Content-Type", "image/jpeg")
         except Exception as e:
             return self._json({"error": str(e)}, 502)
