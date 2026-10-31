@@ -82,7 +82,7 @@ Avgångarna hämtas från Trafiklabs ResRobot v2.1, samma API och samma nyckel s
 - på Railway: variabeln `RESROBOT_API_KEY` på tjänsten `retrospelaren` (samma värde som på SoumayAPP)
 - lokalt: en fil `resrobot.key` bredvid `server.py` (den finns i `.gitignore`), eller miljövariabeln `RESROBOT_API_KEY`
 
-Sök sedan hållplats under S → När inget spelar och välj i listan. Välj också gärna **Framme vid**: då visar skylten bara avgångar som tar dig dit (ResRobots resesökning, samma som e-ink-tavlans reseplan), med den hållplatsen på varje rad och avgångstiden till höger. Servern frågar ResRobot högst en gång per minut och hållplats, tre timmar framåt och upp till tolv timmar vid gles trafik, så att det alltid finns flera avgångar att visa.
+Sök sedan hållplats under S → När inget spelar och välj i listan. Välj också gärna **Framme vid**: då visar skylten bara bussar som går direkt från din hållplats till den utan byte (ResRobots resesökning, samma som e-ink-tavlans reseplan), med den hållplatsen på varje rad och avgångstiden till höger. Servern frågar ResRobot högst en gång per minut och hållplats, tre timmar framåt och upp till tolv timmar vid gles trafik, så att det alltid finns flera avgångar att visa.
 
 ## Radio
 

@@ -503,16 +503,30 @@ class Handler(SimpleHTTPRequestHandler):
         hit = DEP_CACHE.get(key)
         if hit and time.time() - hit[0] < 60:
             return self._json(hit[1])
-        # ResRobot ger högst 6 resor per sökning: hämtar en andra omgång från minuten efter den sista avgången
+        # Bara resor med en buss direkt från starthållplatsen hela vägen (ingen promenad till annan hållplats, inget byte),
+        # så att skylten visar de linjer som faktiskt går från hållplatsen.
+        def legs_of(t):
+            legs = (t.get("LegList") or {}).get("Leg") or []
+            return [legs] if isinstance(legs, dict) else legs
+
+        def direct(t):
+            legs = legs_of(t)
+            jny = [l for l in legs if l.get("type") == "JNY"]
+            if len(jny) != 1 or not legs or legs[0].get("type") != "JNY":
+                return False
+            ext = str((jny[0].get("Origin") or {}).get("extId") or "")
+            return not ext or ext == src
+
+        # ResRobot ger högst 6 resor per sökning: hämtar nya omgångar från minuten efter den sista avgången
         trips, params = [], {"originId": src, "destId": dst, "numF": 6}
         try:
-            for _ in range(2):
+            for _ in range(4):
                 j = self.rr_get("trip", params)
                 got = j.get("Trip") or []
                 if isinstance(got, dict):    # en enda resa kommer som objekt, inte lista
                     got = [got]
-                trips += got
-                if len(got) < 6:
+                trips += [t for t in got if direct(t)]
+                if len(got) < 6 or len(trips) >= 8:
                     break
                 last = None
                 for t in got:
