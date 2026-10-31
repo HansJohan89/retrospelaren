@@ -14,7 +14,10 @@ Vägar:
   /api/radio?...    söker stationer via radio-browser.info
   /api/img?url=     proxar en bild (omslag/stationslogga) med CORS
   /api/cover?term=  omslag, album och år för en radiolåt (iTunes sök-API)
-  /api/rss?url=     rubriker ur ett RSS/Atom-flöde (nyhetssidan när inget spelar)
+  /api/rss?url=     rubriker, ingress och bild ur ett RSS/Atom-flöde (nyhetssidan)
+  /api/ogimage?url= delningsbilden (og:image) för en artikel som saknar bild i flödet
+  /api/stops?q=     sök hållplats (Trafiklab, kräver nyckel i TRAFIKLAB_KEY eller trafiklab.key)
+  /api/departures?id=  avgångar närmaste timmen från en hållplats
   /api/send?c=      skicka kommando till sidan: open, close, next, prev,
                     playpause, viz:1-5, palette:svartvit|sepia|fosfor|farg
 
@@ -41,6 +44,20 @@ RADIO_MIRRORS = [
 SSL_CTX = ssl.create_default_context()
 CMD_LOCK = __import__("threading").Lock()
 CMD_STATE = {"id": 0, "list": []}
+OG_CACHE = {}
+DEP_CACHE = {}
+
+
+def trafiklab_key():
+    """Trafiklab-nyckeln: miljövariabeln TRAFIKLAB_KEY, annars filen trafiklab.key bredvid servern."""
+    k = os.environ.get("TRAFIKLAB_KEY", "").strip()
+    if not k:
+        try:
+            with open(os.path.join(ROOT, "trafiklab.key"), encoding="utf-8") as f:
+                k = f.read().strip()
+        except OSError:
+            pass
+    return k
 
 
 def open_url(url, headers=None, timeout=10):
@@ -113,6 +130,11 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def do_HEAD(self):
+        path = urllib.parse.urlparse(self.path).path
+        self.send_response(200 if path in ("/", "/callback", "/index.html", "/api/ping") else 404)
+        self.end_headers()
+
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         q = urllib.parse.parse_qs(parsed.query)
@@ -133,13 +155,20 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.cover(q.get("term", [""])[0])
             if path == "/api/rss":
                 return self.rss(q.get("url", [""])[0])
+            if path == "/api/ogimage":
+                return self.ogimage(q.get("url", [""])[0])
+            if path == "/api/stops":
+                return self.stops(q.get("q", [""])[0])
+            if path == "/api/departures":
+                return self.departures(q.get("id", [""])[0])
             if path == "/api/send":
                 return self.send_cmd(q.get("c", [""])[0])
             if path == "/api/cmd":
                 return self.poll_cmd(int(q.get("since", ["0"])[0] or 0))
             if path == "/api/ping":
                 return self._json({"ok": True})
-            return super().do_GET()
+            # Inga andra filer serveras: nyckelfiler och källkod ska inte gå att hämta.
+            return self._json({"error": "hittades inte"}, 404)
         except (BrokenPipeError, ConnectionResetError):
             pass
 
@@ -260,7 +289,7 @@ class Handler(SimpleHTTPRequestHandler):
         })
 
     def rss(self, url):
-        """Rubriker ur ett RSS- eller Atom-flöde, som JSON."""
+        """Rubriker, ingress, länk och bild ur ett RSS- eller Atom-flöde, som JSON."""
         import re
         import html
         import xml.etree.ElementTree as ET
@@ -275,7 +304,7 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json({"error": str(e)}, 502)
 
         def local(tag):
-            return tag.rsplit("}", 1)[-1]
+            return tag.rsplit("}", 1)[-1] if isinstance(tag, str) else ""
 
         def child(el, *names):
             for c in el:
@@ -286,6 +315,28 @@ class Handler(SimpleHTTPRequestHandler):
         def clean(s):
             s = html.unescape(re.sub(r"<[^>]+>", " ", s or ""))
             return re.sub(r"\s+", " ", s).strip()
+
+        def image(el):
+            for c in el.iter():
+                n, a = local(c.tag), c.attrib
+                if n == "enclosure" and a.get("url") and a.get("type", "image").startswith("image"):
+                    return a["url"]
+                if n in ("content", "thumbnail") and a.get("url") and (a.get("medium") == "image" or a.get("type", "image").startswith("image")):
+                    return a["url"]
+            for c in el.iter():
+                m = re.search(r'<img[^>]+src="([^"]+)"', c.text or "")
+                if m:
+                    return html.unescape(m.group(1))
+            return ""
+
+        def link(el):
+            for c in el:
+                if local(c.tag) == "link":
+                    if (c.text or "").strip():
+                        return c.text.strip()
+                    if c.attrib.get("href") and c.attrib.get("rel", "alternate") == "alternate":
+                        return c.attrib["href"]
+            return ""
 
         out = []
         for el in root.iter():
@@ -301,12 +352,86 @@ class Handler(SimpleHTTPRequestHandler):
                     iso = parsedate_to_datetime(date).isoformat()
                 except Exception:
                     iso = date
-            desc = clean(child(el, "description", "summary", "content"))
-            if len(desc) > 400:
-                desc = desc[:397].rsplit(" ", 1)[0] + "..."
-            out.append({"title": title, "desc": desc, "date": iso})
+            desc = clean(child(el, "description", "summary", "encoded", "content"))
+            if len(desc) > 600:
+                desc = desc[:597].rsplit(" ", 1)[0] + "..."
+            out.append({"title": title, "desc": desc, "date": iso, "link": link(el), "img": image(el)})
             if len(out) >= 20:
                 break
+        return self._json(out)
+
+    def ogimage(self, url):
+        """Artikelns delningsbild (og:image), för flöden som saknar bild."""
+        import re
+        import html
+        if not url.startswith(("http://", "https://")):
+            return self._json({"error": "ogiltig url"}, 400)
+        if url in OG_CACHE:
+            return self._json({"img": OG_CACHE[url]})
+        img = ""
+        try:
+            with open_url(url, timeout=8) as r:
+                page = r.read(600 * 1024).decode("utf-8", "ignore")
+            for pat in (r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)',
+                        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']',
+                        r'<meta[^>]+name=["\']twitter:image["\'][^>]+content=["\']([^"\']+)'):
+                m = re.search(pat, page, re.I)
+                if m:
+                    img = html.unescape(m.group(1))
+                    break
+        except Exception as e:
+            return self._json({"error": str(e), "img": ""})
+        if len(OG_CACHE) > 500:
+            OG_CACHE.clear()
+        OG_CACHE[url] = img
+        return self._json({"img": img})
+
+    # --- kollektivtrafik via Trafiklab Realtime API (nyckel i miljövariabeln TRAFIKLAB_KEY eller filen trafiklab.key) ---
+    def tl_get(self, path):
+        key = trafiklab_key()
+        if not key:
+            raise LookupError("Ingen Trafiklab-nyckel på servern")
+        with open_url("https://realtime-api.trafiklab.se/v1/" + path + ("&" if "?" in path else "?") + "key=" + urllib.parse.quote(key), timeout=10) as r:
+            return json.loads(r.read().decode("utf-8"))
+
+    def stops(self, q):
+        q = q.strip()
+        if not q:
+            return self._json([])
+        try:
+            j = self.tl_get("stops/name/" + urllib.parse.quote(q))
+        except LookupError as e:
+            return self._json({"error": str(e), "nokey": True}, 200)
+        except Exception as e:
+            return self._json({"error": str(e)}, 502)
+        out = [{"id": g.get("id"), "name": g.get("name"), "modes": g.get("transport_modes") or [],
+                "daily": g.get("average_daily_stop_times") or 0} for g in j.get("stop_groups") or []]
+        out.sort(key=lambda x: -x["daily"])
+        return self._json(out[:15])
+
+    def departures(self, sid):
+        import time
+        sid = "".join(ch for ch in sid if ch.isalnum())
+        if not sid:
+            return self._json({"error": "ange id"}, 400)
+        hit = DEP_CACHE.get(sid)
+        if hit and time.time() - hit[0] < 30:
+            return self._json(hit[1])
+        try:
+            j = self.tl_get("departures/" + sid)
+        except LookupError as e:
+            return self._json({"error": str(e), "nokey": True}, 200)
+        except Exception as e:
+            return self._json({"error": str(e)}, 502)
+        out = []
+        for d in j.get("departures") or []:
+            rt = d.get("route") or {}
+            plat = (d.get("realtime_platform") or d.get("scheduled_platform") or {}).get("designation") or ""
+            out.append({"line": rt.get("designation") or rt.get("name") or "", "dest": (rt.get("destination") or {}).get("name") or rt.get("direction") or "",
+                        "mode": rt.get("transport_mode") or "", "sched": d.get("scheduled"), "rt": d.get("realtime"),
+                        "live": bool(d.get("is_realtime")), "canceled": bool(d.get("canceled")), "plat": plat})
+        out.sort(key=lambda x: x["rt"] or x["sched"] or "")
+        DEP_CACHE[sid] = (time.time(), out)
         return self._json(out)
 
     # --- styrning utifrån (t.ex. jalusins reedbrytare på Pi:n) ---

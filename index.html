@@ -96,20 +96,43 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .wxFacts{display:flex;flex-wrap:wrap;gap:.8vh 3.5vh;color:var(--mid);font-size:.9em;letter-spacing:.06em}
 .wxFacts b{color:var(--ink);font-weight:400}
 .wxRow{display:grid;gap:1vh;text-align:center}
-.wxRow .c{display:flex;flex-direction:column;align-items:center;gap:.8vh;padding:1.6vh 0;border:max(1px,.15vh) solid var(--dim)}
-.wxRow .c svg{width:5.5vh;height:5.5vh}
+.wxRow .c{display:flex;flex-direction:column;align-items:center;gap:.4vh;padding:1vh 0;border:max(1px,.15vh) solid var(--dim)}
+.wxRow .c svg{width:4.4vh;height:4.4vh}
 .wxRow .h{font-size:.8em;color:var(--mid);letter-spacing:.12em;text-transform:uppercase}
 .wxRow .v{font-size:1.15em}
 .wxRow .p{font-size:.75em;color:var(--mid)}
-.nwTop{min-height:0;flex:none}
-.nwTop .t{font-family:var(--fT),serif;font-size:2em;line-height:1.1;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+.wxTop{display:grid;grid-template-columns:1.05fr 1fr;gap:5vh;align-items:start}
+#pgWx{gap:2.2vh}
+#pgWx .wxRow{font-size:.9em}
+.wxTop.solo{grid-template-columns:1fr}
+.wxL{display:flex;flex-direction:column;gap:2.6vh;min-width:0}
+.wxTop:not(.solo) .wxNow svg{width:10vh;height:10vh}
+.bus{min-width:0}
+.bus .bh{font-size:.8em;letter-spacing:.3em;text-transform:uppercase;color:var(--mid);margin-bottom:1.4vh;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bus ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.8vh}
+.bus li{display:grid;grid-template-columns:5ch 1fr auto;gap:1.8vh;align-items:baseline}
+.bus .ln{border:max(1px,.18vh) solid currentColor;text-align:center;padding:.15vh .4vh;font-size:.9em}
+.bus .ds{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bus .tm{text-align:right;white-space:nowrap}
+.bus .tm small{color:var(--mid);margin-left:.8ch}
+.bus li.soon .tm{color:var(--accent)}
+.bus li.x{opacity:.5}.bus li.x .ds{text-decoration:line-through}
+.bus .msg{color:var(--mid);line-height:1.4}
+.art{display:grid;grid-template-columns:1.1fr 1fr;gap:4.5vh;flex:1;min-height:0;align-items:center}
+.art.noimg{grid-template-columns:1fr}
+.art.noimg .im{display:none}
+.art .im{height:100%;max-height:60vh;min-height:0;border:max(2px,.3vh) solid var(--mid);background:var(--dim);overflow:hidden;
+  box-shadow:0 0 3vh rgba(0,0,0,.6)}
+.art .im img{width:100%;height:100%;object-fit:cover;display:block;filter:var(--cover-filter)}
+.art .tx{min-width:0}
+.art .t{font-family:var(--fT),serif;font-size:2.4em;line-height:1.1;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden;
   text-shadow:0 0 1.2vh color-mix(in srgb,var(--ink) 40%,transparent)}
-.nwTop .d{margin-top:1.2vh;color:var(--mid);line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.nwList{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1.6vh;overflow:hidden;min-height:0}
-.nwList li{display:flex;gap:2vh;align-items:baseline;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.nwList li .tm{color:var(--mid);font-size:.8em;flex:none;width:5ch}
-.nwList li .x{overflow:hidden;text-overflow:ellipsis}
-.nwList li.cur{color:var(--accent)}
+.art.noimg .t{font-size:3em}
+.art .d{margin-top:2.6vh;color:var(--mid);line-height:1.45;display:-webkit-box;-webkit-line-clamp:8;-webkit-box-orient:vertical;overflow:hidden}
+.art .m{margin-top:2.6vh;font-size:.75em;letter-spacing:.25em;color:var(--mid);text-transform:uppercase}
+.nbar{height:max(2px,.35vh);background:var(--dim);flex:none}
+.nbar i{display:block;height:100%;width:0;background:var(--ink);animation:nbar linear forwards}
+@keyframes nbar{to{width:100%}}
 
 #crt{position:absolute;inset:0;z-index:8;pointer-events:none}
 #crt.on::before{content:"";position:absolute;inset:0;
@@ -323,6 +346,10 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
     <section>
       <h3>När inget spelar</h3>
       <label class="chk"><input type="checkbox" id="idWx"> Väder i detalj</label>
+      <label class="chk"><input type="checkbox" id="idBus"> Bussavgångar på vädersidan</label>
+      <div class="row"><input type="search" id="busQ" placeholder="Sök hållplats, t.ex. Falun Centrum"><button class="btn" id="busBtn">Sök</button></div>
+      <div class="row"><select id="busSel"><option value="">Ingen hållplats vald</option></select></div>
+      <div class="note" id="busStatus"></div>
       <label class="chk"><input type="checkbox" id="idNews"> Nyheter</label>
       <label class="chk"><input type="checkbox" id="idTest"> Testbild</label>
       <div id="idleSl"></div>
@@ -398,8 +425,10 @@ const FONTS_B = ["Special Elite","Courier Prime","Cutive Mono","Josefin Sans","J
 S.fx = Object.assign({}, FX_DEF, S.fx || {}); if (S.warm === undefined) S.warm = true;
 S.look = Object.assign({}, LOOK_DEF, S.look || {});
 S.edge = Object.assign({}, EDGE_DEF, S.edge || {});
-const IDLE_DEF = { wx:true, news:true, test:true, secs:25, feed:"svt", own:"" };
+const IDLE_DEF = { wx:true, news:true, test:true, secs:40, artSecs:15, feed:"svt", own:"" };
+const BUS_DEF = { on:true, id:"", name:"" };
 S.idle = Object.assign({}, IDLE_DEF, S.idle || {});
+S.bus = Object.assign({}, BUS_DEF, S.bus || {});
 const FEEDS = {
   svt:     { name:"SVT Nyheter",  url:"https://www.svt.se/nyheter/rss.xml" },
   dalarna: { name:"SVT Dalarna",  url:"https://www.svt.se/nyheter/lokalt/dalarna/rss.xml" },
@@ -1100,6 +1129,42 @@ async function loadNews(){
   }catch(e){ $("#newsStatus").textContent = "Kunde inte hämta nyheter: " + e.message; }
   renderBoard();
 }
+let DEP = { items:[], at:0, err:"", nokey:false };
+async function loadDeps(){
+  if (!S.bus.on || !S.bus.id) return;
+  try{
+    const j = await (await fetch("/api/departures?id=" + encodeURIComponent(S.bus.id))).json();
+    if (Array.isArray(j)) DEP = { items:j, at:Date.now(), err:"", nokey:false };
+    else DEP = { items:[], at:Date.now(), err:j.error || "fel", nokey:!!j.nokey };
+  }catch(e){ DEP = { items:[], at:Date.now(), err:"Avgångarna svarar inte.", nokey:false }; }
+  $("#busStatus").textContent = DEP.nokey ? "Servern saknar Trafiklab-nyckel (TRAFIKLAB_KEY)." : DEP.err ? DEP.err : `${DEP.items.length} avgångar närmaste timmen från ${S.bus.name}.`;
+  renderBoard();
+}
+async function findStops(q){
+  $("#busStatus").textContent = "Söker...";
+  try{
+    const j = await (await fetch("/api/stops?q=" + encodeURIComponent(q))).json();
+    if (!Array.isArray(j)){ $("#busStatus").textContent = j.nokey ? "Servern saknar Trafiklab-nyckel (TRAFIKLAB_KEY)." : (j.error || "Sökningen misslyckades."); return; }
+    if (!j.length){ $("#busStatus").textContent = "Hittade ingen hållplats."; return; }
+    $("#busSel").innerHTML = '<option value="">Välj hållplats...</option>' + j.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join("");
+    $("#busStatus").textContent = `${j.length} träffar. Välj i listan.`;
+  }catch(e){ $("#busStatus").textContent = "Sökningen svarar inte."; }
+}
+function depTime(d){ return new Date(d.rt || d.sched); }
+function renderBus(){
+  const b = S.bus;
+  if (!b.id) return `<div class="bus"><div class="bh">Avgångar</div><div class="msg">Välj hållplats under S → När inget spelar.</div></div>`;
+  const head = `<div class="bh">Avgångar · ${esc(b.name)}</div>`;
+  if (DEP.err) return `<div class="bus">${head}<div class="msg">${DEP.nokey ? "Trafiklab-nyckel saknas på servern." : esc(DEP.err)}</div></div>`;
+  const now = Date.now();
+  const rows = DEP.items.filter(d => depTime(d).getTime() > now - 30e3).slice(0, 7).map(d => {
+    const t = depTime(d), min = Math.round((t.getTime() - now)/60e3);
+    const when = d.canceled ? "Inställd" : min <= 0 ? "Nu" : min <= 15 ? `${min} min` : hhmm(t);
+    const late = !d.canceled && d.rt && d.sched && new Date(d.rt) - new Date(d.sched) >= 120e3 ? `<small>(${hhmm(new Date(d.sched))})</small>` : "";
+    return `<li class="${d.canceled ? "x" : min <= 3 ? "soon" : ""}"><span class="ln">${esc(d.line)}</span><span class="ds">${esc(d.dest)}</span><span class="tm">${when}${late}</span></li>`;
+  });
+  return `<div class="bus">${head}${rows.length ? `<ul>${rows.join("")}</ul>` : `<div class="msg">${DEP.at ? "Inga avgångar närmaste timmen." : "Hämtar avgångar..."}</div>`}</div>`;
+}
 function renderWxPage(){
   const W2 = WX, e = S.edge; if (!W2 || !W2.hourly) return "";
   const now = Date.now(), H2 = W2.hourly, D2 = W2.daily;
@@ -1118,24 +1183,37 @@ function renderWxPage(){
       `<span class="p">${(D2.precipitation_sum[i] ?? 0).toFixed(1).replace(".", ",")} mm</span></div>`);
   }
   const sr = D2.sunrise?.[0] ? hhmm(new Date(D2.sunrise[0])) : "–", ss = D2.sunset?.[0] ? hhmm(new Date(D2.sunset[0])) : "–";
+  const bus = S.bus.on;
   return `<div class="kick"><span>Väder · ${esc(e.place)}</span><span>Uppdaterat ${hhmm(new Date(W2.at))}</span></div>
-    <div class="wxNow">${wxIcon(W2.c, W2.day)}<span class="tmp">${Math.round(W2.t)}°</span>
-      <div class="txt"><span class="big">${WX_TEXT(W2.c)}</span><span class="sub">Känns som ${Math.round(W2.feel)}° · Idag ${Math.round(W2.hi)}° / ${Math.round(W2.lo)}°</span></div></div>
-    <div class="wxFacts"><span>Vind <b>${Math.round(W2.wind)} m/s ${COMPASS[Math.round((W2.dir || 0)/45) % 8]}</b>${W2.gust ? ` (byar ${Math.round(W2.gust)})` : ""}</span>
-      <span>Luftfuktighet <b>${Math.round(W2.hum)}%</b></span><span>Lufttryck <b>${Math.round(W2.pres)} hPa</b></span>
-      <span>Sol upp <b>${sr}</b></span><span>Sol ned <b>${ss}</b></span></div>
+    <div class="wxTop${bus ? "" : " solo"}"><div class="wxL">
+      <div class="wxNow">${wxIcon(W2.c, W2.day)}<span class="tmp">${Math.round(W2.t)}°</span>
+        <div class="txt"><span class="big">${WX_TEXT(W2.c)}</span><span class="sub">Känns som ${Math.round(W2.feel)}°</span><span class="sub">Idag ${Math.round(W2.hi)}° / ${Math.round(W2.lo)}°</span></div></div>
+      <div class="wxFacts"><span>Vind <b>${Math.round(W2.wind)} m/s ${COMPASS[Math.round((W2.dir || 0)/45) % 8]}</b>${W2.gust ? ` (byar ${Math.round(W2.gust)})` : ""}</span>
+        <span>Fukt <b>${Math.round(W2.hum)}%</b></span><span>Tryck <b>${Math.round(W2.pres)} hPa</b></span>
+        <span>Sol <b>${sr}</b> – <b>${ss}</b></span></div>
+    </div>${bus ? renderBus() : ""}</div>
     <div class="wxRow" style="grid-template-columns:repeat(${hours.length},1fr)">${hours.join("")}</div>
     <div class="wxRow" style="grid-template-columns:repeat(${days.length},1fr)">${days.join("")}</div>`;
 }
+function newsHost(link){ try{ return new URL(link).hostname.replace(/^www\./, ""); }catch(e){ return ""; } }
+async function ensureImg(x){
+  if (!x || x.img || x.ogTried || !x.link) return;
+  x.ogTried = true;
+  try{ const j = await (await fetch("/api/ogimage?url=" + encodeURIComponent(x.link))).json(); if (j.img){ x.img = j.img; renderBoard(); } }catch(e){}
+}
 function renderNewsPage(){
   const it = NEWS.items; if (!it.length) return "";
-  const cur = BOARD.newsIdx % it.length, top = it[cur];
-  const when = x => x.date ? hhmm(new Date(x.date)) : "";
-  const list = [];
-  for (let k = 1; k <= 7 && k < it.length; k++){ const x = it[(cur + k) % it.length]; list.push(`<li><span class="tm">${when(x)}</span><span class="x">${esc(x.title)}</span></li>`); }
+  const cur = BOARD.newsIdx % it.length, a = it[cur];
+  ensureImg(a); ensureImg(it[(cur + 1) % it.length]);
+  if (a.img){ const pre = new Image(); pre.src = "/api/img?url=" + encodeURIComponent(a.img); }
+  const nx = it[(cur + 1) % it.length]; if (nx.img){ const pre = new Image(); pre.src = "/api/img?url=" + encodeURIComponent(nx.img); }
+  const when = a.date ? hhmm(new Date(a.date)) : "";
+  const img = a.img ? `<div class="im"><img src="/api/img?url=${encodeURIComponent(a.img)}" alt="" onerror="this.closest('.art').classList.add('noimg')"></div>` : "";
   return `<div class="kick"><span>Nyheter · ${esc(NEWS.src)}</span><span>${cur + 1} / ${it.length}</span></div>
-    <div class="nwTop"><div class="t">${esc(top.title)}</div>${top.desc ? `<div class="d">${esc(top.desc)}</div>` : ""}</div>
-    <ul class="nwList">${list.join("")}</ul>`;
+    <div class="art${a.img ? "" : " noimg"}" data-k="${cur}">${img}<div class="tx"><div class="t">${esc(a.title)}</div>
+      ${a.desc ? `<div class="d">${esc(a.desc)}</div>` : ""}
+      <div class="m">${[when, newsHost(a.link)].filter(Boolean).join(" · ")}</div></div></div>
+    <div class="nbar"><i style="animation-duration:${S.idle.artSecs}s"></i></div>`;
 }
 function renderBoard(){
   const wx = $("#pgWx"), nw = $("#pgNews");
@@ -1153,10 +1231,12 @@ function boardStep(idle, now){
     const next = pages[BOARD.idx];
     if (BOARD.page && next !== BOARD.page) channelNoise(380);
     BOARD.page = next; BOARD.until = now + S.idle.secs*1000;
-    BOARD.newsUntil = now + Math.max(6, S.idle.secs/3)*1000;
+    BOARD.newsUntil = now + S.idle.artSecs*1000;
+    if (next === "news") $("#pgNews").innerHTML = "";
+    if (next === "wx" && S.bus.on && S.bus.id && Date.now() - DEP.at > 45e3) loadDeps();
     renderBoard(); renderEdges();
   }
-  if (BOARD.page === "news" && now > BOARD.newsUntil){ BOARD.newsIdx++; BOARD.newsUntil = now + Math.max(6, S.idle.secs/3)*1000; renderBoard(); }
+  if (BOARD.page === "news" && now > BOARD.newsUntil){ BOARD.newsIdx++; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
   return BOARD.page;
 }
 function drawBoardBg(t){
@@ -1620,7 +1700,13 @@ function buildControls(){
   $("#warmChk").addEventListener("change", e => { S.warm = e.target.checked; saveS(); });
   for (const [id, key] of [["#edDate","date"],["#edWeek","week"],["#edClock","clock"],["#edWx","wx"]])
     $(id).addEventListener("change", e => { S.edge[key] = e.target.checked; saveS(); if (key === "wx") loadWeather(); else renderEdges(); });
-  syncers.push(slider($("#idleSl"), "secs", "Sekunder per sida", () => S.idle, 10, 90, () => {}));
+  syncers.push(slider($("#idleSl"), "secs", "Sekunder per sida", () => S.idle, 10, 180, () => {}));
+  syncers.push(slider($("#idleSl"), "artSecs", "Sek. per artikel", () => S.idle, 6, 60, () => {}));
+  $("#idBus").addEventListener("change", e => { S.bus.on = e.target.checked; saveS(); loadDeps(); renderBoard(); });
+  $("#busBtn").addEventListener("click", () => { const v = $("#busQ").value.trim(); if (v) findStops(v); });
+  $("#busQ").addEventListener("keydown", e => { if (e.key === "Enter") $("#busBtn").click(); });
+  $("#busSel").addEventListener("change", e => { const o = e.target.selectedOptions[0]; if (!o || !o.value) return;
+    S.bus.id = o.value; S.bus.name = o.textContent; saveS(); DEP = { items:[], at:0, err:"", nokey:false }; loadDeps(); });
   for (const [id, key] of [["#idWx","wx"],["#idNews","news"],["#idTest","test"]])
     $(id).addEventListener("change", e => { S.idle[key] = e.target.checked; saveS(); BOARD.until = 0;
       if (key === "wx") loadWeather(); if (key === "news") loadNews(); });
@@ -1642,6 +1728,8 @@ function syncAll(){
   segOn("#coverSeg", S.look.cover); segOn("#fmtSeg", S.look.format);
   $("#edDate").checked = S.edge.date; $("#edWeek").checked = S.edge.week; $("#edClock").checked = S.edge.clock; $("#edWx").checked = S.edge.wx;
   $("#wxPlace").value = S.edge.place;
+  $("#idBus").checked = S.bus.on;
+  if (S.bus.id) $("#busSel").innerHTML = `<option value="${esc(S.bus.id)}">${esc(S.bus.name)}</option>`;
   $("#idWx").checked = S.idle.wx; $("#idNews").checked = S.idle.news; $("#idTest").checked = S.idle.test;
   $("#feedSel").value = S.idle.feed; $("#feedOwn").value = S.idle.own; $("#feedOwnRow").style.display = S.idle.feed === "own" ? "" : "none";
 }
@@ -1680,7 +1768,8 @@ document.addEventListener("mousemove", () => { document.body.classList.remove("h
   renderEdges(); setInterval(renderEdges, 1000);
   loadWeather(); setInterval(loadWeather, 15*60*1000);
   loadNews(); setInterval(loadNews, 10*60*1000);
-  setInterval(renderBoard, 60*1000);
+  setInterval(renderBoard, 15*1000);
+  loadDeps(); setInterval(() => { if (S.bus.on && S.bus.id && (BOARD.page === "wx" || Date.now() - DEP.at > 5*60e3)) loadDeps(); }, 60*1000);
   segOn("#vizSeg", String(S.viz)); segOn("#srcSeg", S.source); segOn("#vinSeg", S.vizInput); segOn("#genreSeg", S.genre);
   resize(); requestAnimationFrame(frame);
   if (location.pathname === "/callback"){

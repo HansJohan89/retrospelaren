@@ -47,11 +47,23 @@ På Pi:n är *Vågiga linjer*, *Spökbild* och *Färgfransar* de tyngsta effekte
 
 I stället för bara testbilden växlar skärmen mellan sidor (S → När inget spelar):
 
-- **Väder i detalj:** nuläge, känns som, vind och byar, luftfuktighet, lufttryck, sol upp/ned, prognos varannan timme och fem dagar framåt
-- **Nyheter:** rubriker från SVT Nyheter, SVT Dalarna, Ekot eller valfritt RSS-flöde; huvudnyheten byts med jämna mellanrum
+- **Väder och bussar:** nuläge, känns som, vind och byar, luftfuktighet, lufttryck, sol upp/ned, prognos varannan timme och fem dagar framåt. Bredvid vädret visas nästa timmes avgångar från vald hållplats, med realtid, förseningar och inställda turer.
+- **Nyheter:** en artikel i taget med rubrik, ingress och bild, från SVT Nyheter, SVT Dalarna, Ekot eller valfritt RSS-flöde. Saknar flödet bild hämtas artikelns delningsbild. En stapel visar när nästa artikel kommer.
 - **Testbild**
 
-Välj vilka sidor som ingår och hur många sekunder varje sida visas. Nyheterna hämtas via servern (`/api/rss`) var tionde minut.
+Välj vilka sidor som ingår, sekunder per sida och sekunder per artikel.
+
+### Bussavgångar (Trafiklab)
+
+Avgångarna kommer från Trafiklabs Realtime API, som har Dalatrafik med realtid. Det kräver en gratis nyckel:
+
+1. Skapa konto på https://developer.trafiklab.se, skapa ett projekt och lägg till **Trafiklab Realtime APIs**.
+2. Lägg nyckeln på servern, inte i koden:
+   - lokalt: en fil `trafiklab.key` bredvid `server.py` (den finns i `.gitignore`), eller miljövariabeln `TRAFIKLAB_KEY`
+   - på Railway: variabeln `TRAFIKLAB_KEY` på tjänsten
+3. Sök hållplats under S → När inget spelar och välj i listan.
+
+Servern frågar Trafiklab högst var 30:e sekund per hållplats.
 
 ## Radio
 
