@@ -571,7 +571,7 @@ const store = {
 // Hämta det sparade innan inställningarna läses in. Synkront med flit: S byggs direkt nedanför.
 (function(){
   try{
-    const x = new XMLHttpRequest(); x.open("GET", "/api/state", false); x.send();
+    const x = new XMLHttpRequest(); x.open("GET", "/api/state?t=" + Date.now(), false); x.send();
     if (x.status !== 200) return;
     const srv = JSON.parse(x.responseText || "{}");
     if (!Object.keys(srv).length){ SHARED.forEach(k => { const v = store.get(k, undefined); if (v !== undefined) remote.push(k, v); }); return; }
