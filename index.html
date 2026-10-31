@@ -117,27 +117,30 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .wxRow .v{font-size:1.15em}
 .wxRow .p{font-size:.75em;color:var(--mid)}
 .wxTop{display:grid;grid-template-columns:1.05fr 1fr;gap:5vh;align-items:start}
-#pgWx{gap:2.2vh}
+#pgWx{gap:3.4vh}
+/* Skylten på vädersidan: bara så hög som fyra avgångar kräver, mindre text och dämpad vit yta */
+#pgWx .wxB .sign{height:auto;max-height:100%;align-self:start;font-size:.86em}
+.sign{--sign-dim:brightness(.86) contrast(.95)}
 #pgWx .wxA{flex:none;display:grid;grid-template-columns:1.1fr 1fr;gap:4vh;align-items:center}
 #pgWx .wxA .wxNow svg{width:12vh;height:12vh}
 #pgWx .wxA .wxDays{font-size:.85em}
-#pgWx .wxB{flex:1 1 auto;min-height:0;overflow:hidden;display:grid;grid-template-columns:1.2fr .9fr;gap:4vh;grid-template-rows:minmax(0,1fr)}
+#pgWx .wxB{flex:1 1 auto;min-height:0;overflow:hidden;display:grid;grid-template-columns:1fr 1fr;gap:6vh;grid-template-rows:minmax(0,1fr)}
 #pgWx .wxB.solo{grid-template-columns:1fr}
 #pgWx .wxRow,#pgWx .kick{flex:none}
 #pgWx.tight .wxHours{display:none}
 /* Hållplatsskylt i Dalatrafiks stil: rött namnfält, vita rader med röda linjer, rött fält med webb och telefon */
-.sign{--dt:#e00034;background:#fff;color:#161616;border:max(2px,.3vh) solid var(--dt);border-radius:1.4vh;overflow:hidden;text-shadow:var(--sign-ts,none);letter-spacing:0;
-  filter:var(--sign-fx,none);
+.sign{--dt:#e00034;background:#f4f1ea;color:#161616;border:max(2px,.3vh) solid var(--dt);border-radius:1.4vh;overflow:hidden;text-shadow:var(--sign-ts,none);letter-spacing:0;
+  filter:var(--sign-dim) var(--sign-fx,drop-shadow(0 0 0 transparent));
   font-family:Arial,"Helvetica Neue",Helvetica,sans-serif;font-weight:700;box-shadow:0 .8vh 2.4vh rgba(0,0,0,.55);min-height:0}
-.sign.pal{filter:var(--cover-filter) var(--sign-fx,drop-shadow(0 0 0 transparent))}
+.sign.pal{filter:var(--cover-filter) var(--sign-dim) var(--sign-fx,drop-shadow(0 0 0 transparent))}
 .sign .sh{flex:none;background:var(--dt);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:1.5vh;padding:1.5vh 3.4vh 1.5vh 2vh;font-size:1.95em;line-height:1.1}
 .sign .sh .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sign .sh .to{display:block;font-size:.55em;font-weight:400;opacity:.95;margin-top:.2em}
 .sign .sh img{height:1.35em;flex:none;margin:-.15em 0;filter:var(--logo-fx,none)}
 .sign .bdg svg{filter:var(--logo-fx,none)}
-.bus.sign ul{padding:0 1.6vh;gap:0;display:flex;flex-direction:column}
+.bus.sign ul{padding:.4vh 2vh;gap:0;display:flex;flex-direction:column}
 .bus.sign.fill li{flex:1 0 auto;align-content:center}
-.bus.sign li{font-size:1.12em;display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:1.2vh;padding:.75vh 0;border-bottom:max(1px,.22vh) solid var(--dt)}
+.bus.sign li{font-size:1.05em;display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:1.4vh;padding:1vh 0;border-bottom:max(1px,.22vh) solid var(--dt)}
 .bus.sign li:last-child{border-bottom:none}
 .bus.sign .bdg svg{width:1.75em;height:1.75em;display:block}
 .bus.sign .ln{border:none;padding:0;text-align:left;font-size:1.15em;min-width:2.4ch}
@@ -1621,24 +1624,24 @@ function wxCramped(el){
   // Trångt = fyra avgångar får inte plats på skylten ens när den krymps 15 %; då döljs timprognosen
   const sign = el.querySelector(".wxB .sign"), ul = sign && sign.querySelector("ul");
   if (!ul || !ul.children.length) return false;
-  sign.style.fontSize = ""; sign.classList.remove("fill");
+  sign.style.fontSize = ""; sign.classList.remove("fill"); sign.style.height = "100%";
   const fs = parseFloat(getComputedStyle(sign).fontSize);
   sign.style.fontSize = (fs * 0.85) + "px";
   const need = Math.min(4, ul.children.length);
   let h = 0; for (let i = 0; i < need; i++) h += ul.children[i].getBoundingClientRect().height;
   const cramped = h > ul.clientHeight + 1;
-  sign.style.fontSize = ""; sign.classList.add("fill");
+  sign.style.fontSize = ""; sign.style.height = ""; sign.classList.add("fill");
   return cramped;
 }
 // Skylten krymps (högst till 60 %) tills fyra avgångar får plats, sedan sträcks raderna ut så att de fyller skylten
 function fitSign(sign){
   const ul = sign.querySelector("ul"); if (!ul) return;
-  sign.style.fontSize = ""; sign.classList.remove("fill");
+  sign.style.fontSize = ""; sign.classList.remove("fill"); sign.style.height = "100%";
   const fs = parseFloat(getComputedStyle(sign).fontSize), need = Math.min(4, ul.children.length);
   const rowsH = () => { let h = 0; for (let i = 0; i < need; i++) h += ul.children[i].getBoundingClientRect().height; return h; };
   let k = 1;
   while (rowsH() > ul.clientHeight + 1 && k > 0.6){ k -= 0.04; sign.style.fontSize = (fs * k).toFixed(1) + "px"; }
-  sign.classList.add("fill");
+  sign.style.height = ""; sign.classList.add("fill");
 }
 
 
