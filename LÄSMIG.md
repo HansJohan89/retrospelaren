@@ -153,3 +153,11 @@ Lokalt hamnar filen i mappen `data/`. Spotify-inloggningen sparas bara i webblä
 Vädersidan visar sex dagar framåt. Med fotboll påslagen står timprognosen (fyra tider) ovanför
 hållplatsskylten och tabellen till höger med föregående och nästa match. Text och emblem i
 skylten och tabellen följer spaltens bredd, så att inget kapas eller krockar i helskärm eller 4:3.
+
+## Fotbollskälla
+
+Tabell och matcher för AIK hämtas som standard från ESPN:s öppna JSON-tjänst
+(site.api.espn.com, liga `swe.1`, AIK = lag 994). Den kräver ingen nyckel och har ingen dagskvot.
+Under inställningarna kan källan bytas till Highlightly (kräver HIGHLIGHTLY_API_KEY, 100 anrop/dygn
+delade med e-ink-tavlan) och hämtningsintervallet ställas in (standard 60 minuter). Under en AIK-match
+hämtar ESPN var 5:e minut och vädersidan visar ställningen. Senaste hämtningen sparas på volymen.

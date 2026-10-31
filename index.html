@@ -543,6 +543,9 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <div class="note" id="photoStatus"></div>
       <label class="chk"><input type="checkbox" id="idFb"> Fotboll (AIK)</label>
       <label class="chk"><input type="checkbox" id="idWxFb"> AIK-tabell bredvid bussarna på vädersidan</label>
+      <div class="row"><span class="lbl">Fotbollskälla</span><select id="fbSrc"><option value="espn">ESPN (ingen nyckel, ingen kvot)</option><option value="highlightly">Highlightly (100 anrop/dygn)</option></select></div>
+      <div class="row"><span class="lbl">Hämta var</span><input type="number" id="fbMins" min="5" max="1440" step="5" style="width:6em"> <span class="lbl">minut</span></div>
+      <div class="note">Under en AIK-match hämtar ESPN var 5:e minut. Highlightly hämtar högst en gång i timmen.</div>
       <div class="note" id="fbStatus"></div>
       <label class="chk"><input type="checkbox" id="idTest"> Testbild</label>
       <div id="idleSl"></div>
@@ -653,6 +656,7 @@ S.photo = Object.assign({}, PHOTO_DEF, S.photo || {});
 S.home = Object.assign({}, HOME_DEF, S.home || {});
 if (S.idle.fb === undefined) S.idle.fb = true;
 if (S.idle.wxFb === undefined) S.idle.wxFb = true;
+S.foot = Object.assign({ src:"espn", mins:60 }, S.foot || {});
 const FEEDS = {
   svt:     { name:"SVT Nyheter",  url:"https://www.svt.se/nyheter/rss.xml" },
   dalarna: { name:"SVT Dalarna",  url:"https://www.svt.se/nyheter/lokalt/dalarna/rss.xml" },
@@ -1537,7 +1541,10 @@ function renderFbBox(T){
   const last = (T.recent_results || []).filter(Boolean)[0];
   const prev = last ? `<div class="mm"><span class="lb"><b>Senast:</b><small>${new Date(last.date).getDate()}/${new Date(last.date).getMonth()+1}${outcome(last) ? " · " + outcome(last).toLowerCase() : ""}</small></span>` +
     pair(last, `<span class="sc">${esc(String(last.score || "?").replace(/\s*-\s*/, "–"))}</span>`) + `</div>` : "";
-  const nxt = nm ? `<div class="mm"><span class="lb"><b>Nästa:</b><small>${dd(nd)} ${hhmm(nd)}</small></span>${pair(nm, "<i>–</i>")}</div>` : "";
+  // Pågående match (ESPN): ställningen i stället för streck
+  const nxt = nm ? (nm.live
+    ? `<div class="mm"><span class="lb"><b>Pågår:</b><small>avspark ${hhmm(nd)}</small></span>${pair(nm, `<span class="sc">${esc(nm.live.replace(/\s*-\s*/, "–"))}</span>`)}</div>`
+    : `<div class="mm"><span class="lb"><b>Nästa:</b><small>${dd(nd)} ${hhmm(nd)}</small></span>${pair(nm, "<i>–</i>")}</div>`) : "";
   const next = prev || nxt ? `<div class="nxm">${prev}${nxt}</div>` : "";
   const v = x => x == null ? "" : x;
   const diff = r => r.gf == null || r.ga == null ? "" : (r.gf - r.ga > 0 ? "+" : "") + (r.gf - r.ga);
@@ -1600,13 +1607,17 @@ function showPhoto(){
   el.appendChild(sl);
 }
 
-// ---------- fotboll (Highlightly via servern, samma lag som e-ink-tavlan) ----------
+// ---------- fotboll (ESPN eller Highlightly via servern) ----------
 let FOOT = { ok:false, teams:[], at:0 };
 async function loadFootball(){
   if (!S.idle.fb && !S.idle.wxFb && !S.home.aik){ $("#fbStatus").textContent = ""; return; }
   try{
-    const j = await (await fetch("/api/football")).json();
-    if (j.ok){ FOOT = j; $("#fbStatus").textContent = `Tabeller hämtade ${hhmm(new Date(j.at))}.`; }
+    const j = await (await fetch(`/api/football?src=${S.foot.src}&mins=${S.foot.mins}`)).json();
+    if (j.ok){
+      const changed = JSON.stringify(j.teams) !== JSON.stringify(FOOT.teams);
+      FOOT = j; $("#fbStatus").textContent = `Hämtat från ${j.src === "highlightly" ? "Highlightly" : "ESPN"} ${hhmm(new Date(j.at))}.`;
+      if (changed){ document.querySelectorAll("#board .pg").forEach(el => { el._h = ""; }); renderBoard(); }
+    }
     else $("#fbStatus").textContent = j.nokey ? "Servern saknar HIGHLIGHTLY_API_KEY." : (j.error || "Kunde inte hämta fotboll.");
   }catch(e){ $("#fbStatus").textContent = "Fotbollen svarar inte."; }
 }
@@ -2266,6 +2277,8 @@ function buildControls(){
   $("#homeSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return;
     S.home[b.dataset.v] = !S.home[b.dataset.v]; saveS(); b.classList.toggle("on", S.home[b.dataset.v]); renderBoard(); renderEdges(); });
   $("#idWxFb").addEventListener("change", e => { S.idle.wxFb = e.target.checked; saveS(); loadFootball(); renderBoard(); });
+  $("#fbSrc").addEventListener("change", e => { S.foot.src = e.target.value; saveS(); loadFootball(); });
+  $("#fbMins").addEventListener("change", e => { S.foot.mins = Math.max(5, Math.min(1440, parseInt(e.target.value, 10) || 60)); e.target.value = S.foot.mins; saveS(); loadFootball(); });
   $("#idFb").addEventListener("change", e => { S.idle.fb = e.target.checked; saveS(); BOARD.until = 0; loadFootball(); });
   $("#idBus").addEventListener("change", e => { S.bus.on = e.target.checked; saveS(); loadDeps(); renderBoard(); });
   $("#signOrig").addEventListener("change", e => { S.bus.signOrig = e.target.checked; saveS(); document.querySelectorAll("#board .pg").forEach(el => { el._h = ""; }); renderBoard(); });
@@ -2301,7 +2314,7 @@ function syncAll(){
   $("#wxPlace").value = S.edge.place;
   $("#idBus").checked = S.bus.on; $("#signOrig").checked = S.bus.signOrig !== false;
   $("#idHome").checked = S.home.on; document.querySelectorAll("#homeSeg button").forEach(b => b.classList.toggle("on", !!S.home[b.dataset.v]));
-  $("#idPhoto").checked = S.photo.on; $("#albums").value = S.photo.albums; $("#photoOrig").checked = !!S.photo.orig; $("#idFb").checked = S.idle.fb; $("#idWxFb").checked = S.idle.wxFb;
+  $("#idPhoto").checked = S.photo.on; $("#albums").value = S.photo.albums; $("#photoOrig").checked = !!S.photo.orig; $("#idFb").checked = S.idle.fb; $("#idWxFb").checked = S.idle.wxFb; $("#fbSrc").value = S.foot.src; $("#fbMins").value = S.foot.mins;
   if (S.bus.id) $("#busSel").innerHTML = `<option value="${esc(S.bus.id)}">${esc(S.bus.name)}</option>`;
   if (S.bus.to) $("#busToSel").innerHTML = `<option value="">Ingen – visa vart bussen går</option><option value="${esc(S.bus.to)}" selected>${esc(S.bus.toName)}</option>`;
   $("#idWx").checked = S.idle.wx; $("#idNews").checked = S.idle.news; $("#idTest").checked = S.idle.test;
@@ -2344,7 +2357,8 @@ document.addEventListener("mousemove", () => { document.body.classList.remove("h
   loadNews(); setInterval(loadNews, 10*60*1000);
   loadSteps(); setInterval(loadSteps, 2*60*1000);
   loadPhotos(); setInterval(loadPhotos, 60*60*1000);
-  loadFootball(); setInterval(loadFootball, 30*60*1000);
+  // Sidan frågar servern ofta; servern bestämmer själv när den verkligen hämtar nytt (se inställningen)
+  loadFootball(); setInterval(loadFootball, 5*60*1000);
   setInterval(renderBoard, 15*1000);
   loadDeps(); setInterval(() => { if (S.bus.on && S.bus.id && (BOARD.page === "wx" || Date.now() - DEP.at > 5*60e3)) loadDeps(); }, 60*1000);
   segOn("#vizSeg", String(S.viz)); segOn("#srcSeg", S.source); segOn("#vinSeg", S.vizInput); segOn("#genreSeg", S.genre);

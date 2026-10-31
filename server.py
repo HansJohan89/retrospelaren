@@ -21,7 +21,8 @@ Vägar:
   /api/trip?from=&to=  resor mellan två hållplatser: avgång, ankomst, linjer, byten (ResRobot)
   /api/steps        dagens steg från SoumayApp (samma som e-ink-tavlan)
   /api/album?url=   bildadresser ur ett publikt delat Google Foto-album (samma metod som e-ink-tavlan)
-  /api/football     AIK i Allsvenskan via Highlightly (nyckel i HIGHLIGHTLY_API_KEY)
+  /api/football?src=espn|highlightly&mins=60
+                    AIK i Allsvenskan: tabell, föregående och nästa match (ESPN utan nyckel, eller Highlightly)
   /api/state        GET/POST: sparade inställningar, favoriter och senaste station
                     (fil i DATA_DIR, t.ex. en Railway-volym, så de överlever omstarter)
   /api/send?c=      skicka kommando till sidan: open, close, next, prev,
@@ -54,7 +55,7 @@ CMD_STATE = {"id": 0, "list": []}
 OG_CACHE = {}
 DEP_CACHE = {}
 ALBUM_CACHE = {}
-FOOTBALL_CACHE = {"data": None, "at": 0}
+FOOTBALL_CACHE = {}
 STEPS_CACHE = {"data": None, "at": 0}
 # Var inställningarna sparas. På Railway: volymens monteringspunkt (RAILWAY_VOLUME_MOUNT_PATH).
 DATA_DIR = (os.environ.get("DATA_DIR") or os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") or os.path.join(ROOT, "data")).strip()
@@ -92,6 +93,113 @@ def save_state(patch):
         except OSError as e:
             return {"ok": False, "error": str(e)}
     return {"ok": True}
+
+
+def _get_json(url, headers=None, timeout=12):
+    with open_url(url, headers or {}, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
+def match_window(data):
+    """Sant från avspark till 2,5 timmar efter, för nästa AIK-match i cachad data."""
+    import time
+    from datetime import datetime
+    try:
+        nm = data["teams"][0].get("next_match") or {}
+        t = datetime.fromisoformat(nm["date"].replace("Z", "+00:00")).timestamp()
+    except Exception:
+        return False
+    return t - 300 <= time.time() <= t + 9000
+
+
+ESPN_LEAGUE = "swe.1"
+ESPN_AIK = "994"
+
+
+def football_espn():
+    """Tabell och AIK:s matcher från ESPN:s öppna JSON (samma struktur som Highlightly-varianten)."""
+    base = "https://site.api.espn.com/apis"
+    st = _get_json(f"{base}/v2/sports/soccer/{ESPN_LEAGUE}/standings")
+    entries = st["children"][0]["standings"]["entries"]
+    logo = lambda t: ((t.get("logos") or [{}])[0].get("href") or
+                      f"https://a.espncdn.com/i/teamlogos/soccer/500/{t.get('id')}.png")
+    table = []
+    for e in entries:
+        v = {x["name"]: x.get("value") for x in e.get("stats", [])}
+        i = lambda k: None if v.get(k) is None else int(v[k])
+        t = e["team"]
+        table.append({"position": i("rank"), "points": i("points"), "name": t.get("displayName"), "id": t.get("id"),
+                      "logo": logo(t), "g": i("gamesPlayed"), "w": i("wins"), "d": i("ties"), "l": i("losses"),
+                      "gf": i("pointsFor"), "ga": i("pointsAgainst")})
+    table.sort(key=lambda r: r["position"] or 99)
+
+    events = []
+    for extra in ("", "?fixture=true"):
+        try:
+            events += _get_json(f"{base}/site/v2/sports/soccer/{ESPN_LEAGUE}/teams/{ESPN_AIK}/schedule{extra}").get("events", [])
+        except Exception:
+            if not extra:
+                raise
+    seen, done, upcoming = set(), [], []
+    for ev in events:
+        if ev.get("id") in seen:
+            continue
+        seen.add(ev.get("id"))
+        comp = (ev.get("competitions") or [{}])[0]
+        cs = comp.get("competitors") or []
+        me = next((x for x in cs if str(x.get("team", {}).get("id")) == ESPN_AIK), None)
+        opp = next((x for x in cs if x is not me), None)
+        if not me or not opp:
+            continue
+        home = next((x for x in cs if x.get("homeAway") == "home"), cs[0])
+        away = next((x for x in cs if x.get("homeAway") == "away"), cs[-1])
+        sc = lambda x: (x.get("score") or {}).get("displayValue") if isinstance(x.get("score"), dict) else x.get("score")
+        m = {"opponent": opp["team"].get("displayName"), "opponent_logo": logo(opp["team"]),
+             "is_home": me is home, "date": ev.get("date")}
+        state = ((comp.get("status") or {}).get("type") or {})
+        if state.get("completed"):
+            m["score"] = f"{sc(home)} - {sc(away)}"
+            done.append(m)
+        else:
+            if state.get("state") == "in":
+                m["live"] = f"{sc(home)} - {sc(away)}"
+            upcoming.append(m)
+    done.sort(key=lambda m: m["date"], reverse=True)
+    upcoming.sort(key=lambda m: m["date"])
+    me_row = next((r for r in table if r["id"] == ESPN_AIK), None)
+    standing = {"position": me_row["position"], "points": me_row["points"],
+                "team": {"id": ESPN_AIK, "name": "AIK", "logo": me_row["logo"]}} if me_row else None
+    return {"team_name": "AIK", "team_id": ESPN_AIK, "league": "Allsvenskan", "standing": standing, "table": table,
+            "next_match": upcoming[0] if upcoming else None, "recent_results": done[:3]}
+
+
+def football_highlightly(key):
+    def get(path, params):
+        return _get_json(f"https://soccer.highlightly.net{path}?{urllib.parse.urlencode(params)}", {"x-rapidapi-key": key})
+    league, team = 96947, 321611
+    table = sorted((get("/standings", {"leagueId": league, "season": 2026}).get("groups") or [{}])[0].get("standings", []),
+                   key=lambda s: s.get("position", 99))
+    allm = get("/matches", {"homeTeamId": team, "limit": 15}).get("data", []) + \
+           get("/matches", {"awayTeamId": team, "limit": 15}).get("data", [])
+    up = [m for m in allm if (m.get("state") or {}).get("description") == "Not started"]
+    done = sorted([m for m in allm if (m.get("state") or {}).get("description") == "Finished"], key=lambda m: m["date"], reverse=True)[:3]
+
+    def summary(m):
+        if not m:
+            return None
+        home = m["homeTeam"]["id"] == team
+        opp = m["awayTeam"] if home else m["homeTeam"]
+        return {"opponent": opp.get("name"), "opponent_logo": opp.get("logo"), "is_home": home,
+                "date": m.get("date"), "score": ((m.get("state") or {}).get("score") or {}).get("current")}
+    tot = lambda s, k: (s.get("total") or {}).get(k)
+    return {"team_name": "AIK", "team_id": team, "league": "Allsvenskan",
+            "standing": next((s for s in table if s["team"]["id"] == team), None),
+            "table": [{"position": s.get("position"), "points": s.get("points"), "name": s["team"].get("name"),
+                       "id": s["team"].get("id"), "logo": s["team"].get("logo"), "g": tot(s, "games"), "w": tot(s, "wins"),
+                       "d": tot(s, "draws"), "l": tot(s, "loses"), "gf": tot(s, "scoredGoals"), "ga": tot(s, "receivedGoals")}
+                      for s in table],
+            "next_match": summary(min(up, key=lambda m: m["date"]) if up else None),
+            "recent_results": [summary(m) for m in done]}
 
 
 def secret(name):
@@ -224,7 +332,7 @@ class Handler(SimpleHTTPRequestHandler):
             if path == "/api/album":
                 return self.album(q.get("url", [""])[0])
             if path == "/api/football":
-                return self.football()
+                return self.football(q)
             if path == "/api/send":
                 return self.send_cmd(q.get("c", [""])[0])
             if path == "/api/cmd":
@@ -676,77 +784,60 @@ class Handler(SimpleHTTPRequestHandler):
     # --- Fotboll: Highlightly, samma lag och ligor som e-ink-tavlan (fetchers/football.py) ---
     # Bara AIK här. Gratisnivån ger 100 anrop/dygn och delas med e-ink-tavlan (~58/dygn). Den här servern
     # hämtar högst var tredje timme (3 anrop per hämtning = 24/dygn), så de båda tillsammans håller sig under taket.
-    def football(self):
+    def football(self, q):
+        """
+        AIK i Allsvenskan. Källa väljs i inställningarna:
+          espn         ESPN:s öppna JSON (ingen nyckel, ingen dagskvot) - standard
+          highlightly  Highlightly (nyckel, 100 anrop/dygn delade med e-ink-tavlan, 3 anrop per hämtning)
+        Hämtningsintervallet (minuter) styrs också från inställningarna. Under en AIK-match
+        (avspark till 2,5 h efter) hämtar ESPN var 5:e minut så att resultat och tabell kommer direkt.
+        Cachen sparas på volymen, så omstarter kostar inga extra anrop.
+        """
         import time
-        # Cachen ligger även på volymen, så att en omstart eller ny version inte kostar nya anrop
-        # (gratisnivån hos Highlightly är 100 anrop per dygn, delade med e-ink-tavlan)
-        fp = os.path.join(DATA_DIR, "football.json")
-        if not FOOTBALL_CACHE["data"]:
+        src = (q.get("src", ["espn"])[0] or "espn").lower()
+        if src not in ("espn", "highlightly"):
+            src = "espn"
+        try:
+            mins = max(5, min(24 * 60, int(q.get("mins", ["60"])[0] or 60)))
+        except ValueError:
+            mins = 60
+        if src == "highlightly":
+            mins = max(mins, 60)  # skyddar dagskvoten
+        c = FOOTBALL_CACHE.setdefault(src, {"data": None, "at": 0, "fail": 0, "err": ""})
+        fp = os.path.join(DATA_DIR, f"football-{src}.json")
+        if not c["data"]:
             try:
                 with open(fp, encoding="utf-8") as f:
-                    c = json.load(f)
-                FOOTBALL_CACHE.update(data=c["data"], at=c["at"])
+                    d = json.load(f)
+                c.update(data=d["data"], at=d["at"])
             except (OSError, ValueError, KeyError):
                 pass
-        if FOOTBALL_CACHE["data"] and time.time() - FOOTBALL_CACHE["at"] < 3 * 3600:
-            return self._json(FOOTBALL_CACHE["data"])
-        # Efter ett misslyckat anrop (t.ex. slut på dagens anrop) väntar vi 30 minuter innan nästa försök
-        if time.time() - FOOTBALL_CACHE.get("fail", 0) < 1800:
-            return self._json(FOOTBALL_CACHE["data"] or {"ok": False, "error": FOOTBALL_CACHE.get("err", "")})
-        key = secret("HIGHLIGHTLY_API_KEY")
-        if not key:
-            return self._json({"ok": False, "nokey": True, "error": "Ingen HIGHLIGHTLY_API_KEY på servern"})
-
-        def get(path, params):
-            qs = urllib.parse.urlencode(params)
-            with open_url(f"https://soccer.highlightly.net{path}?{qs}", {"x-rapidapi-key": key}, timeout=12) as r:
-                return json.loads(r.read().decode("utf-8"))
-
-        def standings(league):
-            return (get("/standings", {"leagueId": league, "season": 2026}).get("groups") or [{}])[0].get("standings", [])
-
-        def matches(team):
-            # API:et ger listorna i fallande datumordning per lista; sorterar själva i stället för att lita på ordningen
-            allm = get("/matches", {"homeTeamId": team, "limit": 15}).get("data", []) + \
-                   get("/matches", {"awayTeamId": team, "limit": 15}).get("data", [])
-            up = [m for m in allm if (m.get("state") or {}).get("description") == "Not started"]
-            done = [m for m in allm if (m.get("state") or {}).get("description") == "Finished"]
-            return (min(up, key=lambda m: m["date"]) if up else None), sorted(done, key=lambda m: m["date"], reverse=True)[:3]
-
-        def summary(team, m):
-            if not m:
-                return None
-            home = m["homeTeam"]["id"] == team
-            opp = m["awayTeam"] if home else m["homeTeam"]
-            return {"opponent": opp.get("name"), "opponent_logo": opp.get("logo"), "is_home": home,
-                    "date": m.get("date"), "score": ((m.get("state") or {}).get("score") or {}).get("current")}
-
-        def team_block(name, league_name, league, team):
-            table = sorted(standings(league), key=lambda s: s.get("position", 99))
-            nxt, recent = matches(team)
-            return {"team_name": name, "team_id": team, "league": league_name,
-                    "standing": next((s for s in table if s["team"]["id"] == team), None),
-                    "table": [{"position": s.get("position"), "points": s.get("points"),
-                               "name": s["team"].get("name"), "id": s["team"].get("id"), "logo": s["team"].get("logo"),
-                               # Spelade, vunna, oavgjorda, förlorade, gjorda och insläppta mål (hela säsongen)
-                               "g": (s.get("total") or {}).get("games"), "w": (s.get("total") or {}).get("wins"),
-                               "d": (s.get("total") or {}).get("draws"), "l": (s.get("total") or {}).get("loses"),
-                               "gf": (s.get("total") or {}).get("scoredGoals"), "ga": (s.get("total") or {}).get("receivedGoals")}
-                              for s in table],
-                    "next_match": summary(team, nxt), "recent_results": [summary(team, m) for m in recent]}
+        ttl = mins * 60
+        if src == "espn" and c["data"] and match_window(c["data"]):
+            ttl = 5 * 60
+        now = time.time()
+        if c["data"] and now - c["at"] < ttl:
+            return self._json(c["data"])
+        if now - c["fail"] < 1800:
+            return self._json(c["data"] or {"ok": False, "error": c["err"]})
         try:
-            data = {"ok": True, "at": int(time.time() * 1000),
-                    "teams": [team_block("AIK", "Allsvenskan", 96947, 321611)]}
+            if src == "espn":
+                team = football_espn()
+            else:
+                key = secret("HIGHLIGHTLY_API_KEY")
+                if not key:
+                    return self._json({"ok": False, "nokey": True, "error": "Ingen HIGHLIGHTLY_API_KEY på servern"})
+                team = football_highlightly(key)
+            data = {"ok": True, "at": int(now * 1000), "src": src, "teams": [team]}
         except Exception as e:
-            FOOTBALL_CACHE.update(fail=time.time(), err=f"Highlightly: {e}")
-            if FOOTBALL_CACHE["data"]:
-                return self._json(FOOTBALL_CACHE["data"])
-            return self._json({"ok": False, "error": f"Highlightly: {e}"})
-        FOOTBALL_CACHE.update(data=data, at=time.time(), fail=0)
+            name = "ESPN" if src == "espn" else "Highlightly"
+            c.update(fail=now, err=f"{name}: {e}")
+            return self._json(c["data"] or {"ok": False, "error": c["err"]})
+        c.update(data=data, at=now, fail=0)
         try:
             os.makedirs(DATA_DIR, exist_ok=True)
             with open(fp + ".tmp", "w", encoding="utf-8") as f:
-                json.dump({"data": data, "at": FOOTBALL_CACHE["at"]}, f, ensure_ascii=False)
+                json.dump({"data": data, "at": now}, f, ensure_ascii=False)
             os.replace(fp + ".tmp", fp)
         except OSError:
             pass
