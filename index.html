@@ -1,0 +1,1136 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Retrospelaren</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Limelight&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070807; --ink:#e9ecea; --mid:#9aa09c; --dim:#3a3f3c; --accent:#ffffff;
+  --cover-filter:grayscale(1) contrast(1.1);
+  --panel:#e9e0c9; --panel-ink:#2a2116; --panel-line:#b9a985; --panel-hot:#b5442c;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#000;color:var(--ink);overflow:hidden}
+body{font-family:"Special Elite","Courier New",monospace}
+body.hidecursor,body.hidecursor *{cursor:none!important}
+
+/* ---------- skärmen (4:3) ---------- */
+#stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+#screen{position:relative;height:min(100vh,75vw);aspect-ratio:4/3;background:var(--bg);
+  border-radius:3.2% / 4.2%;overflow:hidden;isolation:isolate;transition:background .6s}
+#viz,#noise{position:absolute;inset:0;width:100%;height:100%;display:block}
+#noise{z-index:6;opacity:0;pointer-events:none}
+#screen.rolling .content{animation:roll .45s steps(6) 1}
+@keyframes roll{0%{transform:translateY(0)}40%{transform:translateY(-18%)}70%{transform:translateY(9%)}100%{transform:translateY(0)}}
+.content{position:absolute;inset:0}
+
+/* info: radioskala längst ner */
+#info{position:absolute;left:5%;right:5%;bottom:13.5%;height:17%;display:flex;gap:3.2%;align-items:center;
+  transition:opacity .6s, transform .6s;z-index:3}
+#info.out{opacity:0;transform:translateY(6%)}
+#info.hidden,#dial.hidden{display:none}
+#info.idle,#dial.idle{opacity:0!important;transition:opacity .8s}
+.cover{height:100%;aspect-ratio:1;flex:none;position:relative;border:max(2px,.35vh) solid var(--mid);padding:.5%;
+  background:var(--dim);box-shadow:0 0 2.5vh rgba(0,0,0,.6)}
+.cover img{width:100%;height:100%;object-fit:cover;display:block;filter:var(--cover-filter)}
+.cover img[src=""]{visibility:hidden}
+.cover .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:Limelight,serif;
+  font-size:4.5vh;color:var(--mid)}
+.meta{min-width:0;flex:1;display:flex;flex-direction:column;gap:.6vh}
+.kicker{font-size:1.75vh;letter-spacing:.35em;color:var(--mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.title{font-family:Limelight,serif;font-size:5vh;line-height:1.05;white-space:nowrap;overflow:hidden;color:var(--ink);
+  text-shadow:0 0 1.2vh color-mix(in srgb,var(--ink) 45%,transparent)}
+.title span{display:inline-block;padding-right:6vh}
+.title.marquee span{animation:marq var(--dur,14s) linear infinite}
+@keyframes marq{0%,12%{transform:translateX(0)}100%{transform:translateX(calc(-100% ))}}
+.artist{font-size:3.1vh;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.album{font-size:2vh;color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+#dial{position:absolute;left:5%;right:5%;bottom:4.2%;height:7.2%;z-index:3;
+  border-top:max(1px,.2vh) solid var(--dim);border-bottom:max(1px,.2vh) solid var(--dim)}
+#dial canvas{position:absolute;inset:0;width:100%;height:100%}
+
+/* OSD */
+#osd{position:absolute;top:5%;left:6%;z-index:4;font-size:2.6vh;letter-spacing:.2em;color:var(--ink);
+  text-shadow:0 0 1vh var(--ink);opacity:0;transition:opacity .8s;text-transform:uppercase}
+#osd.on{opacity:.95;transition:opacity .1s}
+
+/* CRT-lager */
+#crt{position:absolute;inset:0;z-index:8;pointer-events:none}
+#crt.on::before{content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(to bottom,rgba(0,0,0,.28) 0,rgba(0,0,0,.28) 1px,transparent 1px,transparent 3px);
+  mix-blend-mode:multiply;animation:flick 6s infinite steps(60)}
+#crt.on::after{content:"";position:absolute;inset:0;
+  background:
+   radial-gradient(ellipse 120% 90% at 30% 18%,rgba(255,255,255,.07),transparent 40%),
+   radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.55) 88%,rgba(0,0,0,.9) 100%);
+  box-shadow:inset 0 0 6vh rgba(0,0,0,.85)}
+@keyframes flick{0%{opacity:.92}50%{opacity:1}100%{opacity:.94}}
+#blank{position:absolute;inset:0;z-index:9;background:#000;opacity:0;pointer-events:none;transition:opacity 1.2s}
+#blank.on{opacity:1}
+
+/* start */
+#start{position:absolute;inset:0;z-index:7;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh;
+  background:radial-gradient(circle at center,color-mix(in srgb,var(--bg) 70%,transparent),var(--bg));cursor:pointer;text-align:center}
+#start h1{font-family:Limelight,serif;font-weight:400;font-size:8vh;margin:0;letter-spacing:.04em;text-shadow:0 0 2vh var(--ink)}
+#start p{margin:0;font-size:2.4vh;color:var(--mid);letter-spacing:.15em}
+#start .knob{width:9vh;height:9vh;border-radius:50%;border:.5vh solid var(--mid);position:relative;margin-top:2vh}
+#start .knob::after{content:"";position:absolute;left:50%;top:8%;width:.6vh;height:35%;background:var(--ink);transform:translateX(-50%)}
+#start.gone{display:none}
+
+/* ---------- inställningspanelen ---------- */
+#gear{position:fixed;right:14px;bottom:14px;z-index:20;width:38px;height:38px;border-radius:50%;border:2px solid #555;
+  background:#111;color:#bbb;font:18px/34px "Special Elite",monospace;cursor:pointer;opacity:.25;transition:opacity .3s}
+#gear:hover,#gear:focus-visible{opacity:1}
+#panel{position:fixed;top:0;right:0;bottom:0;width:min(440px,100vw);z-index:30;background:var(--panel);color:var(--panel-ink);
+  transform:translateX(102%);transition:transform .35s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;
+  box-shadow:-10px 0 40px rgba(0,0,0,.6);font-size:15px}
+#panel.open{transform:none}
+#panel header{padding:18px 20px 12px;border-bottom:2px solid var(--panel-line);display:flex;align-items:baseline;justify-content:space-between}
+#panel header h2{font-family:Limelight,serif;font-weight:400;font-size:28px;margin:0}
+#panel header button{all:unset;cursor:pointer;font-size:22px;padding:0 6px}
+#panel .scroll{overflow:auto;padding:6px 20px 30px;flex:1}
+#panel section{padding:14px 0;border-bottom:1px dashed var(--panel-line)}
+#panel h3{font:13px "Special Elite",monospace;letter-spacing:.25em;text-transform:uppercase;margin:0 0 10px;color:#6b5a3e}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button,.btn{font:inherit;font-size:14px;padding:6px 11px;border:1.5px solid var(--panel-ink);background:transparent;color:var(--panel-ink);
+  border-radius:3px;cursor:pointer}
+.seg button.on,.btn.primary{background:var(--panel-ink);color:var(--panel)}
+.seg button:hover,.btn:hover{border-color:var(--panel-hot)}
+.row{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+input[type=text],input[type=search]{font:inherit;font-size:14px;padding:7px 9px;border:1.5px solid var(--panel-ink);background:#f6efdc;
+  color:var(--panel-ink);border-radius:3px;flex:1;min-width:0}
+input[type=range]{flex:1;accent-color:var(--panel-hot)}
+label.chk{display:flex;gap:8px;align-items:center;margin-top:8px;cursor:pointer}
+.note{font-size:12.5px;color:#6b5a3e;margin-top:8px;line-height:1.45}
+.note code{background:#f6efdc;padding:1px 4px;border:1px solid var(--panel-line);word-break:break-all;font-size:12px}
+#stations{list-style:none;margin:10px 0 0;padding:0;max-height:300px;overflow:auto;border:1.5px solid var(--panel-line);background:#f6efdc}
+#stations li{display:flex;align-items:center;gap:8px;padding:7px 9px;border-bottom:1px solid #e3d7b9;cursor:pointer}
+#stations li:hover{background:#efe3c4}
+#stations li.now{background:var(--panel-ink);color:var(--panel)}
+#stations li .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#stations li .m{font-size:11px;opacity:.7;white-space:nowrap}
+#stations li .fav{all:unset;cursor:pointer;font-size:16px;width:18px;text-align:center}
+#stations .empty{cursor:default;color:#6b5a3e}
+#spStatus{margin-top:8px;font-size:13px}
+kbd{font:12px "Special Elite",monospace;border:1px solid var(--panel-ink);border-radius:3px;padding:0 5px;background:#f6efdc}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font-size:13px}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="screen">
+    <div class="content">
+      <canvas id="viz"></canvas>
+      <div id="info" class="out">
+        <div class="cover"><img id="cov" src="" alt=""><div class="ph" id="covPh">&#9835;</div></div>
+        <div class="meta">
+          <div class="kicker" id="kicker">Ingen signal</div>
+          <div class="title" id="title"><span>&nbsp;</span></div>
+          <div class="artist" id="artist"></div>
+          <div class="album" id="album"></div>
+        </div>
+      </div>
+      <div id="dial"><canvas id="dialC"></canvas></div>
+      <div id="osd"></div>
+    </div>
+    <canvas id="noise"></canvas>
+    <div id="start">
+      <h1>Retrospelaren</h1>
+      <p>Vrid på &mdash; klicka eller tryck valfri tangent</p>
+      <div class="knob"></div>
+    </div>
+    <div id="crt" class="on"></div>
+    <div id="blank"></div>
+  </div>
+</div>
+
+<button id="gear" title="Inställningar (S)" aria-label="Inställningar">&#9881;</button>
+
+<aside id="panel" aria-label="Inställningar">
+  <header><h2>Inställningar</h2><button id="closePanel" aria-label="Stäng">&times;</button></header>
+  <div class="scroll">
+    <section>
+      <h3>Källa</h3>
+      <div class="seg" id="srcSeg">
+        <button data-v="radio">Radio</button>
+        <button data-v="spotify">Spotify</button>
+      </div>
+    </section>
+
+    <section id="radioSec">
+      <h3>Radio</h3>
+      <div class="seg" id="genreSeg">
+        <button data-q="tag=50s">50-tal</button>
+        <button data-q="tag=60s">60-tal</button>
+        <button data-q="tag=oldies">Oldies</button>
+        <button data-q="tag=jazz">Jazz</button>
+        <button data-q="tag=swing">Swing</button>
+        <button data-q="tag=rockabilly">Rockabilly</button>
+        <button data-q="tag=doo wop">Doo-wop</button>
+        <button data-q="countrycode=SE">Svenska</button>
+        <button data-q="fav">Favoriter</button>
+      </div>
+      <div class="row"><input type="search" id="stSearch" placeholder="Sök station på namn..."><button class="btn" id="stSearchBtn">Sök</button></div>
+      <ul id="stations"><li class="empty">Välj en genre ovan.</li></ul>
+      <div class="row"><span>Volym</span><input type="range" id="vol" min="0" max="1" step="0.01"></div>
+    </section>
+
+    <section id="spSec">
+      <h3>Spotify</h3>
+      <div class="row"><input type="text" id="spClient" placeholder="Client ID från developer.spotify.com"></div>
+      <div class="note">Lägg in den här adressen som Redirect URI i din Spotify-app:<br><code id="spRedirect"></code></div>
+      <div class="row"><button class="btn primary" id="spLogin">Logga in med Spotify</button><button class="btn" id="spLogout">Logga ut</button></div>
+      <div id="spStatus" class="note"></div>
+      <h3 style="margin-top:14px">Visualiseringens ljud</h3>
+      <div class="seg" id="vinSeg">
+        <button data-v="sim">Simulerad takt</button>
+        <button data-v="mic">Ljud in (mikrofon/linje)</button>
+      </div>
+      <div class="note">Spotify släpper inte ut själva ljudet till webbsidor. Med "Ljud in" lyssnar visualiseringen på en mikrofon eller ett linjeingång &ndash; på Pi:n blir det ALSA loopback, så att bilden följer exakt det som spelas.</div>
+    </section>
+
+    <section>
+      <h3>Kanal (visualisering)</h3>
+      <div class="seg" id="vizSeg">
+        <button data-v="1">1 Oscilloskop</button>
+        <button data-v="2">2 Magiskt öga</button>
+        <button data-v="3">3 VU-mätare</button>
+        <button data-v="4">4 Atomålder</button>
+        <button data-v="5">5 Ljusorgel</button>
+      </div>
+      <label class="chk"><input type="checkbox" id="autoCh"> Byt kanal vid ny låt</label>
+    </section>
+
+    <section>
+      <h3>Bildrör</h3>
+      <div class="seg" id="palSeg">
+        <button data-v="svartvit">Svartvit</button>
+        <button data-v="sepia">Sepia</button>
+        <button data-v="fosfor">Grön fosfor</button>
+        <button data-v="farg">60-talsfärg</button>
+      </div>
+      <label class="chk"><input type="checkbox" id="crtChk"> Linjer, vinjett och flimmer</label>
+      <label class="chk"><input type="checkbox" id="infoChk"> Visa låtinformation</label>
+    </section>
+
+    <section>
+      <h3>Kortkommandon</h3>
+      <div class="keys">
+        <kbd>1&ndash;5</kbd><span>Byt kanal</span>
+        <kbd>C</kbd><span>Nästa kanal</span>
+        <kbd>B</kbd><span>Nästa färgläge</span>
+        <kbd>Mellanslag</kbd><span>Spela / paus</span>
+        <kbd>&rarr; N</kbd><span>Nästa station / låt</span>
+        <kbd>&larr; P</kbd><span>Föregående</span>
+        <kbd>I</kbd><span>Visa / dölj info</span>
+        <kbd>F</kbd><span>Helskärm</span>
+        <kbd>S</kbd><span>Inställningar</span>
+      </div>
+      <div class="note">Styrning utifrån, t.ex. jalusins brytare: <code>/api/send?c=open</code>, <code>close</code>, <code>next</code>, <code>prev</code>, <code>playpause</code>, <code>viz:3</code></div>
+    </section>
+  </div>
+</aside>
+
+<script>
+"use strict";
+/* ================= lagring & inställningar ================= */
+const $ = s => document.querySelector(s);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem("rs." + k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem("rs." + k, JSON.stringify(v)); }catch(e){} },
+  del(k){ try{ localStorage.removeItem("rs." + k); }catch(e){} }
+};
+const S = Object.assign({
+  source: "radio", viz: 1, palette: "svartvit", crt: true, info: true, autoChannel: false,
+  vizInput: "sim", clientId: "", genre: "tag=60s", volume: 0.8
+}, store.get("settings", {}));
+const saveS = () => store.set("settings", S);
+
+const PALETTES = {
+  svartvit:{bg:"#070807",ink:"#e9ecea",mid:"#9aa09c",dim:"#30342f",accent:"#ffffff",paper:"#dcd9cf",face:"#161616",red:"#9b9b9b",warm:"#c9c9c9",
+            cover:"grayscale(1) contrast(1.1)"},
+  sepia:   {bg:"#120b05",ink:"#f1d9a8",mid:"#b8955f",dim:"#3e2c19",accent:"#ffe2a0",paper:"#ead6a8",face:"#2b1a0c",red:"#a8502c",warm:"#d9a85a",
+            cover:"sepia(.9) contrast(1.05) brightness(.95)"},
+  fosfor:  {bg:"#020a04",ink:"#8dffa6",mid:"#3fbf62",dim:"#0e3218",accent:"#d0ffd9",paper:"#06200f",face:"#8dffa6",red:"#d8ff5a",warm:"#b6ff6a",
+            cover:"grayscale(1) sepia(1) hue-rotate(75deg) saturate(3.2) brightness(.85)"},
+  farg:    {bg:"#0f1a1c",ink:"#f4ead2",mid:"#4fb3a9",dim:"#22403d",accent:"#f2a541",paper:"#efe3c2",face:"#1d2626",red:"#d9483b",warm:"#e8c547",
+            cover:"saturate(.85) contrast(1.05)"}
+};
+let P = Object.assign({}, PALETTES[S.palette] || PALETTES.svartvit);
+
+/* ================= tillstånd ================= */
+const state = {
+  started:false, playing:false, live:false,
+  track:null, trackKey:"", progress:0, duration:0, polledAt:0,
+  station:null, stations:[], spConnected:false, spDevice:"", lastActive:0, blanked:false
+};
+
+/* ================= ljud ================= */
+let actx=null, inNode, anMix, anL, anR, outGain, audioEl=null, mediaSrc=null, micSrc=null, micStream=null;
+const FFT = 2048;
+const wave = new Float32Array(FFT), waveL = new Float32Array(FFT), waveR = new Float32Array(FFT);
+const freq = new Uint8Array(FFT/2);
+const NB = 32, bands = new Float32Array(NB), bandsSm = new Float32Array(NB);
+
+function ensureAudio(){
+  if (actx) { if (actx.state === "suspended") actx.resume(); return; }
+  actx = new (window.AudioContext || window.webkitAudioContext)();
+  inNode = actx.createGain();
+  inNode.channelCount = 2; inNode.channelCountMode = "explicit"; inNode.channelInterpretation = "speakers";
+  anMix = actx.createAnalyser(); anL = actx.createAnalyser(); anR = actx.createAnalyser();
+  for (const a of [anMix, anL, anR]) { a.fftSize = FFT; a.smoothingTimeConstant = 0.72; }
+  const split = actx.createChannelSplitter(2);
+  inNode.connect(anMix); inNode.connect(split); split.connect(anL, 0); split.connect(anR, 1);
+  outGain = actx.createGain(); outGain.gain.value = S.volume; outGain.connect(actx.destination);
+  audioEl = new Audio(); audioEl.crossOrigin = "anonymous"; audioEl.preload = "none";
+  mediaSrc = actx.createMediaElementSource(audioEl);
+  mediaSrc.connect(inNode); mediaSrc.connect(outGain);
+  audioEl.addEventListener("playing", () => { state.playing = true; state.lastActive = performance.now(); });
+  audioEl.addEventListener("pause", () => { if (S.source === "radio") state.playing = false; });
+  audioEl.addEventListener("error", () => { if (S.source === "radio" && state.station && audioEl.getAttribute("src")) radioFailed(); });
+  audioEl.addEventListener("stalled", () => osd("Svag signal..."));
+}
+
+async function startMic(){
+  ensureAudio();
+  if (micSrc) return true;
+  try{
+    micStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    micSrc = actx.createMediaStreamSource(micStream);
+    micSrc.connect(inNode);
+    return true;
+  }catch(e){ osd("Ljud in nekades"); return false; }
+}
+function stopMic(){
+  if (micSrc){ micSrc.disconnect(); micSrc = null; }
+  if (micStream){ micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+}
+
+/* nivåer: äkta från analysatorn, annars simulerad takt */
+const L = { wave, bands:bandsSm, rms:0, rmsL:0, rmsR:0, beat:0, real:false, amp:0 };
+let bassAvg = 0, simAmp = 0;
+function rmsOf(a){ let s=0; for (let i=0;i<a.length;i+=2) s+=a[i]*a[i]; return Math.sqrt(s/(a.length/2)); }
+function smoothNoise(b, t){ return 0.5 + 0.5*Math.sin(t*1.3 + b*1.7)*Math.sin(t*0.71 + b*0.93 + Math.sin(t*0.23)); }
+
+function computeLevels(t){
+  const realSrc = actx && ((S.source === "radio" && audioEl && !audioEl.paused) || (S.source === "spotify" && micSrc));
+  L.real = !!realSrc;
+  if (L.real){
+    anMix.getFloatTimeDomainData(wave); anMix.getByteFrequencyData(freq);
+    anL.getFloatTimeDomainData(waveL); anR.getFloatTimeDomainData(waveR);
+    L.rmsL = rmsOf(waveL); L.rmsR = rmsOf(waveR); L.rms = (L.rmsL + L.rmsR)/2;
+    const nyq = actx.sampleRate/2, bins = freq.length;
+    for (let b=0;b<NB;b++){
+      const f0 = 40*Math.pow(16000/40, b/NB), f1 = 40*Math.pow(16000/40, (b+1)/NB);
+      let i0 = Math.floor(f0/nyq*bins), i1 = Math.max(i0+1, Math.ceil(f1/nyq*bins)), m=0;
+      for (let i=i0;i<i1 && i<bins;i++) m = Math.max(m, freq[i]);
+      bands[b] = Math.pow(m/255, 1.6) * (1 + b/NB*0.6);
+    }
+    L.amp = 1;
+  } else {
+    const target = state.playing ? 1 : 0;
+    simAmp += (target - simAmp) * 0.04;
+    const a = simAmp, bpm = 116, ph = (t*bpm/60) % 1, env = Math.exp(-ph*5.5), env2 = Math.exp(-((ph*2)%1)*7);
+    for (let i=0;i<FFT;i++){
+      const x = i/FFT;
+      wave[i] = a*(0.32*Math.sin(2*Math.PI*x*3 + t*2.1) + 0.18*env*Math.sin(2*Math.PI*x*11 + t*6.3)
+              + 0.07*env2*Math.sin(2*Math.PI*x*31 + t*13) + 0.025*(Math.random()-0.5));
+    }
+    for (let b=0;b<NB;b++){
+      let v = (0.62 - b/NB*0.42) * (0.45 + 0.55*smoothNoise(b, t));
+      if (b < 5) v += env*0.45*(1 - b/6);
+      if (b > 12 && b < 24) v += env2*0.18;
+      bands[b] = a * Math.min(1, v);
+    }
+    const r = a*(0.12 + 0.16*env + 0.04*smoothNoise(3,t));
+    L.rmsL = r*(0.96 + 0.08*smoothNoise(7,t)); L.rmsR = r*(0.96 + 0.08*smoothNoise(11,t*1.1)); L.rms = r;
+    L.amp = a;
+  }
+  for (let b=0;b<NB;b++){ const v = bands[b]; bandsSm[b] = v > bandsSm[b] ? v : bandsSm[b]*0.88 + v*0.12; }
+  const bass = (bandsSm[0]+bandsSm[1]+bandsSm[2]+bandsSm[3])/4;
+  bassAvg = bassAvg*0.95 + bass*0.05;
+  if (bass > bassAvg*1.25 && bass > 0.18) L.beat = 1; else L.beat *= 0.9;
+}
+
+/* ================= canvas ================= */
+const cv = $("#viz"), ctx = cv.getContext("2d");
+const dialC = $("#dialC"), dctx = dialC.getContext("2d");
+const nz = $("#noise"), nctx = nz.getContext("2d");
+let W=0, H=0, DPR=1;
+function resize(){
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  const r = cv.getBoundingClientRect();
+  W = Math.round(r.width*DPR); H = Math.round(r.height*DPR);
+  if (cv.width !== W || cv.height !== H){ cv.width = W; cv.height = H; ctx.fillStyle = P.bg; ctx.fillRect(0,0,W,H); }
+  const d = dialC.getBoundingClientRect();
+  const dw = Math.round(d.width*DPR), dh = Math.round(d.height*DPR);
+  if (dialC.width !== dw || dialC.height !== dh){ dialC.width = dw; dialC.height = dh; }
+  nz.width = Math.max(1, Math.round(r.width/3)); nz.height = Math.max(1, Math.round(r.height/3));
+}
+window.addEventListener("resize", resize);
+
+function hexA(hex, a){
+  const h = hex.replace("#",""); const n = parseInt(h.length===3 ? h.split("").map(c=>c+c).join("") : h, 16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+}
+function region(){ // visualiseringens yta ovanför radioskalan
+  const infoOn = S.info && state.track;
+  return { x:W*0.06, y:H*0.115, w:W*0.88, h:infoOn ? H*0.5 : H*0.72 };
+}
+function fade(a){ ctx.globalCompositeOperation = "source-over"; ctx.shadowBlur = 0; ctx.fillStyle = hexA(P.bg, a); ctx.fillRect(0,0,W,H); }
+function glow(c, b){ ctx.shadowColor = c; ctx.shadowBlur = b*DPR; }
+
+/* ---------- 1 Oscilloskop ---------- */
+let oscGain = 2;
+function drawOsc(t){
+  fade(0.3);
+  const R = region();
+  ctx.strokeStyle = hexA(P.mid, 0.28); ctx.lineWidth = 1*DPR;
+  ctx.beginPath();
+  for (let i=0;i<=10;i++){ const x = R.x + R.w*i/10; ctx.moveTo(x,R.y); ctx.lineTo(x,R.y+R.h); }
+  for (let j=0;j<=8;j++){ const y = R.y + R.h*j/8; ctx.moveTo(R.x,y); ctx.lineTo(R.x+R.w,y); }
+  ctx.stroke();
+  ctx.strokeStyle = hexA(P.mid, 0.45);
+  ctx.beginPath();
+  const cy = R.y + R.h/2, cx = R.x + R.w/2;
+  for (let i=0;i<=50;i++){ const x = R.x + R.w*i/50; ctx.moveTo(x, cy-4*DPR); ctx.lineTo(x, cy+4*DPR); }
+  for (let j=0;j<=40;j++){ const y = R.y + R.h*j/40; ctx.moveTo(cx-4*DPR, y); ctx.lineTo(cx+4*DPR, y); }
+  ctx.stroke();
+  // trigger på stigande nollgenomgång
+  let start = 0;
+  for (let i=1;i<FFT/2;i++){ if (wave[i-1] < 0 && wave[i] >= 0){ start = i; break; } }
+  let peak = 0.02; for (let i=start;i<start+1024;i++) peak = Math.max(peak, Math.abs(wave[i]));
+  oscGain += ((0.9/Math.max(0.08, peak)) - oscGain)*0.05;
+  ctx.save(); ctx.beginPath(); ctx.rect(R.x, R.y - R.h*0.04, R.w, R.h*1.08); ctx.clip();
+  ctx.strokeStyle = P.ink; ctx.lineWidth = 2.4*DPR; glow(P.ink, 14);
+  ctx.beginPath();
+  for (let i=0;i<1024;i++){
+    const x = R.x + R.w*i/1023, y = cy - wave[start+i]*oscGain*R.h*0.45;
+    i ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
+  }
+  ctx.stroke(); ctx.shadowBlur = 0; ctx.restore();
+}
+
+/* ---------- 2 Magiskt öga (EM34) ---------- */
+let eyeA = 0, eyeB = 0;
+function drawEye(t){
+  ctx.globalCompositeOperation="source-over"; ctx.shadowBlur=0; ctx.fillStyle = P.bg; ctx.fillRect(0,0,W,H);
+  const R = region(), cx = R.x+R.w/2, cy = R.y+R.h/2, r = Math.min(R.w,R.h)*0.4;
+  const la = Math.min(1, L.rmsL*4.2), lb = Math.min(1, L.rmsR*2.4);
+  eyeA += (la-eyeA)*(la>eyeA?0.45:0.12); eyeB += (lb-eyeB)*(lb>eyeB?0.45:0.12);
+  // bezel
+  const bez = ctx.createRadialGradient(cx, cy-r*0.3, r*0.2, cx, cy, r*1.18);
+  bez.addColorStop(0, hexA(P.mid,0.55)); bez.addColorStop(1, hexA(P.dim,0.9));
+  ctx.fillStyle = bez; ctx.beginPath(); ctx.arc(cx,cy,r*1.14,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(cx,cy,r*1.03,0,Math.PI*2); ctx.fill();
+  // fluorescerande skärm
+  const g = ctx.createRadialGradient(cx,cy,r*0.25,cx,cy,r);
+  g.addColorStop(0, hexA(P.accent,0.95)); g.addColorStop(0.55, hexA(P.ink,0.85)); g.addColorStop(1, hexA(P.mid,0.55));
+  ctx.save(); glow(P.ink, 28);
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.arc(cx,cy,r*0.27,0,Math.PI*2,true); ctx.fill("evenodd");
+  ctx.restore();
+  // skuggsektorer: övre (känslig) och nedre (okänslig)
+  const shade = (centerAng, half) => {
+    ctx.fillStyle = "rgba(0,0,0,0.88)";
+    ctx.beginPath(); ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r*1.01, centerAng-half, centerAng+half); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = hexA(P.accent,0.9); ctx.lineWidth = 1.6*DPR; glow(P.accent, 10);
+    for (const s of [-1,1]){ const a = centerAng + s*half;
+      ctx.beginPath(); ctx.moveTo(cx+Math.cos(a)*r*0.28, cy+Math.sin(a)*r*0.28); ctx.lineTo(cx+Math.cos(a)*r, cy+Math.sin(a)*r); ctx.stroke(); }
+    ctx.shadowBlur = 0;
+  };
+  const deg = Math.PI/180;
+  shade(-Math.PI/2, (2 + (1-eyeA)*48)*deg);
+  shade(Math.PI/2, (2 + (1-eyeB)*58)*deg);
+  // mittkåpa
+  const cap = ctx.createRadialGradient(cx-r*0.06, cy-r*0.08, r*0.02, cx, cy, r*0.27);
+  cap.addColorStop(0, "#5a5a5a"); cap.addColorStop(0.6, "#1b1b1b"); cap.addColorStop(1, "#050505");
+  ctx.fillStyle = cap; ctx.beginPath(); ctx.arc(cx,cy,r*0.27,0,Math.PI*2); ctx.fill();
+  // skala
+  ctx.strokeStyle = hexA(P.mid,0.7); ctx.lineWidth = 1.2*DPR;
+  for (let i=0;i<72;i++){ const a = i/72*Math.PI*2, l = i%6===0 ? 0.08 : 0.035;
+    ctx.beginPath(); ctx.moveTo(cx+Math.cos(a)*r*1.18, cy+Math.sin(a)*r*1.18); ctx.lineTo(cx+Math.cos(a)*r*(1.18+l), cy+Math.sin(a)*r*(1.18+l)); ctx.stroke(); }
+  ctx.fillStyle = hexA(P.mid,0.85); ctx.font = `${Math.round(H*0.022)}px "Special Elite", monospace`; ctx.textAlign="center";
+  ctx.textBaseline = "middle"; ctx.fillText("A V S T Ä M N I N G", cx, cy + r*1.42); ctx.textBaseline = "alphabetic";
+}
+
+/* ---------- 3 VU-mätare ---------- */
+const VU_PTS = [[-20,0],[-10,.25],[-7,.37],[-5,.47],[-3,.6],[-2,.67],[-1,.73],[0,.8],[1,.87],[2,.935],[3,1]];
+function vuPos(db){
+  if (db <= -20) return 0; if (db >= 3) return 1;
+  for (let i=1;i<VU_PTS.length;i++){ const [d1,p1]=VU_PTS[i-1],[d2,p2]=VU_PTS[i];
+    if (db <= d2) return p1 + (p2-p1)*(db-d1)/(d2-d1); }
+  return 1;
+}
+const needles = [0,0];
+function drawMeter(x,y,w,h,val,idx,label){
+  const ink = P.face;
+  // ram och tavla
+  ctx.fillStyle = hexA(P.dim, 1); roundRect(x-w*0.03,y-h*0.04,w*1.06,h*1.08,h*0.06); ctx.fill();
+  const face = ctx.createLinearGradient(x,y,x,y+h);
+  face.addColorStop(0, P.paper); face.addColorStop(1, shade(P.paper, -0.18));
+  ctx.fillStyle = face; roundRect(x,y,w,h,h*0.04); ctx.fill();
+  // varmt lampsken
+  if (S.palette !== "fosfor"){
+    const lamp = ctx.createRadialGradient(x+w/2, y+h*1.1, h*0.1, x+w/2, y+h*0.9, h*1.1);
+    lamp.addColorStop(0, "rgba(255,200,120,0.28)"); lamp.addColorStop(1, "rgba(255,200,120,0)");
+    ctx.fillStyle = lamp; roundRect(x,y,w,h,h*0.04); ctx.fill();
+  }
+  const px = x + w/2, py = y + h*1.05, rad = h*0.82;
+  const a0 = -Math.PI/2 - 0.86, a1 = -Math.PI/2 + 0.86;
+  const angOf = p => a0 + (a1-a0)*p;
+  // skalbågar
+  ctx.lineWidth = Math.max(1, h*0.012); ctx.strokeStyle = ink;
+  ctx.beginPath(); ctx.arc(px,py,rad,angOf(0),angOf(0.8)); ctx.stroke();
+  ctx.strokeStyle = P.red; ctx.lineWidth = Math.max(2, h*0.035);
+  ctx.beginPath(); ctx.arc(px,py,rad+h*0.012,angOf(0.8),angOf(1)); ctx.stroke();
+  // streck och siffror
+  ctx.fillStyle = ink; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = `${Math.round(h*0.075)}px "Special Elite", monospace`;
+  for (const [db,p] of VU_PTS){
+    const a = angOf(p), c = Math.cos(a), s = Math.sin(a);
+    ctx.strokeStyle = db > 0 ? P.red : ink; ctx.lineWidth = Math.max(1, h*0.012);
+    ctx.beginPath(); ctx.moveTo(px+c*rad, py+s*rad); ctx.lineTo(px+c*(rad+h*0.07), py+s*(rad+h*0.07)); ctx.stroke();
+    ctx.fillStyle = db > 0 ? P.red : ink;
+    ctx.fillText(String(Math.abs(db)), px+c*(rad+h*0.14), py+s*(rad+h*0.14));
+  }
+  for (let p=0;p<=1;p+=0.025){ const a = angOf(p);
+    ctx.strokeStyle = ink; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(px+Math.cos(a)*rad, py+Math.sin(a)*rad); ctx.lineTo(px+Math.cos(a)*(rad+h*0.03), py+Math.sin(a)*(rad+h*0.03)); ctx.stroke(); }
+  ctx.font = `${Math.round(h*0.17)}px Limelight, serif`; ctx.fillStyle = ink;
+  ctx.fillText("VU", px, y + h*0.62);
+  ctx.font = `${Math.round(h*0.06)}px "Special Elite", monospace`;
+  ctx.fillText(label, px, y + h*0.78);
+  ctx.textAlign = "left"; ctx.fillText("−", x + w*0.08, y + h*0.2); ctx.textAlign = "right"; ctx.fillStyle = P.red; ctx.fillText("+", x + w*0.92, y + h*0.2);
+  // nål med ballistik
+  const db = 20*Math.log10(Math.max(1e-5, val)) + 13;
+  const target = vuPos(db);
+  needles[idx] += (target - needles[idx]) * 0.14;
+  const na = angOf(Math.max(-0.03, Math.min(1.04, needles[idx])));
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
+  ctx.strokeStyle = S.palette === "fosfor" ? P.accent : "#111"; ctx.lineWidth = Math.max(1.5, h*0.014);
+  ctx.shadowColor = "rgba(0,0,0,.4)"; ctx.shadowBlur = 4*DPR; ctx.shadowOffsetX = 2*DPR;
+  ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px+Math.cos(na)*(rad+h*0.1), py+Math.sin(na)*(rad+h*0.1)); ctx.stroke();
+  ctx.restore();
+  // toppvarning
+  const hot = needles[idx] > 0.86;
+  ctx.fillStyle = hot ? P.red : shade(P.paper,-0.3);
+  if (hot){ glow(P.red, 12); }
+  ctx.beginPath(); ctx.arc(x + w*0.9, y + h*0.82, h*0.035, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+  ctx.textBaseline = "alphabetic"; ctx.textAlign = "left";
+}
+function drawVU(t){
+  ctx.globalCompositeOperation="source-over"; ctx.shadowBlur=0; ctx.fillStyle = P.bg; ctx.fillRect(0,0,W,H);
+  const R = region(), gap = R.w*0.06, mw = (R.w - gap)/2, mh = Math.min(R.h*0.92, mw*0.62);
+  const y = R.y + (R.h - mh)/2;
+  drawMeter(R.x, y, mw, mh, L.rmsL, 0, "VÄNSTER");
+  drawMeter(R.x + mw + gap, y, mw, mh, L.rmsR, 1, "HÖGER");
+}
+
+/* ---------- 4 Atomålder ---------- */
+function drawAtom(t){
+  fade(0.22);
+  const R = region(), cx = R.x+R.w/2, cy = R.y+R.h/2, m = Math.min(R.w,R.h);
+  const r0 = m*0.075*(1 + L.beat*0.35);
+  const N = 72, spin = t*0.08;
+  ctx.lineCap = "round";
+  for (let i=0;i<N;i++){
+    const mir = Math.round(Math.abs(((i*4/N) % 2) - 1) * (NB-1));
+    const v = bandsSm[mir];
+    const a = i/N*Math.PI*2 + spin, c = Math.cos(a), s = Math.sin(a);
+    const len = r0*1.6 + v*m*0.38 + (i%2 ? 0 : m*0.03);
+    ctx.strokeStyle = S.palette === "farg" ? (i%3===0 ? P.accent : i%3===1 ? P.mid : P.warm) : P.ink;
+    ctx.globalAlpha = 0.35 + v*0.65;
+    ctx.lineWidth = (i%2 ? 1.2 : 2.6)*DPR;
+    ctx.beginPath(); ctx.moveTo(cx+c*r0*1.35, cy+s*r0*1.35); ctx.lineTo(cx+c*len, cy+s*len); ctx.stroke();
+    if (i%4===0 && v > 0.15){ ctx.fillStyle = ctx.strokeStyle; ctx.beginPath(); ctx.arc(cx+c*(len+m*0.02), cy+s*(len+m*0.02), 2.4*DPR*(0.6+v), 0, Math.PI*2); ctx.fill(); }
+  }
+  ctx.globalAlpha = 1;
+  // banor och elektroner
+  const speed = 0.6 + L.rms*6;
+  for (let k=0;k<3;k++){
+    const rot = k*Math.PI/3 + t*0.05;
+    ctx.save(); ctx.translate(cx,cy); ctx.rotate(rot);
+    ctx.strokeStyle = hexA(S.palette==="farg" ? P.mid : P.mid, 0.75); ctx.lineWidth = 1.6*DPR;
+    ctx.beginPath(); ctx.ellipse(0,0,m*0.44,m*0.14,0,0,Math.PI*2); ctx.stroke();
+    const e = t*speed*(1+k*0.23) + k*2;
+    ctx.fillStyle = S.palette==="farg" ? P.accent : P.accent; glow(P.accent, 16);
+    ctx.beginPath(); ctx.arc(Math.cos(e)*m*0.44, Math.sin(e)*m*0.14, 5*DPR, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0; ctx.restore();
+  }
+  // kärna
+  const core = ctx.createRadialGradient(cx,cy,0,cx,cy,r0*1.3);
+  core.addColorStop(0, P.accent); core.addColorStop(0.6, hexA(S.palette==="farg" ? P.red : P.ink, 0.9)); core.addColorStop(1, hexA(P.ink,0));
+  ctx.fillStyle = core; ctx.beginPath(); ctx.arc(cx,cy,r0*1.3,0,Math.PI*2); ctx.fill();
+}
+
+/* ---------- 5 Ljusorgel ---------- */
+const peaks = new Float32Array(16);
+function drawOrgan(t){
+  ctx.globalCompositeOperation="source-over"; ctx.shadowBlur=0; ctx.fillStyle = P.bg; ctx.fillRect(0,0,W,H);
+  const R = region(), cols = 16, rows = 12;
+  const cw = R.w/cols, rh = R.h/rows, lw = cw*0.72, lh = rh*0.66;
+  // kromlister
+  ctx.fillStyle = hexA(P.mid,0.5);
+  ctx.fillRect(R.x, R.y - rh*0.5, R.w, 2*DPR); ctx.fillRect(R.x, R.y + R.h + rh*0.2, R.w, 2*DPR);
+  for (let c=0;c<cols;c++){
+    const v = Math.min(1, Math.max(bandsSm[c*2], bandsSm[c*2+1]) * 1.15);
+    peaks[c] = Math.max(v, peaks[c] - 0.008);
+    const lit = Math.round(v*rows), pk = Math.min(rows-1, Math.round(peaks[c]*rows));
+    for (let r=0;r<rows;r++){
+      const x = R.x + c*cw + (cw-lw)/2, y = R.y + R.h - (r+1)*rh + (rh-lh)/2;
+      const on = r < lit || (r === pk && pk > 0);
+      let col;
+      if (S.palette === "farg") col = r >= 10 ? P.red : r >= 7 ? P.warm : P.mid;
+      else col = r >= 10 ? P.accent : P.ink;
+      if (on){ ctx.fillStyle = col; glow(col, 12); ctx.globalAlpha = r === pk && r >= lit ? 0.7 : 1; }
+      else { ctx.fillStyle = hexA(P.dim, 0.9); ctx.shadowBlur = 0; ctx.globalAlpha = 1; }
+      roundRect(x,y,lw,lh,Math.min(lw,lh)*0.35); ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+}
+
+/* ---------- 0 Testbild ---------- */
+function drawTestcard(t){
+  ctx.globalCompositeOperation="source-over"; ctx.shadowBlur = 0;
+  ctx.fillStyle = shade(P.bg, 0.06); ctx.fillRect(0,0,W,H);
+  const cx = W/2, cy = H*0.47, rr = Math.min(W,H)*0.36;
+  // rutnät
+  ctx.strokeStyle = hexA(P.ink, 0.35); ctx.lineWidth = 1.2*DPR;
+  const step = H/12;
+  ctx.beginPath();
+  for (let x = cx % step; x < W; x += step){ ctx.moveTo(x,0); ctx.lineTo(x,H); }
+  for (let y = cy % step; y < H; y += step){ ctx.moveTo(0,y); ctx.lineTo(W,y); }
+  ctx.stroke();
+  // cirkel
+  ctx.fillStyle = shade(P.bg, 0.12); ctx.beginPath(); ctx.arc(cx,cy,rr,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle = P.ink; ctx.lineWidth = 3*DPR; ctx.stroke();
+  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,rr,0,Math.PI*2); ctx.clip();
+  // gråtrappa
+  const steps = 7, bw = rr*2/steps;
+  for (let i=0;i<steps;i++){ ctx.fillStyle = mix(P.bg, P.ink, i/(steps-1)); ctx.fillRect(cx-rr+i*bw, cy-rr*0.42, bw+1, rr*0.28); }
+  // frekvensgaller
+  const fy = cy + rr*0.12, fh = rr*0.28;
+  const grp = [3,5,8,12,18];
+  for (let g=0; g<grp.length; g++){
+    const gx = cx - rr*0.85 + g*rr*0.34, gw = rr*0.3, n = grp[g];
+    for (let k=0;k<n;k++){ if (k%2===0){ ctx.fillStyle = P.ink; ctx.fillRect(gx + k*gw/n, fy, gw/n, fh); } }
+  }
+  ctx.restore();
+  // kors
+  ctx.strokeStyle = P.ink; ctx.lineWidth = 2*DPR;
+  ctx.beginPath(); ctx.moveTo(cx-rr,cy); ctx.lineTo(cx+rr,cy); ctx.moveTo(cx,cy-rr); ctx.lineTo(cx,cy+rr); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx,cy,rr*0.12,0,Math.PI*2); ctx.stroke();
+  // namnruta och klocka
+  const bw2 = rr*1.25, bh = rr*0.22;
+  ctx.fillStyle = P.bg; ctx.fillRect(cx-bw2/2, cy-rr*0.08-bh, bw2, bh);
+  ctx.strokeStyle = P.ink; ctx.strokeRect(cx-bw2/2, cy-rr*0.08-bh, bw2, bh);
+  ctx.fillStyle = P.ink; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = `${Math.round(bh*0.55)}px Limelight, serif`;
+  ctx.fillText("RETROSPELAREN", cx, cy-rr*0.08-bh/2);
+  const d = new Date(), hhmm = String(d.getHours()).padStart(2,"0") + (d.getSeconds()%2 ? ":" : " ") + String(d.getMinutes()).padStart(2,"0");
+  ctx.fillStyle = P.bg; ctx.fillRect(cx-rr*0.32, cy+rr*0.5, rr*0.64, rr*0.2);
+  ctx.strokeRect(cx-rr*0.32, cy+rr*0.5, rr*0.64, rr*0.2);
+  ctx.fillStyle = P.ink; ctx.font = `${Math.round(rr*0.13)}px "Special Elite", monospace`;
+  ctx.fillText(hhmm, cx, cy+rr*0.6);
+  ctx.textBaseline = "alphabetic";
+  // rullande ljus rand
+  const ry = ((t*0.06) % 1.2 - 0.1) * H;
+  const rg = ctx.createLinearGradient(0, ry-H*0.06, 0, ry+H*0.06);
+  rg.addColorStop(0,"rgba(255,255,255,0)"); rg.addColorStop(0.5,"rgba(255,255,255,0.05)"); rg.addColorStop(1,"rgba(255,255,255,0)");
+  ctx.fillStyle = rg; ctx.fillRect(0, ry-H*0.06, W, H*0.12);
+}
+
+/* ---------- radioskalan ---------- */
+function fmtTime(ms){ if (!isFinite(ms) || ms < 0) ms = 0; const s = Math.floor(ms/1000); return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0"); }
+function drawDial(prog, t){
+  const w = dialC.width, h = dialC.height; if (!w || !h) return;
+  dctx.clearRect(0,0,w,h);
+  const x0 = w*0.14, x1 = w*0.9;
+  const labels = ["55","60","70","80","100","120","140","160"];
+  dctx.strokeStyle = hexA(P.mid,0.8); dctx.fillStyle = hexA(P.mid,0.9);
+  dctx.font = `${Math.round(h*0.3)}px "Special Elite", monospace`; dctx.textAlign = "center"; dctx.textBaseline = "middle";
+  for (let i=0;i<=56;i++){ const x = x0 + (x1-x0)*i/56, big = i%8===0;
+    dctx.lineWidth = big ? 1.6*DPR : 1*DPR;
+    dctx.beginPath(); dctx.moveTo(x, h*0.12); dctx.lineTo(x, h*(big?0.42:0.28)); dctx.stroke();
+    if (big) dctx.fillText(labels[i/8], x, h*0.72);
+  }
+  dctx.textAlign = "left"; dctx.fillText("MW", 0, h*0.72);
+  dctx.textAlign = "right"; dctx.fillText("kHz", w, h*0.72);
+  // tider
+  dctx.font = `${Math.round(h*0.28)}px "Special Elite", monospace`;
+  if (state.track){
+    if (state.live){ dctx.textAlign = "left"; dctx.fillStyle = P.ink; dctx.fillText("● DIREKT", 0, h*0.25); }
+    else { dctx.textAlign = "left"; dctx.fillStyle = P.ink; dctx.fillText(fmtTime(state.progressNow), 0, h*0.25);
+           dctx.textAlign = "right"; dctx.fillText(fmtTime(state.duration), w, h*0.25); }
+  }
+  // nål
+  const nx = x0 + (x1-x0)*Math.max(0, Math.min(1, prog));
+  dctx.strokeStyle = S.palette === "farg" ? P.red : P.accent; dctx.lineWidth = 2.5*DPR;
+  dctx.shadowColor = dctx.strokeStyle; dctx.shadowBlur = 8*DPR;
+  dctx.beginPath(); dctx.moveTo(nx, 0); dctx.lineTo(nx, h); dctx.stroke(); dctx.shadowBlur = 0;
+}
+
+/* ---------- hjälpare ---------- */
+function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function rgbOf(hex){ const n = parseInt(hex.slice(1),16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+function toHex(r,g,b){ return "#" + [r,g,b].map(v => Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,"0")).join(""); }
+function mix(a,b,f){ const A = rgbOf(a), B = rgbOf(b); return toHex(A[0]+(B[0]-A[0])*f, A[1]+(B[1]-A[1])*f, A[2]+(B[2]-A[2])*f); }
+function shade(hex, f){ return f >= 0 ? mix(hex, "#ffffff", f) : mix(hex, "#000000", -f); }
+
+/* ---------- brus vid kanalbyte ---------- */
+let noiseUntil = 0;
+function channelNoise(ms=480){
+  noiseUntil = performance.now() + ms;
+  const sc = $("#screen"); sc.classList.remove("rolling"); void sc.offsetWidth; sc.classList.add("rolling");
+}
+function drawNoise(now){
+  const left = noiseUntil - now;
+  if (left <= 0){ nz.style.opacity = 0; return; }
+  const w = nz.width, h = nz.height, img = nctx.createImageData(w,h), d = img.data;
+  const band = (now/3) % h;
+  for (let y=0;y<h;y++){ const boost = Math.abs(y-band) < h*0.06 ? 60 : 0;
+    for (let x=0;x<w;x++){ const v = Math.random()*200 + boost, i = (y*w+x)*4; d[i]=d[i+1]=d[i+2]=v; d[i+3]=255; } }
+  nctx.putImageData(img,0,0);
+  nz.style.opacity = Math.min(1, left/200);
+}
+
+/* ================= huvudloop ================= */
+const VIZ = { 1:drawOsc, 2:drawEye, 3:drawVU, 4:drawAtom, 5:drawOrgan };
+const VIZ_NAMES = { 1:"Oscilloskop", 2:"Magiskt öga", 3:"VU-mätare", 4:"Atomålder", 5:"Ljusorgel" };
+let lastVizDrawn = 0;
+function frame(nowMs){
+  requestAnimationFrame(frame);
+  if (!W) resize();
+  const t = nowMs/1000;
+  computeLevels(t);
+  // interpolerad position
+  state.progressNow = state.playing && !state.live ? state.progress + (Date.now() - state.polledAt) : state.progress;
+  if (state.playing) state.lastActive = nowMs;
+  const idle = !state.started || (!state.playing && simAmp < 0.02 && (nowMs - state.lastActive) > 1500);
+  if (idle) drawTestcard(t);
+  else { if (lastVizDrawn !== S.viz){ ctx.fillStyle = P.bg; ctx.fillRect(0,0,W,H); lastVizDrawn = S.viz; } VIZ[S.viz](t); }
+  if (idle) lastVizDrawn = 0;
+  if (idle !== frame.wasIdle){ elInfo.classList.toggle("idle", idle); $("#dial").classList.toggle("idle", idle); frame.wasIdle = idle; }
+  let prog;
+  if (!state.track) prog = 0.5 + 0.02*Math.sin(t*0.4);
+  else if (state.live){
+    const n = Math.max(1, state.stations.length), i = Math.max(0, state.stations.findIndex(s => state.station && s.id === state.station.id));
+    prog = (i + 0.5)/n + 0.003*Math.sin(t*1.7);
+  } else prog = state.duration ? state.progressNow/state.duration : 0;
+  drawDial(prog, t);
+  drawNoise(nowMs);
+}
+
+/* ================= låtinfo ================= */
+const elInfo = $("#info"), elTitle = $("#title"), elArtist = $("#artist"), elAlbum = $("#album"), elKicker = $("#kicker"), elCov = $("#cov"), elCovPh = $("#covPh");
+let infoTimer = 0;
+function setTrack(tr){
+  const key = tr ? [tr.title, tr.artist, tr.kicker].join("|") : "";
+  if (key === state.trackKey){
+    if (tr && tr.cover && tr.cover !== state.track?.cover) applyCover(tr.cover);
+    state.track = tr; return;
+  }
+  const first = !state.trackKey;
+  state.trackKey = key; state.track = tr;
+  elInfo.classList.add("out");
+  clearTimeout(infoTimer);
+  infoTimer = setTimeout(() => {
+    if (!tr){ elInfo.classList.add("out"); return; }
+    elKicker.textContent = tr.kicker || "";
+    elTitle.innerHTML = ""; const sp = document.createElement("span"); sp.textContent = tr.title || ""; elTitle.appendChild(sp);
+    elTitle.classList.remove("marquee");
+    elArtist.textContent = tr.artist || "";
+    elAlbum.textContent = [tr.album, tr.year].filter(Boolean).join("  ·  ");
+    applyCover(tr.cover || "");
+    elInfo.classList.toggle("hidden", !S.info);
+    requestAnimationFrame(() => {
+      if (sp.scrollWidth > elTitle.clientWidth + 2){
+        sp.textContent = (tr.title || "") ; const dup = document.createElement("span"); dup.textContent = tr.title || "";
+        elTitle.appendChild(dup);
+        elTitle.style.setProperty("--dur", Math.max(10, (tr.title||"").length*0.45) + "s");
+        elTitle.classList.add("marquee");
+      }
+      elInfo.classList.remove("out");
+    });
+  }, first ? 50 : 650);
+  if (!first && S.autoChannel && tr) setViz(S.viz % 5 + 1, true);
+}
+function applyCover(url){
+  if (!url){ elCov.src = ""; elCovPh.style.display = ""; accentFrom(null); return; }
+  const prox = url.startsWith("/") ? url : "/api/img?url=" + encodeURIComponent(url);
+  elCov.onload = () => { elCovPh.style.display = "none"; accentFrom(elCov); };
+  elCov.onerror = () => { elCov.src = ""; elCovPh.style.display = ""; };
+  elCov.src = prox;
+}
+function accentFrom(img){
+  if (S.palette !== "farg"){ return; }
+  const base = PALETTES.farg;
+  if (!img){ P.accent = base.accent; return; }
+  try{
+    const c = document.createElement("canvas"); c.width = c.height = 24;
+    const x = c.getContext("2d"); x.drawImage(img,0,0,24,24);
+    const d = x.getImageData(0,0,24,24).data; let best = null, bs = -1;
+    for (let i=0;i<d.length;i+=4){
+      const r=d[i],g=d[i+1],b=d[i+2], mx=Math.max(r,g,b), mn=Math.min(r,g,b), sat = mx ? (mx-mn)/mx : 0, sc = sat*(mx/255);
+      if (sc > bs && mx > 90){ bs = sc; best = [r,g,b]; }
+    }
+    P.accent = best && bs > 0.25 ? toHex(...best) : base.accent;
+  }catch(e){ P.accent = base.accent; }
+}
+
+/* ================= radio ================= */
+let icyTimer = 0, icyUrl = "";
+async function loadStations(q){
+  const ul = $("#stations");
+  if (q === "fav"){ state.stations = store.get("favs", []); renderStations(); return; }
+  ul.innerHTML = '<li class="empty">Söker...</li>';
+  try{
+    const r = await fetch("/api/radio?" + q + "&limit=50");
+    const data = await r.json();
+    if (!Array.isArray(data)) throw new Error(data.error || "fel");
+    state.stations = data;
+  }catch(e){ state.stations = []; ul.innerHTML = '<li class="empty">Kunde inte hämta stationer. Körs server.py?</li>'; return; }
+  renderStations();
+}
+function isFav(st){ return store.get("favs", []).some(f => f.id === st.id); }
+function toggleFav(st){
+  let f = store.get("favs", []);
+  f = f.some(x => x.id === st.id) ? f.filter(x => x.id !== st.id) : f.concat([st]);
+  store.set("favs", f); renderStations();
+}
+function renderStations(){
+  const ul = $("#stations"); ul.innerHTML = "";
+  if (!state.stations.length){ ul.innerHTML = '<li class="empty">Inga stationer.</li>'; return; }
+  for (const st of state.stations){
+    const li = document.createElement("li");
+    if (state.station && state.station.id === st.id) li.classList.add("now");
+    const fav = document.createElement("button"); fav.className = "fav"; fav.textContent = isFav(st) ? "★" : "☆"; fav.title = "Favorit";
+    fav.addEventListener("click", e => { e.stopPropagation(); toggleFav(st); });
+    const n = document.createElement("span"); n.className = "n"; n.textContent = st.name || "(namnlös)";
+    const m = document.createElement("span"); m.className = "m"; m.textContent = [st.country, st.bitrate ? st.bitrate + "k" : ""].filter(Boolean).join(" ");
+    li.append(fav, n, m);
+    li.addEventListener("click", () => { setSource("radio"); playStation(st); });
+    ul.appendChild(li);
+  }
+}
+let failCount = 0;
+function playStation(st){
+  if (!st) return;
+  ensureAudio();
+  if (!state.started){ state.started = true; $("#start").classList.add("gone"); }
+  state.station = st; state.live = true; store.set("lastStation", st);
+  channelNoise(600);
+  audioEl.src = "/api/stream?url=" + encodeURIComponent(st.url);
+  audioEl.play().catch(() => {});
+  renderStations();
+  setTrack({ kicker:"Radio · " + (st.name || ""), title: st.name || "Radio", artist: prettyTags(st.tags), album: st.country || "", cover: st.favicon || "" });
+  icyUrl = st.url; clearInterval(icyTimer); pollIcy(); icyTimer = setInterval(pollIcy, 15000);
+  osd(st.name || "Radio");
+}
+function prettyTags(t){ return (t||"").split(",").slice(0,3).map(s => s.trim()).filter(Boolean).join(" · "); }
+function radioFailed(){
+  failCount++;
+  osd("Ingen signal");
+  if (failCount <= 4 && state.stations.length > 1) setTimeout(() => radioStep(1), 900);
+}
+async function pollIcy(){
+  const st = state.station; if (!st || S.source !== "radio") return;
+  try{
+    const r = await fetch("/api/icy?url=" + encodeURIComponent(icyUrl)); const j = await r.json();
+    if (state.station !== st) return;
+    failCount = 0;
+    const raw = (j.title || "").trim();
+    if (!raw || /^(-|\s)*$/.test(raw)){ return; }
+    let artist = "", title = raw;
+    const i = raw.indexOf(" - ");
+    if (i > 0){ artist = raw.slice(0,i).trim(); title = raw.slice(i+3).trim(); }
+    const tr = { kicker:"Radio · " + (st.name || ""), title, artist, album:"", year:"", cover: st.favicon || "" };
+    const key = [tr.title, tr.artist, tr.kicker].join("|");
+    if (key === state.trackKey) return;
+    setTrack(tr);
+    try{
+      const c = await (await fetch("/api/cover?term=" + encodeURIComponent(raw.replace(" - "," ")))).json();
+      if (state.trackKey === key && c && c.cover){
+        state.track = Object.assign({}, tr, { cover:c.cover, album:c.album, year:c.year });
+        applyCover(c.cover);
+        elAlbum.textContent = [c.album, c.year].filter(Boolean).join("  ·  ");
+      }
+    }catch(e){}
+  }catch(e){}
+}
+function radioStep(d){
+  if (!state.stations.length) return;
+  let i = state.stations.findIndex(s => state.station && s.id === state.station.id);
+  i = (i + d + state.stations.length) % state.stations.length;
+  playStation(state.stations[i]);
+}
+function radioToggle(){
+  ensureAudio();
+  if (!state.station){
+    const s = store.get("lastStation", null) || state.stations[0];
+    if (s) playStation(s); else osd("Välj station (S)");
+    return;
+  }
+  if (audioEl.paused){
+    // ladda om strömmen så att vi hamnar live igen
+    audioEl.src = "/api/stream?url=" + encodeURIComponent(state.station.url);
+    audioEl.play().catch(()=>{}); osd("Spelar");
+  } else { audioEl.pause(); audioEl.removeAttribute("src"); audioEl.load(); state.playing = false; osd("Paus"); }
+}
+
+/* ================= Spotify ================= */
+const SP = {
+  scope: "user-read-currently-playing user-read-playback-state user-modify-playback-state",
+  redirect: location.origin + "/callback",
+  timer: 0
+};
+const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+function randStr(n){ const a = new Uint8Array(n); crypto.getRandomValues(a); return Array.from(a, x => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"[x%62]).join(""); }
+async function spLogin(){
+  const id = $("#spClient").value.trim();
+  if (!id){ spStatus("Fyll i Client ID först."); return; }
+  if (!crypto.subtle){ spStatus("Öppna sidan via http://127.0.0.1:8888, annars fungerar inte inloggningen."); return; }
+  S.clientId = id; saveS();
+  const verifier = randStr(64), st = randStr(16);
+  store.set("sp.verifier", verifier); store.set("sp.state", st);
+  const challenge = b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
+  const p = new URLSearchParams({ response_type:"code", client_id:id, scope:SP.scope, code_challenge_method:"S256",
+    code_challenge:challenge, redirect_uri:SP.redirect, state:st });
+  location.href = "https://accounts.spotify.com/authorize?" + p;
+}
+async function spHandleCallback(){
+  const q = new URLSearchParams(location.search);
+  if (location.pathname !== "/callback") return false;
+  history.replaceState(null, "", "/");
+  if (q.get("error")){ spStatus("Spotify nekade inloggningen: " + q.get("error")); return false; }
+  const code = q.get("code");
+  if (!code || q.get("state") !== store.get("sp.state", "")) { spStatus("Inloggningen gick inte att verifiera. Försök igen."); return false; }
+  const body = new URLSearchParams({ client_id:S.clientId, grant_type:"authorization_code", code, redirect_uri:SP.redirect, code_verifier:store.get("sp.verifier","") });
+  const r = await fetch("https://accounts.spotify.com/api/token", { method:"POST", headers:{ "Content-Type":"application/x-www-form-urlencoded" }, body });
+  const j = await r.json();
+  if (!r.ok){ spStatus("Tokenfel: " + (j.error_description || j.error || r.status)); return false; }
+  spSaveToken(j); store.del("sp.verifier"); store.del("sp.state");
+  S.source = "spotify"; saveS();
+  return true;
+}
+function spSaveToken(j){
+  const old = store.get("sp.token", {});
+  store.set("sp.token", { access:j.access_token, refresh:j.refresh_token || old.refresh, exp: Date.now() + (j.expires_in||3600)*1000 });
+}
+async function spToken(){
+  const tk = store.get("sp.token", null);
+  if (!tk) return null;
+  if (Date.now() < tk.exp - 60000) return tk.access;
+  if (!tk.refresh) return null;
+  const body = new URLSearchParams({ grant_type:"refresh_token", refresh_token:tk.refresh, client_id:S.clientId });
+  const r = await fetch("https://accounts.spotify.com/api/token", { method:"POST", headers:{ "Content-Type":"application/x-www-form-urlencoded" }, body });
+  if (!r.ok){ store.del("sp.token"); spStatus("Inloggningen har gått ut. Logga in igen."); return null; }
+  spSaveToken(await r.json());
+  return store.get("sp.token", {}).access;
+}
+async function spApi(path, opts={}){
+  const tok = await spToken(); if (!tok) return { status:401 };
+  const r = await fetch("https://api.spotify.com/v1" + path, Object.assign({}, opts, { headers:{ Authorization:"Bearer " + tok } }));
+  let data = null; if (r.status !== 204){ try{ data = await r.json(); }catch(e){} }
+  return { status:r.status, data };
+}
+async function spPoll(){
+  if (S.source !== "spotify") return;
+  const r = await spApi("/me/player?additional_types=episode");
+  if (r.status === 401){ state.spConnected = false; renderSp(); state.playing = false; return; }
+  state.spConnected = true;
+  if (r.status === 204 || !r.data || !r.data.item){
+    state.playing = false; state.spDevice = r.data?.device?.name || "";
+    if (!state.track || state.track.src !== "sp") setTrack(null);
+    renderSp(); return;
+  }
+  const d = r.data, it = d.item;
+  state.playing = !!d.is_playing; state.live = false;
+  state.progress = d.progress_ms || 0; state.polledAt = Date.now(); state.duration = it.duration_ms || 0;
+  state.spDevice = d.device?.name || "";
+  const isEp = it.type === "episode";
+  const imgs = isEp ? (it.images || it.show?.images || []) : (it.album?.images || []);
+  setTrack({
+    src:"sp", kicker: "Spotify" + (state.spDevice ? " · " + state.spDevice : ""),
+    title: it.name, artist: isEp ? (it.show?.name || "") : (it.artists || []).map(a => a.name).join(", "),
+    album: isEp ? "" : (it.album?.name || ""), year: isEp ? "" : (it.album?.release_date || "").slice(0,4),
+    cover: imgs[0]?.url || ""
+  });
+  renderSp();
+}
+function spStart(){ clearInterval(SP.timer); spPoll(); SP.timer = setInterval(spPoll, 2500); }
+function spStop(){ clearInterval(SP.timer); }
+async function spCmd(kind){
+  const map = { play:["PUT","/me/player/play"], pause:["PUT","/me/player/pause"], next:["POST","/me/player/next"], prev:["POST","/me/player/previous"] };
+  const [m, p] = map[kind];
+  const r = await spApi(p, { method:m });
+  if (r.status === 403) osd("Kräver Premium");
+  else if (r.status === 404) osd("Ingen aktiv enhet");
+  setTimeout(spPoll, 400);
+}
+function spStatus(msg){ $("#spStatus").textContent = msg; }
+function renderSp(){
+  const has = !!store.get("sp.token", null);
+  $("#spLogin").textContent = has ? "Logga in igen" : "Logga in med Spotify";
+  if (!has) spStatus("Inte inloggad.");
+  else if (!state.spConnected) spStatus("Inloggad. Väntar på svar från Spotify...");
+  else spStatus(state.spDevice ? `Ansluten. Spelar på: ${state.spDevice}` : "Ansluten. Starta musik i Spotify på valfri enhet.");
+}
+
+/* ================= källa, kanal, färg ================= */
+function setSource(src){
+  if (S.source === src && state.started) { segOn("#srcSeg", src); return; }
+  S.source = src; saveS(); segOn("#srcSeg", src);
+  setTrack(null); state.playing = false; state.progress = 0; state.duration = 0;
+  if (src === "spotify"){
+    if (audioEl && !audioEl.paused){ audioEl.pause(); audioEl.removeAttribute("src"); audioEl.load(); }
+    clearInterval(icyTimer); state.live = false;
+    applyVizInput(); spStart();
+  } else {
+    spStop(); stopMic();
+    if (state.started && state.station) playStation(state.station);
+  }
+  osd(src === "radio" ? "Radio" : "Spotify");
+}
+async function applyVizInput(){
+  segOn("#vinSeg", S.vizInput);
+  if (S.source === "spotify" && S.vizInput === "mic" && state.started){ const ok = await startMic(); if (!ok){ S.vizInput = "sim"; saveS(); segOn("#vinSeg","sim"); } }
+  else stopMic();
+}
+function setViz(n, noisy){
+  n = Math.max(1, Math.min(5, n|0));
+  S.viz = n; saveS(); segOn("#vizSeg", String(n));
+  channelNoise(noisy ? 520 : 420);
+  osd(n + " · " + VIZ_NAMES[n]);
+}
+function setPalette(name){
+  if (!PALETTES[name]) return;
+  S.palette = name; saveS(); P = Object.assign({}, PALETTES[name]);
+  const r = document.documentElement.style;
+  for (const k of ["bg","ink","mid","dim","accent"]) r.setProperty("--" + k, P[k]);
+  r.setProperty("--cover-filter", P.cover);
+  segOn("#palSeg", name);
+  if (name === "farg" && elCov.src) accentFrom(elCov);
+  ctx.fillStyle = P.bg; ctx.fillRect(0,0,W,H);
+}
+function segOn(sel, v){ document.querySelectorAll(sel + " button").forEach(b => b.classList.toggle("on", (b.dataset.v ?? b.dataset.q) === v)); }
+
+let osdTimer = 0;
+function osd(text){ const o = $("#osd"); o.textContent = text; o.classList.add("on"); clearTimeout(osdTimer); osdTimer = setTimeout(() => o.classList.remove("on"), 2200); }
+
+function playPause(){
+  if (S.source === "radio") radioToggle();
+  else spCmd(state.playing ? "pause" : "play");
+}
+function next(){ S.source === "radio" ? radioStep(1) : spCmd("next"); }
+function prev(){ S.source === "radio" ? radioStep(-1) : spCmd("prev"); }
+
+/* ================= start ================= */
+function start(){
+  if (state.started){ ensureAudio(); return; }
+  state.started = true;
+  $("#start").classList.add("gone");
+  ensureAudio();
+  channelNoise(700);
+  if (S.source === "radio"){
+    const last = store.get("lastStation", null);
+    if (last) playStation(last); else osd("Tryck S och välj station");
+  } else { applyVizInput(); spStart(); }
+}
+$("#start").addEventListener("click", start);
+
+/* ================= styrning utifrån ================= */
+let cmdSince = -1;
+async function pollCmd(){
+  try{
+    const r = await fetch("/api/cmd?since=" + Math.max(0, cmdSince)); const j = await r.json();
+    if (cmdSince < 0){ cmdSince = j.last; return; }  // ignorera gamla kommandon vid sidladdning
+    for (const it of j.items){ cmdSince = Math.max(cmdSince, it.id); runCmd(it.c); }
+  }catch(e){}
+}
+function runCmd(c){
+  if (c === "open"){ $("#blank").classList.remove("on"); state.blanked = false; start();
+    if (S.source === "radio"){ if (audioEl && audioEl.paused) radioToggle(); } else spCmd("play"); }
+  else if (c === "close"){ $("#blank").classList.add("on"); state.blanked = true;
+    if (S.source === "radio"){ if (audioEl && !audioEl.paused) radioToggle(); } else spCmd("pause"); }
+  else if (c === "next") next();
+  else if (c === "prev") prev();
+  else if (c === "playpause") playPause();
+  else if (c.startsWith("viz:")) setViz(parseInt(c.slice(4),10));
+  else if (c.startsWith("palette:")) setPalette(c.slice(8));
+}
+setInterval(pollCmd, 1000);
+
+/* ================= panel och tangenter ================= */
+const panel = $("#panel");
+function togglePanel(open){ panel.classList.toggle("open", open ?? !panel.classList.contains("open")); }
+$("#gear").addEventListener("click", () => togglePanel(true));
+$("#closePanel").addEventListener("click", () => togglePanel(false));
+$("#srcSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (b){ start(); setSource(b.dataset.v); } });
+$("#genreSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.genre = b.dataset.q; saveS(); segOn("#genreSeg", S.genre); loadStations(S.genre); });
+$("#stSearchBtn").addEventListener("click", () => { const v = $("#stSearch").value.trim(); if (v){ segOn("#genreSeg",""); loadStations("name=" + encodeURIComponent(v)); } });
+$("#stSearch").addEventListener("keydown", e => { if (e.key === "Enter") $("#stSearchBtn").click(); });
+$("#vizSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setViz(+b.dataset.v); });
+$("#palSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setPalette(b.dataset.v); });
+$("#vinSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.vizInput = b.dataset.v; saveS(); start(); applyVizInput(); });
+$("#vol").addEventListener("input", e => { S.volume = +e.target.value; saveS(); if (outGain) outGain.gain.value = S.volume; });
+$("#autoCh").addEventListener("change", e => { S.autoChannel = e.target.checked; saveS(); });
+$("#crtChk").addEventListener("change", e => { S.crt = e.target.checked; saveS(); $("#crt").classList.toggle("on", S.crt); });
+$("#infoChk").addEventListener("change", e => { S.info = e.target.checked; saveS(); applyInfoVis(); });
+$("#spLogin").addEventListener("click", spLogin);
+$("#spLogout").addEventListener("click", () => { store.del("sp.token"); state.spConnected = false; renderSp(); if (S.source === "spotify") setTrack(null); });
+$("#spClient").addEventListener("change", e => { S.clientId = e.target.value.trim(); saveS(); });
+
+function applyInfoVis(){ $("#info").classList.toggle("hidden", !S.info); $("#dial").classList.toggle("hidden", !S.info); $("#infoChk").checked = S.info; }
+
+document.addEventListener("keydown", e => {
+  if (e.target.matches("input, textarea")) { if (e.key === "Escape") e.target.blur(); return; }
+  const k = e.key.toLowerCase();
+  if (!state.started && k !== "s"){ start(); if (k !== " ") return; }
+  if (k >= "1" && k <= "5") setViz(+k);
+  else if (k === "c") setViz(S.viz % 5 + 1);
+  else if (k === "b"){ const ks = Object.keys(PALETTES); setPalette(ks[(ks.indexOf(S.palette)+1) % ks.length]); osd(document.querySelector(`#palSeg button[data-v="${S.palette}"]`).textContent); }
+  else if (k === " "){ e.preventDefault(); playPause(); }
+  else if (k === "n" || k === "arrowright") next();
+  else if (k === "p" || k === "arrowleft") prev();
+  else if (k === "i"){ S.info = !S.info; saveS(); applyInfoVis(); }
+  else if (k === "f"){ document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.().catch(()=>{}); }
+  else if (k === "s") togglePanel();
+  else if (k === "escape") togglePanel(false);
+});
+
+let cursorTimer = 0;
+document.addEventListener("mousemove", () => { document.body.classList.remove("hidecursor"); clearTimeout(cursorTimer); cursorTimer = setTimeout(() => document.body.classList.add("hidecursor"), 2500); });
+
+/* ================= init ================= */
+(async function init(){
+  $("#spRedirect").textContent = SP.redirect;
+  $("#spClient").value = S.clientId;
+  $("#vol").value = S.volume;
+  $("#autoCh").checked = S.autoChannel;
+  $("#crtChk").checked = S.crt; $("#crt").classList.toggle("on", S.crt);
+  applyInfoVis();
+  setPalette(S.palette);
+  segOn("#vizSeg", String(S.viz)); segOn("#srcSeg", S.source); segOn("#vinSeg", S.vizInput); segOn("#genreSeg", S.genre);
+  resize(); requestAnimationFrame(frame);
+  if (location.pathname === "/callback"){
+    const ok = await spHandleCallback();
+    segOn("#srcSeg", S.source);
+    if (ok){ spStatus("Inloggad."); osd("Spotify anslutet"); }
+  }
+  renderSp();
+  loadStations(S.genre);
+  const q = new URLSearchParams(location.search);
+  if (q.get("autostart") === "1") start();   // för kioskläge på Pi:n
+})();
+</script>
+</body>
+</html>
