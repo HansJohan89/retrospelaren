@@ -43,6 +43,16 @@ På Pi:n är *Vågiga linjer*, *Spökbild* och *Färgfransar* de tyngsta effekte
 - **Skärm:** 4:3, 16:9 eller fyll, samt storlek och förskjutning för att passa bilden bakom masken
 - **Kanter:** veckodag och datum, veckonummer, klocka och väder (Open-Meteo, standard Falun, valfri ort)
 
+## När inget spelar
+
+I stället för bara testbilden växlar skärmen mellan sidor (S → När inget spelar):
+
+- **Väder i detalj:** nuläge, känns som, vind och byar, luftfuktighet, lufttryck, sol upp/ned, prognos varannan timme och fem dagar framåt
+- **Nyheter:** rubriker från SVT Nyheter, SVT Dalarna, Ekot eller valfritt RSS-flöde; huvudnyheten byts med jämna mellanrum
+- **Testbild**
+
+Välj vilka sidor som ingår och hur många sekunder varje sida visas. Nyheterna hämtas via servern (`/api/rss`) var tionde minut.
+
 ## Radio
 
 Stationer hämtas från radio-browser.info (50-tal, 60-tal, oldies, jazz, swing, rockabilly, doo-wop, svenska, egen sökning). Stjärnan sparar favoriter.
@@ -92,12 +102,10 @@ Railway-tjänsten är kopplad till GitHub-repot `HansJohan89/retrospelaren` och 
 
 För Spotify där: lägg även till `https://retrospelaren-production.up.railway.app/callback` som Redirect URI.
 
-`railway/server.ts` är en Bun-variant av servern för Railway Functions; `railway/bygg.sh` bygger en enda fil med `index.html` inbäddad om den varianten behövs igen.
-
 ## Filer
 
 - `index.html` – hela spelaren (en fil)
-- `server.py` – lokal server: statiska filer, radioproxy, låttitlar, omslag, kommandon
+- `server.py` – servern (lokalt och på Railway): statiska filer, radioproxy, låttitlar, omslag, nyhetsflöden, kommandon
 - `starta.bat` / `starta.sh` – startar servern och öppnar webbläsaren
 
 Inställningar, favoriter och Spotify-inloggning sparas i webbläsarens lokala lagring.

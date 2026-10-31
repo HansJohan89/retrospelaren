@@ -79,6 +79,38 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
   text-shadow:0 0 1vh var(--ink);opacity:0;transition:opacity .8s;text-transform:uppercase}
 #osd.on{opacity:.95;transition:opacity .1s}
 
+#board{position:absolute;left:6%;right:6%;top:12.5%;bottom:7%;z-index:3;color:var(--ink);font-size:calc(2.3vh*var(--sz));
+  opacity:0;pointer-events:none;transition:opacity .5s}
+#board.on{opacity:1}
+#board svg{stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
+#board .pg{position:absolute;inset:0;display:none;flex-direction:column;gap:2.2vh}
+#board .pg.on{display:flex}
+#board .kick{font-size:.8em;letter-spacing:.35em;text-transform:uppercase;color:var(--mid);display:flex;justify-content:space-between;gap:2vh;
+  border-bottom:max(1px,.2vh) solid var(--dim);padding-bottom:1vh;white-space:nowrap;overflow:hidden}
+.wxNow{display:flex;align-items:center;gap:3vh}
+.wxNow svg{width:13vh;height:13vh;stroke-width:1.1}
+.wxNow .tmp{font-family:var(--fT),serif;font-size:4.6em;line-height:.9;text-shadow:0 0 1.5vh color-mix(in srgb,var(--ink) 40%,transparent)}
+.wxNow .txt{display:flex;flex-direction:column;gap:.6vh}
+.wxNow .big{font-family:var(--fT),serif;font-size:1.7em}
+.wxNow .sub{color:var(--mid)}
+.wxFacts{display:flex;flex-wrap:wrap;gap:.8vh 3.5vh;color:var(--mid);font-size:.9em;letter-spacing:.06em}
+.wxFacts b{color:var(--ink);font-weight:400}
+.wxRow{display:grid;gap:1vh;text-align:center}
+.wxRow .c{display:flex;flex-direction:column;align-items:center;gap:.5vh;padding:1vh 0;border:max(1px,.15vh) solid var(--dim)}
+.wxRow .c svg{width:4.2vh;height:4.2vh}
+.wxRow .h{font-size:.8em;color:var(--mid);letter-spacing:.12em;text-transform:uppercase}
+.wxRow .v{font-size:1.15em}
+.wxRow .p{font-size:.75em;color:var(--mid)}
+.nwTop{min-height:0;flex:none}
+.nwTop .t{font-family:var(--fT),serif;font-size:2em;line-height:1.1;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+  text-shadow:0 0 1.2vh color-mix(in srgb,var(--ink) 40%,transparent)}
+.nwTop .d{margin-top:1.2vh;color:var(--mid);line-height:1.35;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.nwList{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1.1vh;overflow:hidden}
+.nwList li{display:flex;gap:2vh;align-items:baseline;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nwList li .tm{color:var(--mid);font-size:.8em;flex:none;width:5ch}
+.nwList li .x{overflow:hidden;text-overflow:ellipsis}
+.nwList li.cur{color:var(--accent)}
+
 #crt{position:absolute;inset:0;z-index:8;pointer-events:none}
 #crt.on::before{content:"";position:absolute;inset:0;
   background:repeating-linear-gradient(to bottom,rgba(0,0,0,var(--scan)) 0,rgba(0,0,0,var(--scan)) 1px,transparent 1px,transparent 3px);
@@ -164,6 +196,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
         </div>
       </div>
       <div id="dial"><canvas id="dialC"></canvas></div>
+      <div id="board"><div class="pg" id="pgWx"></div><div class="pg" id="pgNews"></div></div>
       <div id="osd"></div>
     </div></div>
     <div id="hum"></div>
@@ -288,6 +321,18 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
     </section>
 
     <section>
+      <h3>När inget spelar</h3>
+      <label class="chk"><input type="checkbox" id="idWx"> Väder i detalj</label>
+      <label class="chk"><input type="checkbox" id="idNews"> Nyheter</label>
+      <label class="chk"><input type="checkbox" id="idTest"> Testbild</label>
+      <div id="idleSl"></div>
+      <div class="row"><span class="lbl">Nyhetskälla</span><select id="feedSel"></select></div>
+      <div class="row" id="feedOwnRow"><input type="text" id="feedOwn" placeholder="Egen RSS-adress (https://...)"></div>
+      <div class="note" id="newsStatus"></div>
+      <div class="note">Sidorna växlar efter varandra. Är inget valt visas testbilden.</div>
+    </section>
+
+    <section>
       <h3>Kanter</h3>
       <label class="chk"><input type="checkbox" id="edDate"> Veckodag och datum</label>
       <label class="chk"><input type="checkbox" id="edWeek"> Veckonummer</label>
@@ -353,6 +398,14 @@ const FONTS_B = ["Special Elite","Courier Prime","Cutive Mono","Josefin Sans","J
 S.fx = Object.assign({}, FX_DEF, S.fx || {}); if (S.warm === undefined) S.warm = true;
 S.look = Object.assign({}, LOOK_DEF, S.look || {});
 S.edge = Object.assign({}, EDGE_DEF, S.edge || {});
+const IDLE_DEF = { wx:true, news:true, test:true, secs:25, feed:"svt", own:"" };
+S.idle = Object.assign({}, IDLE_DEF, S.idle || {});
+const FEEDS = {
+  svt:     { name:"SVT Nyheter",  url:"https://www.svt.se/nyheter/rss.xml" },
+  dalarna: { name:"SVT Dalarna",  url:"https://www.svt.se/nyheter/lokalt/dalarna/rss.xml" },
+  ekot:    { name:"Ekot",         url:"https://api.sr.se/api/rss/program/83" },
+  own:     { name:"Egen källa",   url:"" }
+};
 const saveS = () => store.set("settings", S);
 let FT = '"Limelight", serif', FB = '"Special Elite", monospace';
 
@@ -836,7 +889,7 @@ function applyFxStatic(){
   if (g > 0) ts.push(`${(0.6+g*1.6).toFixed(2)}vh 0 ${hexA(P.ink, (0.15+g*0.3).toFixed(2))}`);
   if (c > 0) ts.push(`${(-c*0.5).toFixed(2)}vh 0 rgba(255,40,40,${(c*0.6).toFixed(2)})`, `${(c*0.5).toFixed(2)}vh 0 rgba(0,190,255,${(c*0.6).toFixed(2)})`);
   const extra = ts.join(", ");
-  for (const el of [$("#info"), $("#edges"), $("#osd")]) el.style.textShadow = extra;
+  for (const el of [$("#info"), $("#edges"), $("#osd"), $("#board")]) el.style.textShadow = extra;
   $("#title").style.textShadow = `0 0 1.2vh ${hexA(P.ink, 0.45)}` + (extra ? ", " + extra : "");
   $("#crt").classList.toggle("on", S.crt);
   if (v("wobble") === 0){ wobD.setAttribute("scale", "0"); }
@@ -975,15 +1028,21 @@ function wxIcon(c, day){
 let WX = null, wxTimer = 0;
 async function loadWeather(){
   const e = S.edge;
-  if (!e.wx){ WX = null; renderEdges(); return; }
+  if (!e.wx && !S.idle.wx){ WX = null; renderEdges(); return; }
   try{
-    const u = `https://api.open-meteo.com/v1/forecast?latitude=${e.lat}&longitude=${e.lon}&current=temperature_2m,weather_code,is_day,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1`;
+    const u = `https://api.open-meteo.com/v1/forecast?latitude=${e.lat}&longitude=${e.lon}` +
+      `&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,is_day,wind_speed_10m,wind_gusts_10m,wind_direction_10m,surface_pressure` +
+      `&hourly=temperature_2m,weather_code,precipitation_probability,precipitation,is_day` +
+      `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,sunrise,sunset` +
+      `&timezone=auto&forecast_days=6&wind_speed_unit=ms`;
     const j = await (await fetch(u)).json();
-    WX = { t:j.current.temperature_2m, c:j.current.weather_code, day:j.current.is_day === 1,
-           hi:j.daily?.temperature_2m_max?.[0], lo:j.daily?.temperature_2m_min?.[0], at:Date.now() };
+    const c = j.current;
+    WX = { t:c.temperature_2m, c:c.weather_code, day:c.is_day === 1, feel:c.apparent_temperature, hum:c.relative_humidity_2m,
+           wind:c.wind_speed_10m, gust:c.wind_gusts_10m, dir:c.wind_direction_10m, pres:c.surface_pressure,
+           hi:j.daily?.temperature_2m_max?.[0], lo:j.daily?.temperature_2m_min?.[0], hourly:j.hourly, daily:j.daily, at:Date.now() };
     $("#wxStatus").textContent = `Väder för ${e.place}: ${Math.round(WX.t)}°, ${WX_TEXT(WX.c).toLowerCase()}.`;
   }catch(err){ $("#wxStatus").textContent = "Kunde inte hämta väder just nu."; }
-  renderEdges();
+  renderEdges(); renderBoard();
 }
 async function findPlace(name){
   $("#wxStatus").textContent = "Söker...";
@@ -1003,7 +1062,7 @@ function renderEdges(){
   const e = S.edge, d = new Date(), Lp = [], Rp = [];
   if (e.date) Lp.push(`<span>${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}</span>`);
   if (e.week) Lp.push(`<span>v.${isoWeek(d)}</span>`);
-  if (e.wx && WX){
+  if (e.wx && WX && BOARD.page !== "wx"){
     Rp.push(`${wxIcon(WX.c, WX.day)}<span>${Math.round(WX.t)}°</span><span>${WX_TEXT(WX.c)}</span>` +
       (WX.hi != null ? `<span class="sep">${Math.round(WX.hi)}° / ${Math.round(WX.lo)}°</span>` : "") + `<span class="sep">${e.place}</span>`);
   }
@@ -1012,6 +1071,106 @@ function renderEdges(){
   const l = Lp.join(sep), r = Rp.join(sep);
   if ($("#edgeL").innerHTML !== l) $("#edgeL").innerHTML = l;
   if ($("#edgeR").innerHTML !== r) $("#edgeR").innerHTML = r;
+}
+
+// ---------- tavla när inget spelar: väder, nyheter, testbild ----------
+const BOARD = { page:"", idx:-1, until:0, newsIdx:0, newsUntil:0 };
+let NEWS = { items:[], at:0, src:"" };
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" })[c]);
+const hhmm = d => String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
+const COMPASS = ["N","NO","O","SO","S","SV","V","NV"];
+const DAYS_SHORT = ["Sön","Mån","Tis","Ons","Tor","Fre","Lör"];
+function idlePages(){
+  const p = [];
+  if (S.idle.wx && WX && WX.hourly) p.push("wx");
+  if (S.idle.news && NEWS.items.length) p.push("news");
+  if (S.idle.test || !p.length) p.push("test");
+  return p;
+}
+function feedInfo(){ const f = FEEDS[S.idle.feed] || FEEDS.svt; return { name:f.name, url: S.idle.feed === "own" ? S.idle.own : f.url }; }
+async function loadNews(){
+  const f = feedInfo();
+  if (!S.idle.news || !f.url){ NEWS = { items:[], at:0, src:"" }; $("#newsStatus").textContent = S.idle.news && !f.url ? "Ange en RSS-adress." : ""; return; }
+  try{
+    const r = await fetch("/api/rss?url=" + encodeURIComponent(f.url));
+    const j = await r.json();
+    if (!Array.isArray(j)) throw new Error(j.error || "fel");
+    NEWS = { items:j.slice(0, 12), at:Date.now(), src:f.name };
+    $("#newsStatus").textContent = `${j.length} rubriker från ${f.name}, hämtade ${hhmm(new Date())}.`;
+  }catch(e){ $("#newsStatus").textContent = "Kunde inte hämta nyheter: " + e.message; }
+  renderBoard();
+}
+function renderWxPage(){
+  const W2 = WX, e = S.edge; if (!W2 || !W2.hourly) return "";
+  const now = Date.now(), H2 = W2.hourly, D2 = W2.daily;
+  let i0 = H2.time.findIndex(t => new Date(t).getTime() > now - 3600e3); if (i0 < 0) i0 = 0;
+  const hours = [];
+  for (let k = 0; k < 8 && i0 + k*2 < H2.time.length; k++){
+    const i = i0 + k*2, d = new Date(H2.time[i]);
+    hours.push(`<div class="c"><span class="h">${k === 0 ? "Nu" : String(d.getHours()).padStart(2,"0")}</span>${wxIcon(H2.weather_code[i], H2.is_day[i] === 1)}` +
+      `<span class="v">${Math.round(H2.temperature_2m[i])}°</span><span class="p">${H2.precipitation_probability[i] ?? 0}%</span></div>`);
+  }
+  const days = [];
+  for (let i = 1; i < D2.time.length && days.length < 5; i++){
+    const d = new Date(D2.time[i] + "T12:00");
+    days.push(`<div class="c"><span class="h">${DAYS_SHORT[d.getDay()]}</span>${wxIcon(D2.weather_code[i], true)}` +
+      `<span class="v">${Math.round(D2.temperature_2m_max[i])}° / ${Math.round(D2.temperature_2m_min[i])}°</span>` +
+      `<span class="p">${(D2.precipitation_sum[i] ?? 0).toFixed(1).replace(".", ",")} mm</span></div>`);
+  }
+  const sr = D2.sunrise?.[0] ? hhmm(new Date(D2.sunrise[0])) : "–", ss = D2.sunset?.[0] ? hhmm(new Date(D2.sunset[0])) : "–";
+  return `<div class="kick"><span>Väder · ${esc(e.place)}</span><span>Uppdaterat ${hhmm(new Date(W2.at))}</span></div>
+    <div class="wxNow">${wxIcon(W2.c, W2.day)}<span class="tmp">${Math.round(W2.t)}°</span>
+      <div class="txt"><span class="big">${WX_TEXT(W2.c)}</span><span class="sub">Känns som ${Math.round(W2.feel)}° · Idag ${Math.round(W2.hi)}° / ${Math.round(W2.lo)}°</span></div></div>
+    <div class="wxFacts"><span>Vind <b>${Math.round(W2.wind)} m/s ${COMPASS[Math.round((W2.dir || 0)/45) % 8]}</b>${W2.gust ? ` (byar ${Math.round(W2.gust)})` : ""}</span>
+      <span>Luftfuktighet <b>${Math.round(W2.hum)}%</b></span><span>Lufttryck <b>${Math.round(W2.pres)} hPa</b></span>
+      <span>Sol upp <b>${sr}</b></span><span>Sol ned <b>${ss}</b></span></div>
+    <div class="wxRow" style="grid-template-columns:repeat(${hours.length},1fr)">${hours.join("")}</div>
+    <div class="wxRow" style="grid-template-columns:repeat(${days.length},1fr)">${days.join("")}</div>`;
+}
+function renderNewsPage(){
+  const it = NEWS.items; if (!it.length) return "";
+  const cur = BOARD.newsIdx % it.length, top = it[cur];
+  const when = x => x.date ? hhmm(new Date(x.date)) : "";
+  const list = [];
+  for (let k = 1; k <= 5 && k < it.length; k++){ const x = it[(cur + k) % it.length]; list.push(`<li><span class="tm">${when(x)}</span><span class="x">${esc(x.title)}</span></li>`); }
+  return `<div class="kick"><span>Nyheter · ${esc(NEWS.src)}</span><span>${cur + 1} / ${it.length}</span></div>
+    <div class="nwTop"><div class="t">${esc(top.title)}</div>${top.desc ? `<div class="d">${esc(top.desc)}</div>` : ""}</div>
+    <ul class="nwList">${list.join("")}</ul>`;
+}
+function renderBoard(){
+  const wx = $("#pgWx"), nw = $("#pgNews");
+  if (BOARD.page === "wx"){ const h = renderWxPage(); if (wx.innerHTML !== h) wx.innerHTML = h; }
+  if (BOARD.page === "news"){ const h = renderNewsPage(); if (nw.innerHTML !== h) nw.innerHTML = h; }
+  wx.classList.toggle("on", BOARD.page === "wx"); nw.classList.toggle("on", BOARD.page === "news");
+  $("#board").classList.toggle("on", BOARD.page === "wx" || BOARD.page === "news");
+}
+// körs varje bildruta; returnerar vilken sida som ska visas just nu ("" när musik spelar)
+function boardStep(idle, now){
+  if (!idle){ if (BOARD.page){ BOARD.page = ""; BOARD.idx = -1; renderBoard(); renderEdges(); } return ""; }
+  const pages = idlePages();
+  if (!BOARD.page || now > BOARD.until || !pages.includes(BOARD.page)){
+    BOARD.idx = (BOARD.idx + 1) % pages.length;
+    const next = pages[BOARD.idx];
+    if (BOARD.page && next !== BOARD.page) channelNoise(380);
+    BOARD.page = next; BOARD.until = now + S.idle.secs*1000;
+    BOARD.newsUntil = now + Math.max(6, S.idle.secs/3)*1000;
+    renderBoard(); renderEdges();
+  }
+  if (BOARD.page === "news" && now > BOARD.newsUntil){ BOARD.newsIdx++; BOARD.newsUntil = now + Math.max(6, S.idle.secs/3)*1000; renderBoard(); }
+  return BOARD.page;
+}
+function drawBoardBg(t){
+  ctx.globalCompositeOperation = "source-over"; ctx.shadowBlur = 0;
+  ctx.fillStyle = P.bg; ctx.fillRect(0,0,W,H);
+  // svagt rutmönster och en långsamt rullande ljusrand, som en textkanal
+  ctx.strokeStyle = hexA(P.ink, 0.05); ctx.lineWidth = 1*DPR; ctx.beginPath();
+  const step = H/24;
+  for (let y = 0; y < H; y += step){ ctx.moveTo(0,y); ctx.lineTo(W,y); }
+  ctx.stroke();
+  const ry = ((t*0.05) % 1.2 - 0.1) * H;
+  const rg = ctx.createLinearGradient(0, ry-H*0.08, 0, ry+H*0.08);
+  rg.addColorStop(0,"rgba(255,255,255,0)"); rg.addColorStop(0.5,"rgba(255,255,255,0.035)"); rg.addColorStop(1,"rgba(255,255,255,0)");
+  ctx.fillStyle = rg; ctx.fillRect(0, ry-H*0.08, W, H*0.16);
 }
 
 // ================= huvudloop =================
@@ -1027,7 +1186,8 @@ function frame(nowMs){
   state.progressNow = state.playing && !state.live ? state.progress + (Date.now() - state.polledAt) : state.progress;
   if (state.playing) state.lastActive = nowMs;
   const idle = !state.started || (!state.playing && simAmp < 0.02 && (nowMs - state.lastActive) > 1500);
-  if (idle) drawTestcard(t);
+  const page = boardStep(idle && state.started, nowMs);
+  if (idle) (page === "wx" || page === "news") ? drawBoardBg(t) : drawTestcard(t);
   else { if (lastVizDrawn !== S.viz){ ctx.fillStyle = P.bg; ctx.fillRect(0,0,W,H); lastVizDrawn = S.viz; } VIZ[S.viz](t); }
   postFx();
   if (idle) lastVizDrawn = 0;
@@ -1460,6 +1620,13 @@ function buildControls(){
   $("#warmChk").addEventListener("change", e => { S.warm = e.target.checked; saveS(); });
   for (const [id, key] of [["#edDate","date"],["#edWeek","week"],["#edClock","clock"],["#edWx","wx"]])
     $(id).addEventListener("change", e => { S.edge[key] = e.target.checked; saveS(); if (key === "wx") loadWeather(); else renderEdges(); });
+  syncers.push(slider($("#idleSl"), "secs", "Sekunder per sida", () => S.idle, 10, 90, () => {}));
+  for (const [id, key] of [["#idWx","wx"],["#idNews","news"],["#idTest","test"]])
+    $(id).addEventListener("change", e => { S.idle[key] = e.target.checked; saveS(); BOARD.until = 0;
+      if (key === "wx") loadWeather(); if (key === "news") loadNews(); });
+  $("#feedSel").innerHTML = Object.entries(FEEDS).map(([k, f]) => `<option value="${k}">${f.name}</option>`).join("");
+  $("#feedSel").addEventListener("change", e => { S.idle.feed = e.target.value; saveS(); $("#feedOwnRow").style.display = S.idle.feed === "own" ? "" : "none"; NEWS.items = []; loadNews(); });
+  $("#feedOwn").addEventListener("change", e => { S.idle.own = e.target.value.trim(); saveS(); loadNews(); });
   $("#wxBtn").addEventListener("click", () => { const v = $("#wxPlace").value.trim(); if (v) findPlace(v); });
   $("#wxPlace").addEventListener("keydown", e => { if (e.key === "Enter") $("#wxBtn").click(); });
   $("#resetBtn").addEventListener("click", () => {
@@ -1475,6 +1642,8 @@ function syncAll(){
   segOn("#coverSeg", S.look.cover); segOn("#fmtSeg", S.look.format);
   $("#edDate").checked = S.edge.date; $("#edWeek").checked = S.edge.week; $("#edClock").checked = S.edge.clock; $("#edWx").checked = S.edge.wx;
   $("#wxPlace").value = S.edge.place;
+  $("#idWx").checked = S.idle.wx; $("#idNews").checked = S.idle.news; $("#idTest").checked = S.idle.test;
+  $("#feedSel").value = S.idle.feed; $("#feedOwn").value = S.idle.own; $("#feedOwnRow").style.display = S.idle.feed === "own" ? "" : "none";
 }
 function applyInfoVis(){ $("#info").classList.toggle("hidden", !S.info); $("#dial").classList.toggle("hidden", !S.info || !S.look.dial); $("#infoChk").checked = S.info; }
 
@@ -1510,6 +1679,8 @@ document.addEventListener("mousemove", () => { document.body.classList.remove("h
   applyFxStatic();
   renderEdges(); setInterval(renderEdges, 1000);
   loadWeather(); setInterval(loadWeather, 15*60*1000);
+  loadNews(); setInterval(loadNews, 10*60*1000);
+  setInterval(renderBoard, 60*1000);
   segOn("#vizSeg", String(S.viz)); segOn("#srcSeg", S.source); segOn("#vinSeg", S.vizInput); segOn("#genreSeg", S.genre);
   resize(); requestAnimationFrame(frame);
   if (location.pathname === "/callback"){

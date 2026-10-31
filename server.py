@@ -14,6 +14,7 @@ Vägar:
   /api/radio?...    söker stationer via radio-browser.info
   /api/img?url=     proxar en bild (omslag/stationslogga) med CORS
   /api/cover?term=  omslag, album och år för en radiolåt (iTunes sök-API)
+  /api/rss?url=     rubriker ur ett RSS/Atom-flöde (nyhetssidan när inget spelar)
   /api/send?c=      skicka kommando till sidan: open, close, next, prev,
                     playpause, viz:1-5, palette:svartvit|sepia|fosfor|farg
 
@@ -130,6 +131,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.img(q.get("url", [""])[0])
             if path == "/api/cover":
                 return self.cover(q.get("term", [""])[0])
+            if path == "/api/rss":
+                return self.rss(q.get("url", [""])[0])
             if path == "/api/send":
                 return self.send_cmd(q.get("c", [""])[0])
             if path == "/api/cmd":
@@ -255,6 +258,56 @@ class Handler(SimpleHTTPRequestHandler):
             "artist": s.get("artistName") or "",
             "title": s.get("trackName") or "",
         })
+
+    def rss(self, url):
+        """Rubriker ur ett RSS- eller Atom-flöde, som JSON."""
+        import re
+        import html
+        import xml.etree.ElementTree as ET
+        from email.utils import parsedate_to_datetime
+        if not url.startswith(("http://", "https://")):
+            return self._json({"error": "ogiltig url"}, 400)
+        try:
+            with open_url(url, timeout=10) as r:
+                raw = r.read(3 * 1024 * 1024)
+            root = ET.fromstring(raw)
+        except Exception as e:
+            return self._json({"error": str(e)}, 502)
+
+        def local(tag):
+            return tag.rsplit("}", 1)[-1]
+
+        def child(el, *names):
+            for c in el:
+                if local(c.tag) in names and (c.text or "").strip():
+                    return c.text.strip()
+            return ""
+
+        def clean(s):
+            s = html.unescape(re.sub(r"<[^>]+>", " ", s or ""))
+            return re.sub(r"\s+", " ", s).strip()
+
+        out = []
+        for el in root.iter():
+            if local(el.tag) not in ("item", "entry"):
+                continue
+            title = clean(child(el, "title"))
+            if not title:
+                continue
+            date = child(el, "pubDate", "published", "updated", "date")
+            iso = ""
+            if date:
+                try:
+                    iso = parsedate_to_datetime(date).isoformat()
+                except Exception:
+                    iso = date
+            desc = clean(child(el, "description", "summary", "content"))
+            if len(desc) > 400:
+                desc = desc[:397].rsplit(" ", 1)[0] + "..."
+            out.append({"title": title, "desc": desc, "date": iso})
+            if len(out) >= 20:
+                break
+        return self._json(out)
 
     # --- styrning utifrån (t.ex. jalusins reedbrytare på Pi:n) ---
     # curl "http://127.0.0.1:8888/api/send?c=open"   (open, close, next, prev, playpause, viz:3)
