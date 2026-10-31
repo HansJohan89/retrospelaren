@@ -86,12 +86,13 @@ chromium --kiosk --autoplay-policy=no-user-gesture-required "http://127.0.0.1:88
 
 ## Testversion i molnet (Railway)
 
-Körs som Railway Function i projektet `retrospelaren`:
 https://retrospelaren-production.up.railway.app
+
+Railway-tjänsten är kopplad till GitHub-repot `HansJohan89/retrospelaren` och bygger om automatiskt vid varje push till `main`. Den kör `server.py` enligt `railway.json`.
 
 För Spotify där: lägg även till `https://retrospelaren-production.up.railway.app/callback` som Redirect URI.
 
-`railway/server.ts` är molnversionen av `server.py` (Bun). `railway/bygg.sh` bygger `railway/function.ts` = servern med `index.html` inbäddad, vilket är filen som ligger på Railway.
+`railway/server.ts` är en Bun-variant av servern för Railway Functions; `railway/bygg.sh` bygger en enda fil med `index.html` inbäddad om den varianten behövs igen.
 
 ## Filer
 
