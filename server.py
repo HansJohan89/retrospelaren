@@ -26,7 +26,9 @@ Vägar:
   /api/state        GET/POST: sparade inställningar, favoriter och senaste station
                     (fil i DATA_DIR, t.ex. en Railway-volym, så de överlever omstarter)
   /api/send?c=      skicka kommando till sidan: open, close, next, prev,
-                    playpause, viz:1-5, palette:svartvit|sepia|fosfor|farg
+                    playpause, wake, viz:1-5, palette:svartvit|sepia|fosfor|farg
+                    (wake = närvarostyrd uppvakning: fadar upp Spotify på
+                    enheten "vardagsrum", tänkt för kameratriggern)
 
 Bara Pythons standardbibliotek. Inget att installera.
 """
