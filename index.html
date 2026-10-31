@@ -176,13 +176,15 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 /* Detaljerad tabell: spelade, vunna, oavgjorda, förlorade, målskillnad, mål och poäng. Mål döljs när spalten är smal. */
 .fbBox{container-type:inline-size}
 .mt .r.x,.fbBox .mh{grid-template-columns:2.6ch 3.6vh minmax(0,1fr) repeat(4,2.6ch) 3.4ch 5.4ch 3ch;gap:1.4vh;text-align:right}
-.fbBox .mh{display:grid;flex:none;padding:0 .8vh .4vh;color:var(--mid);font-size:.75em;letter-spacing:.08em;border-bottom:max(1px,.15vh) solid var(--dim);margin-bottom:.4vh}
+.fbBox .mh{display:grid;flex:none;padding:0 .8vh .4vh;color:var(--mid);border-bottom:max(1px,.15vh) solid var(--dim);margin-bottom:.4vh}
 .mt .r.x img{width:3.6vh;height:3.6vh;justify-self:center}
 .mt .r.x .t{text-align:left}
 .mt .r.x span:first-child{text-align:right}
 .mt .r.x .pt{color:var(--ink)}
 .mt .r.x .n{color:var(--mid)}
-.mt .r.x.me .n{color:inherit}
+.mt .r.x.me .n,.mt .r.x.me .pt{color:inherit}
+/* Rubrikerna i mindre text, men samma kolumnbredder som raderna (bredderna räknas i tecken) */
+.fbBox .mh span{font-size:.75em;letter-spacing:.06em}
 @container (max-width:30em){
   .mt .r.x,.fbBox .mh{grid-template-columns:2.6ch 3.6vh minmax(0,1fr) repeat(4,2.6ch) 3.4ch 3ch}
   .mt .r.x .gm,.fbBox .mh .gm{display:none}
