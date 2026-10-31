@@ -714,7 +714,12 @@ class Handler(SimpleHTTPRequestHandler):
             return {"team_name": name, "team_id": team, "league": league_name,
                     "standing": next((s for s in table if s["team"]["id"] == team), None),
                     "table": [{"position": s.get("position"), "points": s.get("points"),
-                               "name": s["team"].get("name"), "id": s["team"].get("id"), "logo": s["team"].get("logo")} for s in table],
+                               "name": s["team"].get("name"), "id": s["team"].get("id"), "logo": s["team"].get("logo"),
+                               # Spelade, vunna, oavgjorda, förlorade, gjorda och insläppta mål (hela säsongen)
+                               "g": (s.get("total") or {}).get("games"), "w": (s.get("total") or {}).get("wins"),
+                               "d": (s.get("total") or {}).get("draws"), "l": (s.get("total") or {}).get("loses"),
+                               "gf": (s.get("total") or {}).get("scoredGoals"), "ga": (s.get("total") or {}).get("receivedGoals")}
+                              for s in table],
                     "next_match": summary(team, nxt), "recent_results": [summary(team, m) for m in recent]}
         try:
             data = {"ok": True, "at": int(time.time() * 1000),

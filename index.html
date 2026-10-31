@@ -127,6 +127,11 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #pgWx .wxA .wxDays{font-size:.85em}
 #pgWx .wxB{flex:1 1 auto;min-height:0;overflow:hidden;display:grid;grid-template-columns:1fr 1fr;gap:6vh;grid-template-rows:minmax(0,1fr)}
 #pgWx .wxB.solo{grid-template-columns:1fr}
+/* Med fotboll: vänster spalt = timprognos (4 tider) ovanför en mer fyrkantig skylt, höger spalt = tabellen från timprognosens topp till skyltens botten */
+#pgWx .wxB.duo{grid-template-columns:minmax(0,.78fr) minmax(0,1.22fr)}
+#pgWx .wxC{display:flex;flex-direction:column;gap:2.4vh;min-height:0;min-width:0}
+#pgWx .wxC .wxHours{flex:none}
+#pgWx .wxB.duo .sign{flex:1 1 auto;min-height:0;max-height:none;align-self:stretch}
 #pgWx .wxRow,#pgWx .kick{flex:none}
 #pgWx.tight .wxHours{display:none}
 /* Hållplatsskylt i Dalatrafiks stil: rött namnfält, vita rader med röda linjer, rött fält med webb och telefon */
@@ -158,7 +163,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .fbBox > .bh,.fbBox > .nx,.fbBox > .nxm,.bus > .bh{flex:none}
 .fbBox .nxm{display:flex;justify-content:center;align-items:center;gap:3.2vh;margin-bottom:1.4vh;color:var(--mid);min-width:0}
 .fbBox .nxm .vs{display:flex;align-items:center;justify-content:center;gap:1.6vh}
-.fbBox .nxm img{width:9.5vh;height:9.5vh;object-fit:contain;filter:var(--cover-filter);flex:none}
+.fbBox .nxm img{width:11vh;height:11vh;object-fit:contain;filter:var(--cover-filter);flex:none}
 .fbBox .nxm b{font-weight:400;color:var(--ink)}
 .fbBox .nxm i{font-style:normal;color:var(--ink)}
 .fbBox .nxm .dt{color:var(--ink);white-space:nowrap;font-size:.9em}
@@ -168,6 +173,20 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .mt{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;overflow:hidden}
 .mt .r{display:grid;grid-template-columns:3ch 3vh 1fr auto;gap:1.2vh;align-items:center;padding:.3vh .8vh;flex:none}
 .mt .r img{width:3vh;height:3vh;object-fit:contain;filter:var(--cover-filter)}
+/* Detaljerad tabell: spelade, vunna, oavgjorda, förlorade, målskillnad, mål och poäng. Mål döljs när spalten är smal. */
+.fbBox{container-type:inline-size}
+.mt .r.x,.fbBox .mh{grid-template-columns:2.6ch 3.6vh minmax(0,1fr) repeat(4,2.6ch) 3.4ch 5.4ch 3ch;gap:1.4vh;text-align:right}
+.fbBox .mh{display:grid;flex:none;padding:0 .8vh .4vh;color:var(--mid);font-size:.75em;letter-spacing:.08em;border-bottom:max(1px,.15vh) solid var(--dim);margin-bottom:.4vh}
+.mt .r.x img{width:3.6vh;height:3.6vh;justify-self:center}
+.mt .r.x .t{text-align:left}
+.mt .r.x span:first-child{text-align:right}
+.mt .r.x .pt{color:var(--ink)}
+.mt .r.x .n{color:var(--mid)}
+.mt .r.x.me .n{color:inherit}
+@container (max-width:30em){
+  .mt .r.x,.fbBox .mh{grid-template-columns:2.6ch 3.6vh minmax(0,1fr) repeat(4,2.6ch) 3.4ch 3ch}
+  .mt .r.x .gm,.fbBox .mh .gm{display:none}
+}
 .mt .r .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mt .r.me{background:var(--ink);color:var(--bg)}
 .mt .r.me img{filter:none}
@@ -1481,9 +1500,10 @@ function renderWxPage(){
         <span>Fukt <b>${Math.round(W2.hum)}%</b></span><span>Tryck <b>${Math.round(W2.pres)} hPa</b></span>
         <span>Sol <b>${sr}</b> – <b>${ss}</b></span></div>
     </div><div class="wxRow wxDays" style="grid-template-columns:repeat(${days.length},1fr)">${days.join("")}</div></div>
-    <div class="wxRow wxHours" style="grid-template-columns:repeat(${hours.length},1fr)">${hours.join("")}</div>
-    ${bus || fb ? `<div class="wxB${bus && fb ? "" : " solo"}">${bus ? renderBus() : ""}${fb ? renderFbBox(fb) : ""}</div>` : ""}`;
+    ${fb ? `<div class="wxB duo"><div class="wxC">${hoursRow(hours.slice(0, 4))}${bus ? renderBus() : ""}</div>${renderFbBox(fb)}</div>`
+      : hoursRow(hours) + (bus ? `<div class="wxB solo">${renderBus()}</div>` : "")}`;
 }
+function hoursRow(hours){ return `<div class="wxRow wxHours" style="grid-template-columns:repeat(${hours.length},1fr)">${hours.join("")}</div>`; }
 // AIK-tabellen bredvid bussarna: alla lag renderas, fitLists visar sedan så många som får plats med AIK i mitten
 function renderFbBox(T){
   const st = T.standing || {}, nm = T.next_match;
@@ -1491,8 +1511,13 @@ function renderFbBox(T){
   // Nästa match som två emblem (hemmalaget först) och tid, i stället för text
   const own = st.team && st.team.logo ? logo(st.team.logo) : "", opp = nm ? logo(nm.opponent_logo) : "";
   const next = nm ? `<div class="nxm"><b>Nästa:</b><span class="vs">${nm.is_home ? own + "<i>–</i>" + opp : opp + "<i>–</i>" + own}</span><span class="dt">${SV_DAYS[nd.getDay()]} ${nd.getDate()}/${nd.getMonth()+1} ${hhmm(nd)}</span></div>` : "";
-  const rows = (T.table || []).map(r => `<div class="r${r.id === T.team_id ? " me" : ""}"><span>${r.position}</span>${logo(r.logo)}<span class="t">${esc(r.id === T.team_id ? T.team_name : r.name)}</span><span>${r.points}</span></div>`).join("");
-  return `<div class="fbBox">${next}<div class="mt">${rows}</div></div>`;
+  const v = x => x == null ? "" : x;
+  const diff = r => r.gf == null || r.ga == null ? "" : (r.gf - r.ga > 0 ? "+" : "") + (r.gf - r.ga);
+  const rows = (T.table || []).map(r => `<div class="r x${r.id === T.team_id ? " me" : ""}"><span>${r.position}</span>${logo(r.logo)}<span class="t">${esc(r.id === T.team_id ? T.team_name : r.name)}</span>` +
+    `<span class="n">${v(r.g)}</span><span class="n">${v(r.w)}</span><span class="n">${v(r.d)}</span><span class="n">${v(r.l)}</span><span class="n">${diff(r)}</span>` +
+    `<span class="n gm">${r.gf == null ? "" : r.gf + "–" + r.ga}</span><span class="pt">${r.points}</span></div>`).join("");
+  const head = `<div class="mh"><span></span><span></span><span></span><span>S</span><span>V</span><span>O</span><span>F</span><span>+/−</span><span class="gm">Mål</span><span>P</span></div>`;
+  return `<div class="fbBox">${next}${head}<div class="mt">${rows}</div></div>`;
 }
 function newsHost(link){ try{ return new URL(link).hostname.replace(/^www\./, ""); }catch(e){ return ""; } }
 async function ensureImg(x){
