@@ -2514,7 +2514,7 @@ function runCmd(c){
   else if (c.startsWith("viz:")) setViz(parseInt(c.slice(4),10));
   else if (c.startsWith("palette:")) setPalette(c.slice(8));
 }
-setInterval(pollCmd, 1000);
+setInterval(pollCmd, 300);
 
 // ================= panel och tangenter =================
 const panel = $("#panel");
