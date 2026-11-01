@@ -1368,33 +1368,36 @@ async function playWakeAnimation(readyPromise){
     await pop.finished;
     flash.style.opacity = "0";
 
-    // Fas 2: skarmen avblankas till den riktiga testbilden, och de riktiga,
-    // konfigurerade stor-effekterna (brus/taror/rullning/brum) jagar
-    // signalen i lugnare, mer naturliga vagor - inte ett eget flimmer.
+    // Fas 2: skarmen avblankas till den riktiga testbilden. Ett enda kort
+    // brusutbrott markerar sjalva bytet (precis som nar appen vaxlar sida
+    // internt) - sen sköter de effekter som faktiskt ar installda pa sidan
+    // (brus/vinjett/fargfransar/rullning/brum osv, via den vanliga fxFrame-
+    // motorn) resten helt pa egen hand, i sin egen naturliga, konfigurerade
+    // styrka och takt. Inget eget pafundat utbrott var 400:e ms langre -
+    // det var det som gjorde att det "hoppade for mycket" och kändes
+    // mycket starkare an de installda effekterna.
     // Tavlan (vader/buss/fotboll) ar en separat DOM-overlay som annars
     // skulle ligga kvar och synas genom/over testbilden - stangs av har.
     forceTestcard = true;
     BOARD.page = ""; BOARD.idx = -1; renderBoard(); renderEdges();
-    channelNoise(900);
+    channelNoise(420);
     blank.style.transition = "opacity .4s";
     blank.style.opacity = "0"; state.blanked = false;
-    await wait(500);
 
-    const searchUntil = performance.now() + 3600;
-    while (performance.now() < searchUntil){
-      startBurst(performance.now());
-      channelNoise(300 + Math.random()*300);
-      await wait(420 + Math.random()*420);
-    }
+    await wait(3800);
 
-    // Fas 3: signalen laser - en sista, mjuk brusvag lagger sig.
-    channelNoise(280);
-    await wait(550);
+    // Fas 3: en kort, dold vaxling (ett andetag morker) fran testbilden
+    // till appens riktiga innehall - undviker en tvar klippning rakt in i
+    // musikvyn.
+    blank.style.transition = "opacity .35s";
+    blank.style.opacity = "1"; state.blanked = true;
+    await wait(420);
   } finally {
     forceTestcard = false;
   }
 
-  // Fas 4: full CRT-uppvarmning pa den riktiga skarmen, sen overgang till appen
+  // Fas 4: full CRT-uppvarmning pa den riktiga skarmen bakom morkret, sen
+  // en mjuk, langsam infadning till appen - ingen tvar overgang.
   warmUp();
 
   if (readyPromise){
@@ -1404,7 +1407,11 @@ async function playWakeAnimation(readyPromise){
   const left = MIN_MS - (performance.now() - t0);
   if (left > 0) await wait(left);
 
-  blank.style.transition = ""; blank.style.opacity = ""; state.blanked = false;
+  blank.style.transition = "opacity 1.1s";
+  blank.style.opacity = "0"; state.blanked = false;
+  await wait(1150);
+
+  blank.style.transition = ""; blank.style.opacity = "";
   flash.style.transition = ""; flash.style.opacity = "";
   beam.style.transition = ""; beam.style.opacity = "";
 }
