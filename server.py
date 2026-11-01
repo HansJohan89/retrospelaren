@@ -27,8 +27,10 @@ Vägar:
                     (fil i DATA_DIR, t.ex. en Railway-volym, så de överlever omstarter)
   /api/send?c=      skicka kommando till sidan: open, close, next, prev,
                     playpause, wake, viz:1-5, palette:svartvit|sepia|fosfor|farg
-                    (wake = närvarostyrd uppvakning: fadar upp Spotify på
-                    enheten "vardagsrum", tänkt för kameratriggern)
+                    (wake = närvarostyrd uppvakning, tänkt för kameratriggern)
+  /api/sonos-now    GET: vad Sonos (Vardagsrum) spelar just nu, för sidans
+                    nu-spelar-panel. POST: monitor.py rapporterar in det
+                    (Sonos syns aldrig i Spotifys eget API, se monitor.py)
 
 Bara Pythons standardbibliotek. Inget att installera.
 """
@@ -39,6 +41,7 @@ import os
 import socket
 import ssl
 import sys
+import time
 import urllib.parse
 import urllib.request
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -54,6 +57,13 @@ RADIO_MIRRORS = [
 SSL_CTX = ssl.create_default_context()
 CMD_LOCK = __import__("threading").Lock()
 CMD_STATE = {"id": 0, "list": []}
+# Vad Sonos (Vardagsrum) spelar just nu - rapporteras in av monitor.py (som
+# styr Sonos lokalt, se den filens kommentarer för varför: Sonos syns aldrig
+# i Spotifys eget webb-API), och läses av sidan som ett eget, separat spår
+# vid sidan av den vanliga Spotify-statusen.
+SONOS_LOCK = __import__("threading").Lock()
+SONOS_NOW = {"room": "", "title": "", "artist": "", "album": "", "art": "", "playing": False, "at": 0}
+SONOS_MAX_AGE_S = 90  # om inget rapporterats in på så här länge räknas det som stoppat
 OG_CACHE = {}
 DEP_CACHE = {}
 ALBUM_CACHE = {}
@@ -95,6 +105,29 @@ def save_state(patch):
         except OSError as e:
             return {"ok": False, "error": str(e)}
     return {"ok": True}
+
+
+def get_sonos_now():
+    """Hamtas av sidan. 'playing' tvingas till False om inget rapporterats
+    in nyligen (t.ex. om monitor.py inte kor just nu), sa en gammal latinfo
+    inte ligger kvar och visas som om den fortfarande spelade."""
+    with SONOS_LOCK:
+        d = dict(SONOS_NOW)
+    if time.time() - d.get("at", 0) > SONOS_MAX_AGE_S:
+        d["playing"] = False
+    return d
+
+
+def set_sonos_now(patch):
+    """Anropas av monitor.py (lokalt pa anvandarens natverk, inget skarmen
+    sjalv kan na) nar Sonos-uppspelningen i Vardagsrum andras."""
+    with SONOS_LOCK:
+        for k in ("room", "title", "artist", "album", "art", "playing"):
+            if k in patch:
+                SONOS_NOW[k] = patch[k]
+        SONOS_NOW["at"] = time.time()
+        d = dict(SONOS_NOW)
+    return {"ok": True, "now": d}
 
 
 def _get_json(url, headers=None, timeout=12):
@@ -341,6 +374,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.poll_cmd(int(q.get("since", ["0"])[0] or 0))
             if path == "/api/state":
                 return self._json(load_state())
+            if path == "/api/sonos-now":
+                return self._json(get_sonos_now())
             if path == "/api/ping":
                 return self._json({"ok": True})
             if path == "/api/logo":
@@ -355,7 +390,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         path = urllib.parse.urlparse(self.path).path
-        if path != "/api/state":
+        if path not in ("/api/state", "/api/sonos-now"):
             return self._json({"error": "hittades inte"}, 404)
         try:
             n = int(self.headers.get("Content-Length") or 0)
@@ -366,6 +401,8 @@ class Handler(SimpleHTTPRequestHandler):
                 raise ValueError("inte ett objekt")
         except Exception as e:
             return self._json({"error": "ogiltig data: %s" % e}, 400)
+        if path == "/api/sonos-now":
+            return self._json(set_sonos_now(data))
         return self._json(save_state(data))
 
     def asset(self, name):

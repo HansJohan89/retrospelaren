@@ -2303,6 +2303,26 @@ async function spPoll(){
 }
 function spStart(){ clearInterval(SP.timer); spPoll(); SP.timer = setInterval(spPoll, 2500); }
 function spStop(){ clearInterval(SP.timer); }
+// Sonos (Vardagsrum) ar helt osynlig for Spotifys eget API (se monitor.py pa
+// kameradatorn, som styr den lokalt och rapporterar in hit via en egen liten
+// endpoint) - pollas darfor separat och oberoende av S.source/spPoll(), sa
+// bade "vanlig" Spotify-uppspelning OCH Sonos-vakningen kan visa latinfo.
+// Nar Sonos faktiskt spelar tar den over nu-spelar-panelen (det ar det som
+// hors i rummet just da); slutar den vinner nasta spPoll()-tick som vanligt.
+async function sonosPoll(){
+  try {
+    const r = await fetch("/api/sonos-now", { cache: "no-store" });
+    const d = r.ok ? await r.json() : null;
+    if (d && d.playing){
+      setTrack({ src:"sonos", kicker: "Sonos" + (d.room ? " · " + d.room : ""),
+        title: d.title || "", artist: d.artist || "", album: d.album || "", cover: d.art || "" });
+    } else if (state.track && state.track.src === "sonos"){
+      setTrack(null);
+    }
+  } catch(e){}
+}
+setInterval(sonosPoll, 4000);
+sonosPoll();
 async function spCmd(kind){
   const map = { play:["PUT","/me/player/play"], pause:["PUT","/me/player/pause"], next:["POST","/me/player/next"], prev:["POST","/me/player/previous"] };
   const [m, p] = map[kind];
