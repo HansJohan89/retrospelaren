@@ -2280,10 +2280,12 @@ async function spResumeOnWakeDevice(){
 async function spPoll(){
   if (S.source !== "spotify") return;
   const r = await spApi("/me/player?additional_types=episode");
-  if (r.status === 401){ state.spConnected = false; renderSp(); state.playing = false; return; }
+  const sonosOwns = state.track && state.track.src === "sonos";
+  if (r.status === 401){ state.spConnected = false; renderSp(); if (!sonosOwns) state.playing = false; return; }
   state.spConnected = true;
   if (r.status === 204 || !r.data || !r.data.item){
-    state.playing = false; state.spDevice = r.data?.device?.name || "";
+    if (!sonosOwns) state.playing = false;
+    state.spDevice = r.data?.device?.name || "";
     // Rör inte en Sonos-latinfo som sonosPoll() satt - den äger sin egen
     // undanrensning (se kommentaren vid sonosPoll). Bara en gammal "sp"-låt
     // ska försvinna här när Spotify självt inte spelar något längre.
@@ -2317,10 +2319,14 @@ async function sonosPoll(){
     const r = await fetch("/api/sonos-now", { cache: "no-store" });
     const d = r.ok ? await r.json() : null;
     if (d && d.playing){
+      // Sonos ger ingen tillforlitlig speltid/langd via vart lilla API, sa den
+      // behandlas som "live" (samma som radio) - visar en DIREKT-punkt istallet
+      // for en progressbar som annars skulle visa gammal/fel Spotify-data.
+      state.playing = true; state.live = true;
       setTrack({ src:"sonos", kicker: "Sonos" + (d.room ? " · " + d.room : ""),
         title: d.title || "", artist: d.artist || "", album: d.album || "", cover: d.art || "" });
     } else if (state.track && state.track.src === "sonos"){
-      setTrack(null);
+      setTrack(null); state.playing = false; state.live = false;
     }
   } catch(e){}
 }
