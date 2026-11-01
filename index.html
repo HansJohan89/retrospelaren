@@ -474,10 +474,12 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <div class="note">Spotify släpper inte ut själva ljudet till webbsidor. Med "Ljud in" lyssnar visualiseringen på en mikrofon eller ett linjeingång &ndash; på Pi:n blir det ALSA loopback, så att bilden följer exakt det som spelas.</div>
       <h3 style="margin-top:14px">Vakna-läge</h3>
       <div class="note">Vilken Spotify-enhet och spellista som ska starta när kameran upptäcker rörelse och väcker skärmen.</div>
-      <div class="row"><select id="wakeDeviceSel"><option value="">Första tillgängliga</option></select>
+      <div class="row"><input type="text" id="wakeDeviceInput" list="wakeDeviceList" placeholder="T.ex. Tavlan (tom = första tillgängliga)">
         <button class="btn" id="wakeRefreshBtn" title="Hämta enheter och spellistor igen">Uppdatera</button></div>
-      <div class="row"><select id="wakePlaylistSel"><option value="">(Fortsätt där det var)</option></select></div>
-      <div class="note" id="wakeListNote">Logga in med Spotify och öppna appen på enheten du vill använda för att den ska synas i listan.</div>
+      <datalist id="wakeDeviceList"></datalist>
+      <div class="row"><input type="text" id="wakePlaylistInput" list="wakePlaylistList" placeholder="(Fortsätt där det var)"></div>
+      <datalist id="wakePlaylistList"></datalist>
+      <div class="note" id="wakeListNote">Enhetsnamnet skrivs in direkt och behöver inte vara påslaget just nu - det matchas mot vad som faktiskt är igång när vakna-kommandot triggas. Spellistan väljs bland förslagen (dyker bara upp när enheten/spellistan faktiskt är synlig för Spotify just nu).</div>
     </section>
 
     <section>
@@ -2143,7 +2145,7 @@ function radioToggle(){
 
 // ================= Spotify =================
 const SP = {
-  scope: "user-read-currently-playing user-read-playback-state user-modify-playback-state",
+  scope: "user-read-currently-playing user-read-playback-state user-modify-playback-state playlist-read-private playlist-read-collaborative",
   redirect: location.origin + "/callback",
   timer: 0
 };
@@ -2205,11 +2207,16 @@ async function spFindDevice(nameSub){
   const n = nameSub.toLowerCase();
   return list.find(d => (d.name || "").toLowerCase().includes(n)) || null;
 }
-// hamtar enhets- och spellistlistorna for Vakna-lage-installningarna (anropas
+// namn -> uri for de spellistor som senast hamtades, sa att textfaltet (som
+// bara har spellistans NAMN) kan slas upp till ratt context_uri vid andring
+let WAKE_PLAYLISTS = {};
+// hamtar enhets- och spellistforslagen for Vakna-lage-installningarna (anropas
 // lazy, nar installningspanelen oppnas - se togglePanel) och fyller de bada
-// <select>-elementen, med anvandarens sparade val markerat
+// <datalist>-elementen. Fri text i faltet fungerar aven utan detta - enheten
+// matchas (case-insensitive, delstrang) mot det som faktiskt ar igang nar
+// vakna-kommandot triggas, sa den behover inte vara pasladd just nu
 async function loadWakeLists(){
-  const devSel = $("#wakeDeviceSel"), plSel = $("#wakePlaylistSel"), note = $("#wakeListNote");
+  const devList = $("#wakeDeviceList"), plList = $("#wakePlaylistList"), note = $("#wakeListNote");
   const [devR, plR] = await Promise.all([
     spApi("/me/player/devices"),
     spApi("/me/playlists?limit=50")
@@ -2218,24 +2225,21 @@ async function loadWakeLists(){
   if (devR.status === 200 && devR.data){
     gotDevices = true;
     const list = devR.data.devices || [];
-    devSel.innerHTML = '<option value="">Första tillgängliga</option>' +
-      list.map(d => `<option value="${esc(d.name)}"${d.name === S.wakeDevice ? " selected" : ""}>${esc(d.name)}${d.is_active ? " (aktiv nu)" : ""}</option>`).join("");
-    if (S.wakeDevice && !list.some(d => d.name === S.wakeDevice)){
-      devSel.insertAdjacentHTML("beforeend", `<option value="${esc(S.wakeDevice)}" selected>${esc(S.wakeDevice)} (ej ansluten just nu)</option>`);
-    }
+    devList.innerHTML = list.map(d => `<option value="${esc(d.name)}">${d.is_active ? "aktiv nu" : ""}</option>`).join("");
   }
   if (plR.status === 200 && plR.data){
     gotPlaylists = true;
+    WAKE_PLAYLISTS = {};
     const list = plR.data.items || [];
-    plSel.innerHTML = '<option value="">(Fortsätt där det var)</option>' +
-      list.map(p => `<option value="${esc(p.uri)}"${p.uri === S.wakePlaylistUri ? " selected" : ""}>${esc(p.name)}</option>`).join("");
-    if (S.wakePlaylistUri && !list.some(p => p.uri === S.wakePlaylistUri)){
-      plSel.insertAdjacentHTML("beforeend", `<option value="${esc(S.wakePlaylistUri)}" selected>${esc(S.wakePlaylistName || "Sparad spellista")} (ej i listan)</option>`);
-    }
+    list.forEach(p => { WAKE_PLAYLISTS[p.name] = p.uri; });
+    plList.innerHTML = list.map(p => `<option value="${esc(p.name)}"></option>`).join("");
+  } else if (plR.status === 403){
+    note.textContent = 'Spotify-inloggningen saknar behörighet för spellistor - logga ut och in igen med Spotify ("Logga ut" ovan) så frågas rätt behörighet.';
+    return;
   }
   note.textContent = (gotDevices && gotPlaylists)
-    ? "Enheten måste vara igång och synlig i Spotify (öppna appen på den) för att dyka upp i listan."
-    : "Kunde inte hämta listan just nu - logga in med Spotify och försök igen.";
+    ? "Enhetsnamnet skrivs in direkt och behöver inte vara påslaget just nu. Spellistan väljs bland förslagen."
+    : "Kunde inte hämta förslagen just nu - logga in med Spotify. Enhetsnamnet går ändå att skriva in för hand.";
 }
 async function spResumeOnWakeDevice(){
   const wanted = S.wakeDevice || "Tavlan";
@@ -2433,11 +2437,17 @@ const panel = $("#panel");
 function togglePanel(open){
   const willOpen = open ?? !panel.classList.contains("open");
   panel.classList.toggle("open", willOpen);
-  // hamtar enhets- och spellista-listorna forst nar panelen faktiskt oppnas
-  // (inte varje gang renderSp()/spPoll() kors var 2.5s), och baseras pa om
-  // det finns ett sparat Spotify-inloggningstoken - inte state.spConnected,
-  // som bara ar sant medan killan ar "spotify" och spPoll() faktiskt kor
-  if (willOpen && store.get("sp.token", null)) loadWakeLists();
+  if (willOpen){
+    // visa sparat varde direkt - oberoende av om forslags-listorna hinner
+    // hamtas, sa faltet aldrig ser "tomt"/fel ut om natet ar segt
+    $("#wakeDeviceInput").value = S.wakeDevice || "";
+    $("#wakePlaylistInput").value = S.wakePlaylistName || "";
+    // hamtar sjalva forslags-listorna forst nar panelen faktiskt oppnas
+    // (inte varje gang renderSp()/spPoll() kors var 2.5s), och baseras pa om
+    // det finns ett sparat Spotify-inloggningstoken - inte state.spConnected,
+    // som bara ar sant medan killan ar "spotify" och spPoll() faktiskt kor
+    if (store.get("sp.token", null)) loadWakeLists();
+  }
 }
 $("#gear").addEventListener("click", () => togglePanel(true));
 $("#closePanel").addEventListener("click", () => togglePanel(false));
@@ -2456,12 +2466,18 @@ $("#spLogin").addEventListener("click", spLogin);
 $("#spLogout").addEventListener("click", () => { store.del("sp.token"); state.spConnected = false; renderSp(); if (S.source === "spotify") setTrack(null); });
 $("#wakeTestBtn").addEventListener("click", () => runCmd("wake"));
 $("#spClient").addEventListener("change", e => { S.clientId = e.target.value.trim(); saveS(); });
-$("#wakeDeviceSel").addEventListener("change", e => { S.wakeDevice = e.target.value; saveS(); });
-$("#wakePlaylistSel").addEventListener("change", e => {
-  S.wakePlaylistUri = e.target.value;
-  const opt = e.target.selectedOptions[0];
-  S.wakePlaylistName = (opt && S.wakePlaylistUri) ? opt.textContent : "";
-  saveS();
+$("#wakeDeviceInput").addEventListener("change", e => { S.wakeDevice = e.target.value.trim(); saveS(); });
+$("#wakePlaylistInput").addEventListener("change", e => {
+  const name = e.target.value.trim();
+  if (!name){ S.wakePlaylistUri = ""; S.wakePlaylistName = ""; saveS(); return; }
+  const uri = WAKE_PLAYLISTS[name];
+  if (uri){ S.wakePlaylistUri = uri; S.wakePlaylistName = name; saveS(); }
+  else {
+    // okand text - kan inte oversattas till en spellista-uri, behall det
+    // sparade valet istallet for att spara nagot trasigt
+    osd('Hittar ingen spellista som heter "' + name + '" - välj bland förslagen.');
+    e.target.value = S.wakePlaylistName || "";
+  }
 });
 $("#wakeRefreshBtn").addEventListener("click", () => loadWakeLists());
 
