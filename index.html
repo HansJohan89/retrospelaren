@@ -1371,7 +1371,10 @@ async function playWakeAnimation(readyPromise){
     // Fas 2: skarmen avblankas till den riktiga testbilden, och de riktiga,
     // konfigurerade stor-effekterna (brus/taror/rullning/brum) jagar
     // signalen i lugnare, mer naturliga vagor - inte ett eget flimmer.
+    // Tavlan (vader/buss/fotboll) ar en separat DOM-overlay som annars
+    // skulle ligga kvar och synas genom/over testbilden - stangs av har.
     forceTestcard = true;
+    BOARD.page = ""; BOARD.idx = -1; renderBoard(); renderEdges();
     channelNoise(900);
     blank.style.transition = "opacity .4s";
     blank.style.opacity = "0"; state.blanked = false;
