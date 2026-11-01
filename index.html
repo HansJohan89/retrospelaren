@@ -2284,7 +2284,10 @@ async function spPoll(){
   state.spConnected = true;
   if (r.status === 204 || !r.data || !r.data.item){
     state.playing = false; state.spDevice = r.data?.device?.name || "";
-    if (!state.track || state.track.src !== "sp") setTrack(null);
+    // Rör inte en Sonos-latinfo som sonosPoll() satt - den äger sin egen
+    // undanrensning (se kommentaren vid sonosPoll). Bara en gammal "sp"-låt
+    // ska försvinna här när Spotify självt inte spelar något längre.
+    if (state.track && state.track.src === "sp") setTrack(null);
     renderSp(); return;
   }
   const d = r.data, it = d.item;
