@@ -481,12 +481,14 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <datalist id="wakePlaylistList"></datalist>
       <div class="note" id="wakeListNote">Enhetsnamnet skrivs in direkt och behöver inte vara påslaget just nu - det matchas mot vad som faktiskt är igång när vakna-kommandot triggas. Spellistan väljs bland förslagen (dyker bara upp när enheten/spellistan faktiskt är synlig för Spotify just nu).</div>
       <h3 style="margin-top:14px">Belysning (Trådfri)</h3>
-      <div class="note">Vilken Trådfri-grupp (och ev. scen/mood) som ska tändas när kameran väcker skärmen. Listan hämtas från gatewayen via kameradatorn - skapar du nya scener i Trådfri-appen dyker de upp här automatiskt inom någon minut.</div>
+      <div class="note">Vilken Trådfri-grupp som styrs, och vilken scen som körs vid väckning respektive när jalusiet rapporteras stängt igen. Listorna hämtas från gatewayen via kameradatorn - skapar du nya scener i Trådfri-appen dyker de upp här automatiskt inom någon minut.</div>
       <div class="row"><input type="text" id="tradfriGroupInput" list="tradfriGroupList" placeholder="T.ex. vardagsrum (tom = ingen)"></div>
       <datalist id="tradfriGroupList"></datalist>
-      <div class="row"><input type="text" id="tradfriMoodInput" list="tradfriMoodList" placeholder="(tom = bara tänd gruppen)"></div>
+      <div class="row"><span style="min-width:9em;display:inline-block">Vid väckning</span><input type="text" id="tradfriMoodInput" list="tradfriMoodList" placeholder="(tom = bara tänd gruppen)"></div>
       <datalist id="tradfriMoodList"></datalist>
-      <div class="note" id="tradfriListNote">Gruppnamnet skrivs in direkt. Scenen väljs bland förslagen för den gruppen (dyker upp när du skrivit ett gruppnamn som finns).</div>
+      <div class="row"><span style="min-width:9em;display:inline-block">Vid stängt jalusi</span><input type="text" id="tradfriSleepMoodInput" list="tradfriSleepMoodList" placeholder="(tom = inget)"></div>
+      <datalist id="tradfriSleepMoodList"></datalist>
+      <div class="note" id="tradfriListNote">Gruppnamnet skrivs in direkt. Scenerna väljs bland förslagen för den gruppen (dyker upp när du skrivit ett gruppnamn som finns).</div>
     </section>
 
     <section>
@@ -2273,7 +2275,9 @@ async function loadTradfriLists(){
 function refreshTradfriMoodList(){
   const name = ($("#tradfriGroupInput").value || "").trim();
   const moods = TRADFRI_GROUPS[name] || [];
-  $("#tradfriMoodList").innerHTML = moods.map(m => `<option value="${esc(m)}"></option>`).join("");
+  const opts = moods.map(m => `<option value="${esc(m)}"></option>`).join("");
+  $("#tradfriMoodList").innerHTML = opts;
+  $("#tradfriSleepMoodList").innerHTML = opts;
 }
 async function spResumeOnWakeDevice(){
   const wanted = S.wakeDevice || "Tavlan";
@@ -2507,6 +2511,7 @@ function togglePanel(open){
     $("#wakePlaylistInput").value = S.wakePlaylistName || "";
     $("#tradfriGroupInput").value = S.tradfriGroupName || "";
     $("#tradfriMoodInput").value = S.tradfriMoodName || "";
+    $("#tradfriSleepMoodInput").value = S.tradfriSleepMoodName || "";
     // hamtar sjalva forslags-listorna forst nar panelen faktiskt oppnas
     // (inte varje gang renderSp()/spPoll() kors var 2.5s), och baseras pa om
     // det finns ett sparat Spotify-inloggningstoken - inte state.spConnected,
@@ -2549,6 +2554,7 @@ $("#wakePlaylistInput").addEventListener("change", e => {
 $("#wakeRefreshBtn").addEventListener("click", () => loadWakeLists());
 $("#tradfriGroupInput").addEventListener("change", e => { S.tradfriGroupName = e.target.value.trim(); saveS(); refreshTradfriMoodList(); });
 $("#tradfriMoodInput").addEventListener("change", e => { S.tradfriMoodName = e.target.value.trim(); saveS(); });
+$("#tradfriSleepMoodInput").addEventListener("change", e => { S.tradfriSleepMoodName = e.target.value.trim(); saveS(); });
 
 function slider(host, key, label, obj, min, max, onChange){
   const row = document.createElement("label"); row.className = "sl";
