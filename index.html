@@ -323,11 +323,32 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #blank.on{opacity:1}
 
 #wakeFx{position:absolute;inset:0;z-index:15;display:flex;align-items:center;justify-content:center;
-  background:radial-gradient(circle at center,color-mix(in srgb,var(--bg) 45%,transparent),var(--bg) 88%);
-  opacity:0;pointer-events:none;transition:opacity .5s}
+  background:#000;opacity:0;pointer-events:none}
 #wakeFx.on{opacity:1}
-#wakeLogo{font-family:var(--fT),serif;font-weight:400;font-size:9vh;letter-spacing:.1em;color:var(--ink);
-  margin:0;opacity:0;text-align:center}
+#wakeBeam{position:absolute;left:6%;right:6%;top:50%;height:2px;background:var(--ink);
+  transform:translateY(-50%) scaleY(.02);opacity:0}
+#wakeStatic{position:absolute;inset:0;mix-blend-mode:overlay;opacity:0;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  background-size:140px 140px}
+#wakeCard{position:relative;width:52vh;height:52vh}
+#wakeRing{position:absolute;inset:0;border-radius:50%;border:.3vh solid var(--mid);opacity:0}
+#wakeRing::before,#wakeRing::after{content:"";position:absolute;background:var(--mid);opacity:.8}
+#wakeRing::before{left:4%;right:4%;top:50%;height:1px;transform:translateY(-50%)}
+#wakeRing::after{top:4%;bottom:4%;left:50%;width:1px;transform:translateX(-50%)}
+#wakeWheel{position:absolute;inset:14%;border-radius:50%;opacity:0;
+  background:conic-gradient(var(--ink) 0deg 22deg,transparent 22deg 45deg,
+    var(--ink) 45deg 67deg,transparent 67deg 90deg,
+    var(--ink) 90deg 112deg,transparent 112deg 135deg,
+    var(--ink) 135deg 157deg,transparent 157deg 180deg,
+    var(--ink) 180deg 202deg,transparent 202deg 225deg,
+    var(--ink) 225deg 247deg,transparent 247deg 270deg,
+    var(--ink) 270deg 292deg,transparent 292deg 315deg,
+    var(--ink) 315deg 337deg,transparent 337deg 360deg);
+  animation:spin 6s linear infinite}
+#wakeHub{position:absolute;inset:33%;border-radius:50%;background:var(--bg);opacity:0;
+  display:flex;align-items:center;justify-content:center;box-shadow:0 0 2vh rgba(0,0,0,.6)}
+#wakeLogo{font-family:var(--fT),serif;font-weight:400;font-size:2.5vh;letter-spacing:.05em;color:var(--ink);
+  margin:0;opacity:0;text-align:center;padding:0 .5vh}
 
 #start{position:absolute;inset:0;z-index:7;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh;
   background:radial-gradient(circle at center,color-mix(in srgb,var(--bg) 70%,transparent),var(--bg));cursor:pointer;text-align:center}
@@ -417,7 +438,15 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
     </div>
     <div id="crt" class="on"></div>
     <div id="blank"></div>
-    <div id="wakeFx"><h1 id="wakeLogo">BLAUPUNKT</h1></div>
+    <div id="wakeFx">
+      <div id="wakeBeam"></div>
+      <div id="wakeStatic"></div>
+      <div id="wakeCard">
+        <div id="wakeRing"></div>
+        <div id="wakeWheel"></div>
+        <div id="wakeHub"><h1 id="wakeLogo">BLAUPUNKT</h1></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1309,47 +1338,74 @@ function powerOff(done){
 }
 
 // ---------- vakna-animation (triggas av narvarokameran) ----------
-// Haftig retro "soker signal / laser kanal"-sekvens: brus, rullningar och en
-// flimrande logotyp som till slut laser och lyser stadigt, foljt av CRT-
-// uppvarmningen. Spelas ALLTID upp nar wake-kommandot kommer in, oavsett
-// om skarmen redan var pa/blankad - och halls uppe tills Spotify bekraftat
-// att den spelar (eller max-tiden gar ut), sa overgangen till musiken alltid
-// ar dold bakom animationen.
+// Haftig retro "soker signal"-sekvens fran helt svart: bildroret varms upp
+// (en ljusstrale vidgas ur morkret), sen flimrar en snurrande testbild fram
+// i brus och kanalrullningar, tills signalen laser - testbildens BLAUPUNKT-
+// nav tands och lyser stadigt - och CRT-uppvarmningen tar over helt.
+// Spelas ALLTID upp vid wake-kommandot, oavsett tidigare skarmstatus, och
+// halls uppe tills Spotify bekraftat att den spelar (eller max-tiden gar
+// ut), sa overgangen till musiken alltid sker dold bakom animationen.
 async function playWakeAnimation(readyPromise){
-  const MIN_MS = 3200, MAX_MS = 7000;
-  const fx = $("#wakeFx"), logo = $("#wakeLogo");
+  const MIN_MS = 4200, MAX_MS = 8000;
+  const fx = $("#wakeFx"), beam = $("#wakeBeam"), stat = $("#wakeStatic"),
+        ring = $("#wakeRing"), wheel = $("#wakeWheel"), hub = $("#wakeHub"), logo = $("#wakeLogo");
   $("#start").classList.add("gone");
   $("#blank").classList.remove("on"); state.blanked = false;
   ensureAudio();
   if (!state.started){ state.started = true; applyVizInput(); }
   if (S.source === "spotify") spStart();
 
-  logo.style.transition = "none";
-  logo.style.opacity = "0"; logo.style.textShadow = "none";
-  fx.classList.add("on");
+  for (const el of [beam, stat, ring, wheel, hub]){ el.style.transition = "none"; el.style.opacity = "0"; }
+  logo.style.transition = "none"; logo.style.opacity = "0"; logo.style.textShadow = "none";
+  fx.style.transition = "none"; fx.style.opacity = "1"; fx.classList.add("on");
+  void fx.offsetWidth;
 
   const t0 = performance.now();
-  channelNoise(900); startBurst(t0);
+
+  // Fas 1: helt svart en stund, sen varms bildroret upp - en ljusstrale vidgas ur morkret
+  await new Promise(res => setTimeout(res, 380));
+  beam.style.opacity = "1";
+  beam.animate([
+    { transform:"translateY(-50%) scaleY(.02)", filter:"brightness(6)", opacity:.9 },
+    { transform:"translateY(-50%) scaleY(.02)", filter:"brightness(6)", opacity:1, offset:.18 },
+    { transform:"translateY(-50%) scaleY(1.8)", filter:"brightness(1.3)", opacity:.45, offset:.6 },
+    { transform:"translateY(-50%) scaleY(.4)", filter:"brightness(1)", opacity:0 }
+  ], { duration:700, easing:"cubic-bezier(.3,.7,.2,1)" });
+  await new Promise(res => setTimeout(res, 550));
+
+  // Fas 2: en snurrande testbild flimrar fram i brus - soker signal
+  stat.style.transition = ring.style.transition = wheel.style.transition = hub.style.transition = "opacity .1s";
   let flickers = 0;
-  const flickerLogo = () => {
+  const flickerCard = () => {
     flickers++;
-    const on = Math.random() < Math.min(0.85, 0.2 + flickers * 0.1);
-    logo.style.opacity = on ? (0.3 + Math.random() * 0.55).toFixed(2) : "0.04";
-    logo.style.textShadow = on ? `0 0 ${(1.3 + Math.random() * 2.2).toFixed(1)}vh ${hexA(P.ink, .8)}` : "none";
+    const p = Math.min(.94, .22 + flickers * .06);
+    const on = Math.random() < p;
+    ring.style.opacity = on ? (.45 + Math.random() * .4).toFixed(2) : "0.05";
+    wheel.style.opacity = on ? (.4 + Math.random() * .45).toFixed(2) : "0.05";
+    hub.style.opacity = on ? "1" : "0.25";
+    stat.style.opacity = (.3 + Math.random() * .5).toFixed(2);
+    stat.style.backgroundPosition = `${(Math.random() * 140) | 0}px ${(Math.random() * 140) | 0}px`;
   };
-  const flickerTimer = setInterval(flickerLogo, 90);
+  const flickerTimer = setInterval(flickerCard, 75);
+  channelNoise(1100); startBurst(performance.now());
+  await new Promise(res => setTimeout(res, 600));
+  channelNoise(800); startBurst(performance.now());
+  await new Promise(res => setTimeout(res, 700));
+  channelNoise(500); startBurst(performance.now());
+  await new Promise(res => setTimeout(res, 600));
 
-  await new Promise(res => setTimeout(res, 420));
-  channelNoise(650); startBurst(performance.now());
-  await new Promise(res => setTimeout(res, 480));
-  channelNoise(400);
-  await new Promise(res => setTimeout(res, 500));
-
+  // Fas 3: signalen laser - bruset lagger sig, BLAUPUNKT-navet tands och lyser
   clearInterval(flickerTimer);
+  stat.style.transition = "opacity .6s"; stat.style.opacity = "0";
+  ring.style.opacity = "1"; wheel.style.opacity = "1"; hub.style.opacity = "1";
   logo.style.transition = "opacity .5s, text-shadow .5s";
   logo.style.opacity = "1";
-  logo.style.textShadow = `0 0 4vh ${hexA(P.ink, .95)}`;
+  logo.style.textShadow = `0 0 2.2vh ${hexA(P.ink, .9)}`;
+  await new Promise(res => setTimeout(res, 950));
+
+  // Fas 4: full CRT-uppvarmning, sen overgang till appen
   warmUp();
+  fx.style.transition = "opacity .6s";
 
   if (readyPromise){
     const budget = Math.max(0, MAX_MS - (performance.now() - t0));
@@ -1358,11 +1414,10 @@ async function playWakeAnimation(readyPromise){
   const left = MIN_MS - (performance.now() - t0);
   if (left > 0) await new Promise(res => setTimeout(res, left));
 
-  logo.style.transition = "opacity .6s";
-  logo.style.opacity = "0";
+  fx.style.opacity = "0";
   await new Promise(res => setTimeout(res, 650));
   fx.classList.remove("on");
-  logo.style.transition = "none";
+  fx.style.transition = "none";
 }
 
 // ---------- kanter: datum, klocka, väder ----------
