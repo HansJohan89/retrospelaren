@@ -28,6 +28,9 @@ Vägar:
   /api/send?c=      skicka kommando till sidan: open, close, next, prev,
                     playpause, wake, viz:1-5, palette:svartvit|sepia|fosfor|farg
                     (wake = närvarostyrd uppvakning, tänkt för kameratriggern)
+                    tradfri-refresh = ignoreras av sidan, pollas istället av
+                    monitor.py (se den filen) som en begäran om att hämta en
+                    färsk grupp-/scenlista från Trådfri-gatewayen direkt
   /api/sonos-now    GET: vad Sonos (Vardagsrum) spelar just nu, för sidans
                     nu-spelar-panel. POST: monitor.py rapporterar in det
                     (Sonos syns aldrig i Spotifys eget API, se monitor.py)

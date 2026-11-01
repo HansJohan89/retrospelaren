@@ -2564,7 +2564,28 @@ $("#wakeRefreshBtn").addEventListener("click", () => loadWakeLists());
 $("#tradfriGroupInput").addEventListener("change", e => { S.tradfriGroupName = e.target.value; saveS(); refreshTradfriMoodList(); });
 $("#tradfriMoodInput").addEventListener("change", e => { S.tradfriMoodName = e.target.value; saveS(); });
 $("#tradfriSleepMoodInput").addEventListener("change", e => { S.tradfriSleepMoodName = e.target.value; saveS(); });
-$("#tradfriRefreshBtn").addEventListener("click", () => loadTradfriLists());
+$("#tradfriRefreshBtn").addEventListener("click", async () => {
+  // Knappen bad forr bara om den (eventuellt gamla) listan sidan redan
+  // hade - kameradatorn fragar annars gatewayen sallan (se monitor.py:
+  // varje full grupp-/scengenomgang ar trog). Skickar darfor forst
+  // kommandot "tradfri-refresh" (samma /api/send-mekanism som anvands for
+  // t.ex. "wake" - monitor.py pollar den kon separat och gor en riktig
+  // uppdatering mot gatewayen nar den ser kommandot), och vantar sedan pa
+  // att listans tidsstampel faktiskt gatt om innan den visas.
+  const note = $("#tradfriListNote");
+  const clickedAt = Date.now() / 1000;
+  note.textContent = "Uppdaterar från gatewayen (kan ta upp till någon halvminut)...";
+  try { await fetch("/api/send?c=tradfri-refresh"); } catch(e){}
+  for (let i = 0; i < 15; i++){
+    await new Promise(r => setTimeout(r, 2000));
+    try {
+      const r = await fetch("/api/tradfri-list", { cache: "no-store" });
+      const d = r.ok ? await r.json() : null;
+      if (d && d.at && d.at > clickedAt) break;
+    } catch(e){}
+  }
+  loadTradfriLists();
+});
 
 function slider(host, key, label, obj, min, max, onChange){
   const row = document.createElement("label"); row.className = "sl";
