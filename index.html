@@ -2330,7 +2330,7 @@ async function sonosPoll(){
     }
   } catch(e){}
 }
-setInterval(sonosPoll, 4000);
+setInterval(sonosPoll, 1500);
 sonosPoll();
 async function spCmd(kind){
   const map = { play:["PUT","/me/player/play"], pause:["PUT","/me/player/pause"], next:["POST","/me/player/next"], prev:["POST","/me/player/previous"] };
