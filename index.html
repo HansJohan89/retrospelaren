@@ -2024,9 +2024,17 @@ function setTrack(tr){
   }, first ? 50 : 650);
   if (!first && S.autoChannel && tr) setViz(S.viz % 5 + 1, true);
 }
+function isLocalNetworkUrl(url){
+  // Sonos (och annat pa det lokala natverket) delar bilder via sin egen
+  // IP - t.ex. http://192.168.1.111:1400/getaa?... Den gar INTE att proxa
+  // via /api/img (sidan kors pa Railway, som aldrig kan na en privat IP),
+  // sa sadana adresser maste laddas direkt av webblasaren istallet, som
+  // (till skillnad fran Railway) faktiskt ar pa samma natverk.
+  return /^https?:\/\/(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|localhost)/i.test(url);
+}
 function applyCover(url){
   if (!url){ elCov.src = ""; elCovPh.style.display = ""; accentFrom(null); return; }
-  const prox = url.startsWith("/") ? url : "/api/img?url=" + encodeURIComponent(url);
+  const prox = (url.startsWith("/") || isLocalNetworkUrl(url)) ? url : "/api/img?url=" + encodeURIComponent(url);
   elCov.onload = () => { elCovPh.style.display = "none"; accentFrom(elCov); };
   elCov.onerror = () => { elCov.src = ""; elCovPh.style.display = ""; };
   elCov.src = prox;
