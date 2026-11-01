@@ -482,13 +482,11 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <div class="note" id="wakeListNote">Enhetsnamnet skrivs in direkt och behöver inte vara påslaget just nu - det matchas mot vad som faktiskt är igång när vakna-kommandot triggas. Spellistan väljs bland förslagen (dyker bara upp när enheten/spellistan faktiskt är synlig för Spotify just nu).</div>
       <h3 style="margin-top:14px">Belysning (Trådfri)</h3>
       <div class="note">Vilken Trådfri-grupp som styrs, och vilken scen som körs vid väckning respektive när jalusiet rapporteras stängt igen. Listorna hämtas från gatewayen via kameradatorn - skapar du nya scener i Trådfri-appen dyker de upp här automatiskt inom någon minut.</div>
-      <div class="row"><input type="text" id="tradfriGroupInput" list="tradfriGroupList" placeholder="T.ex. vardagsrum (tom = ingen)"></div>
-      <datalist id="tradfriGroupList"></datalist>
-      <div class="row"><span style="min-width:9em;display:inline-block">Vid väckning</span><input type="text" id="tradfriMoodInput" list="tradfriMoodList" placeholder="(tom = bara tänd gruppen)"></div>
-      <datalist id="tradfriMoodList"></datalist>
-      <div class="row"><span style="min-width:9em;display:inline-block">Vid stängt jalusi</span><input type="text" id="tradfriSleepMoodInput" list="tradfriSleepMoodList" placeholder="(tom = inget)"></div>
-      <datalist id="tradfriSleepMoodList"></datalist>
-      <div class="note" id="tradfriListNote">Gruppnamnet skrivs in direkt. Scenerna väljs bland förslagen för den gruppen (dyker upp när du skrivit ett gruppnamn som finns).</div>
+      <div class="row"><select id="tradfriGroupInput"><option value="">(ingen)</option></select>
+        <button class="btn" id="tradfriRefreshBtn" title="Hämta grupper/scener igen">Uppdatera</button></div>
+      <div class="row"><span style="min-width:9em;display:inline-block">Vid väckning</span><select id="tradfriMoodInput"><option value="">(tom = bara tänd gruppen)</option></select></div>
+      <div class="row"><span style="min-width:9em;display:inline-block">Vid stängt jalusi</span><select id="tradfriSleepMoodInput"><option value="">(tom = inget)</option></select></div>
+      <div class="note" id="tradfriListNote">Hämtat direkt från gatewayen via kameradatorn.</div>
     </section>
 
     <section>
@@ -2251,33 +2249,45 @@ async function loadWakeLists(){
     : "Kunde inte hämta förslagen just nu - logga in med Spotify. Enhetsnamnet går ändå att skriva in för hand.";
 }
 // grupp-namn -> lista av scen-namn, for den senast hamtade Tradfri-listan,
-// sa scen-faltets <datalist> kan filtreras till just den valda gruppens
-// scener. Rapporteras in av monitor.py (se server.py/api/tradfri-list).
+// sa scen-dropdownarna kan fyllas med just den valda gruppens scener.
+// Rapporteras in av monitor.py (se server.py/api/tradfri-list).
 let TRADFRI_GROUPS = {};
+// Bygger om en <select>s alternativ fran en namnlista, och behaller det
+// sparade valet aven om det inte (an) finns med i den hamtade listan -
+// sa ett tillfalligt tomt/gammalt svar fran kameradatorn aldrig tyst
+// nollstaller ett redan gjort val.
+function _tradfriFillSelect(select, names, blankLabel, savedValue){
+  let html = `<option value="">${esc(blankLabel)}</option>`;
+  names.forEach(n => { html += `<option value="${esc(n)}">${esc(n)}</option>`; });
+  if (savedValue && !names.includes(savedValue)){
+    html += `<option value="${esc(savedValue)}">${esc(savedValue)} (saknas i senaste listan)</option>`;
+  }
+  select.innerHTML = html;
+  select.value = savedValue || "";
+}
 async function loadTradfriLists(){
-  const grList = $("#tradfriGroupList"), note = $("#tradfriListNote");
+  const note = $("#tradfriListNote");
   try {
     const r = await fetch("/api/tradfri-list", { cache: "no-store" });
     const d = r.ok ? await r.json() : null;
     const groups = (d && d.groups) || [];
     TRADFRI_GROUPS = {};
     groups.forEach(g => { TRADFRI_GROUPS[g.name] = g.moods || []; });
-    grList.innerHTML = groups.map(g => `<option value="${esc(g.name)}"></option>`).join("");
+    _tradfriFillSelect($("#tradfriGroupInput"), groups.map(g => g.name), "(ingen)", S.tradfriGroupName || "");
     refreshTradfriMoodList();
     const ageS = d && d.at ? Math.round((Date.now()/1000) - d.at) : null;
     note.textContent = groups.length
-      ? `Gruppnamnet skrivs in direkt. Scenen väljs bland förslagen för den gruppen.${ageS != null ? " (listan uppdaterad för " + ageS + "s sedan)" : ""}`
+      ? `Hämtat direkt från gatewayen via kameradatorn.${ageS != null ? " (uppdaterad för " + ageS + "s sedan)" : ""}`
       : "Ingen lista mottagen än - kameradatorn måste ha kört minst en gång med Trådfri-stödet aktivt.";
   } catch(e){
     note.textContent = "Kunde inte hämta Trådfri-listan just nu.";
   }
 }
 function refreshTradfriMoodList(){
-  const name = ($("#tradfriGroupInput").value || "").trim();
+  const name = $("#tradfriGroupInput").value || "";
   const moods = TRADFRI_GROUPS[name] || [];
-  const opts = moods.map(m => `<option value="${esc(m)}"></option>`).join("");
-  $("#tradfriMoodList").innerHTML = opts;
-  $("#tradfriSleepMoodList").innerHTML = opts;
+  _tradfriFillSelect($("#tradfriMoodInput"), moods, "(tom = bara tänd gruppen)", S.tradfriMoodName || "");
+  _tradfriFillSelect($("#tradfriSleepMoodInput"), moods, "(tom = inget)", S.tradfriSleepMoodName || "");
 }
 async function spResumeOnWakeDevice(){
   const wanted = S.wakeDevice || "Tavlan";
@@ -2509,9 +2519,8 @@ function togglePanel(open){
     // hamtas, sa faltet aldrig ser "tomt"/fel ut om natet ar segt
     $("#wakeDeviceInput").value = S.wakeDevice || "";
     $("#wakePlaylistInput").value = S.wakePlaylistName || "";
-    $("#tradfriGroupInput").value = S.tradfriGroupName || "";
-    $("#tradfriMoodInput").value = S.tradfriMoodName || "";
-    $("#tradfriSleepMoodInput").value = S.tradfriSleepMoodName || "";
+    // Tradfri-dropdownarna har inga alternativ forran loadTradfriLists()
+    // svarat (de ar riktiga <select>, inte fritext) - fylls dar istallet.
     // hamtar sjalva forslags-listorna forst nar panelen faktiskt oppnas
     // (inte varje gang renderSp()/spPoll() kors var 2.5s), och baseras pa om
     // det finns ett sparat Spotify-inloggningstoken - inte state.spConnected,
@@ -2552,9 +2561,10 @@ $("#wakePlaylistInput").addEventListener("change", e => {
   }
 });
 $("#wakeRefreshBtn").addEventListener("click", () => loadWakeLists());
-$("#tradfriGroupInput").addEventListener("change", e => { S.tradfriGroupName = e.target.value.trim(); saveS(); refreshTradfriMoodList(); });
-$("#tradfriMoodInput").addEventListener("change", e => { S.tradfriMoodName = e.target.value.trim(); saveS(); });
-$("#tradfriSleepMoodInput").addEventListener("change", e => { S.tradfriSleepMoodName = e.target.value.trim(); saveS(); });
+$("#tradfriGroupInput").addEventListener("change", e => { S.tradfriGroupName = e.target.value; saveS(); refreshTradfriMoodList(); });
+$("#tradfriMoodInput").addEventListener("change", e => { S.tradfriMoodName = e.target.value; saveS(); });
+$("#tradfriSleepMoodInput").addEventListener("change", e => { S.tradfriSleepMoodName = e.target.value; saveS(); });
+$("#tradfriRefreshBtn").addEventListener("click", () => loadTradfriLists());
 
 function slider(host, key, label, obj, min, max, onChange){
   const row = document.createElement("label"); row.className = "sl";
