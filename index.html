@@ -2078,6 +2078,10 @@ async function spResumeOnWakeDevice(){
   const target = (typeof dev.volume_percent === "number" && dev.volume_percent > 0) ? dev.volume_percent : 60;
   await spApi("/me/player", { method:"PUT", headers:{ "Content-Type":"application/json" },
     body: JSON.stringify({ device_ids:[dev.id], play:true }) });
+  // transfer-anropets play:true startar inte alltid uppspelningen på egen hand -
+  // ett explicit play-anrop mot den nya enheten behövs för att faktiskt resuma.
+  await new Promise(res => setTimeout(res, 300));
+  await spApi("/me/player/play?device_id=" + dev.id, { method:"PUT" }).catch(()=>{});
   await spApi("/me/player/volume?volume_percent=0", { method:"PUT" }).catch(()=>{});
   const steps = 10, stepMs = 4000 / steps;
   for (let i = 1; i <= steps; i++){
