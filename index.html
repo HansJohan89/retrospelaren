@@ -322,6 +322,13 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #blank{position:absolute;inset:0;z-index:9;background:#000;opacity:0;pointer-events:none;transition:opacity 1.2s}
 #blank.on{opacity:1}
 
+#wakeFx{position:absolute;inset:0;z-index:15;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at center,color-mix(in srgb,var(--bg) 45%,transparent),var(--bg) 88%);
+  opacity:0;pointer-events:none;transition:opacity .5s}
+#wakeFx.on{opacity:1}
+#wakeLogo{font-family:var(--fT),serif;font-weight:400;font-size:9vh;letter-spacing:.1em;color:var(--ink);
+  margin:0;opacity:0;text-align:center}
+
 #start{position:absolute;inset:0;z-index:7;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh;
   background:radial-gradient(circle at center,color-mix(in srgb,var(--bg) 70%,transparent),var(--bg));cursor:pointer;text-align:center}
 #start h1{font-family:var(--fT),serif;font-weight:400;font-size:8vh;margin:0;letter-spacing:.08em;text-shadow:0 0 2vh var(--ink)}
@@ -410,6 +417,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
     </div>
     <div id="crt" class="on"></div>
     <div id="blank"></div>
+    <div id="wakeFx"><h1 id="wakeLogo">BLAUPUNKT</h1></div>
   </div>
 </div>
 
@@ -1299,6 +1307,63 @@ function powerOff(done){
   a.onfinish = () => { done && done(); setTimeout(() => a.cancel(), 50); };
 }
 
+// ---------- vakna-animation (triggas av narvarokameran) ----------
+// Haftig retro "soker signal / laser kanal"-sekvens: brus, rullningar och en
+// flimrande logotyp som till slut laser och lyser stadigt, foljt av CRT-
+// uppvarmningen. Spelas ALLTID upp nar wake-kommandot kommer in, oavsett
+// om skarmen redan var pa/blankad - och halls uppe tills Spotify bekraftat
+// att den spelar (eller max-tiden gar ut), sa overgangen till musiken alltid
+// ar dold bakom animationen.
+async function playWakeAnimation(readyPromise){
+  const MIN_MS = 3200, MAX_MS = 7000;
+  const fx = $("#wakeFx"), logo = $("#wakeLogo");
+  $("#start").classList.add("gone");
+  $("#blank").classList.remove("on"); state.blanked = false;
+  ensureAudio();
+  if (!state.started){ state.started = true; applyVizInput(); }
+  if (S.source === "spotify") spStart();
+
+  logo.style.transition = "none";
+  logo.style.opacity = "0"; logo.style.textShadow = "none";
+  fx.classList.add("on");
+
+  const t0 = performance.now();
+  channelNoise(900); startBurst(t0);
+  let flickers = 0;
+  const flickerLogo = () => {
+    flickers++;
+    const on = Math.random() < Math.min(0.85, 0.2 + flickers * 0.1);
+    logo.style.opacity = on ? (0.3 + Math.random() * 0.55).toFixed(2) : "0.04";
+    logo.style.textShadow = on ? `0 0 ${(1.3 + Math.random() * 2.2).toFixed(1)}vh ${hexA(P.ink, .8)}` : "none";
+  };
+  const flickerTimer = setInterval(flickerLogo, 90);
+
+  await new Promise(res => setTimeout(res, 420));
+  channelNoise(650); startBurst(performance.now());
+  await new Promise(res => setTimeout(res, 480));
+  channelNoise(400);
+  await new Promise(res => setTimeout(res, 500));
+
+  clearInterval(flickerTimer);
+  logo.style.transition = "opacity .5s, text-shadow .5s";
+  logo.style.opacity = "1";
+  logo.style.textShadow = `0 0 4vh ${hexA(P.ink, .95)}`;
+  warmUp();
+
+  if (readyPromise){
+    const budget = Math.max(0, MAX_MS - (performance.now() - t0));
+    await Promise.race([readyPromise.catch(() => {}), new Promise(res => setTimeout(res, budget))]);
+  }
+  const left = MIN_MS - (performance.now() - t0);
+  if (left > 0) await new Promise(res => setTimeout(res, left));
+
+  logo.style.transition = "opacity .6s";
+  logo.style.opacity = "0";
+  await new Promise(res => setTimeout(res, 650));
+  fx.classList.remove("on");
+  logo.style.transition = "none";
+}
+
 // ---------- kanter: datum, klocka, väder ----------
 const WX_TEXT = c => c===0?"Klart":c===1?"Mest klart":c===2?"Halvklart":c===3?"Mulet":(c===45||c===48)?"Dimma":
   (c>=51&&c<=57)?"Duggregn":(c===61)?"Lätt regn":(c===63)?"Regn":(c===65)?"Kraftigt regn":(c===66||c===67)?"Underkylt regn":
@@ -2074,7 +2139,7 @@ async function spFindDevice(nameSub){
 const WAKE_DEVICE_NAME = "Tavlan";
 async function spResumeOnWakeDevice(){
   const dev = await spFindDevice(WAKE_DEVICE_NAME);
-  if (!dev){ osd('Hittar inte Spotify-enheten "' + WAKE_DEVICE_NAME + '"'); return; }
+  if (!dev){ osd('Hittar inte Spotify-enheten "' + WAKE_DEVICE_NAME + '"'); return false; }
   const target = (typeof dev.volume_percent === "number" && dev.volume_percent > 0) ? dev.volume_percent : 60;
   await spApi("/me/player", { method:"PUT", headers:{ "Content-Type":"application/json" },
     body: JSON.stringify({ device_ids:[dev.id], play:true }) });
@@ -2089,12 +2154,17 @@ async function spResumeOnWakeDevice(){
     if (check.data && check.data.is_playing) started = true;
   }
   await spApi("/me/player/volume?volume_percent=0", { method:"PUT" }).catch(()=>{});
+  // volymfaden körs i bakgrunden utan att blockera anroparen (vaken-
+  // animationen väntar bara på att uppspelningen faktiskt startat).
   const steps = 10, stepMs = 4000 / steps;
-  for (let i = 1; i <= steps; i++){
-    await new Promise(res => setTimeout(res, stepMs));
-    spApi("/me/player/volume?volume_percent=" + Math.round(target * i / steps), { method:"PUT" }).catch(()=>{});
-  }
-  setTimeout(spPoll, 500);
+  (async () => {
+    for (let i = 1; i <= steps; i++){
+      await new Promise(res => setTimeout(res, stepMs));
+      spApi("/me/player/volume?volume_percent=" + Math.round(target * i / steps), { method:"PUT" }).catch(()=>{});
+    }
+    setTimeout(spPoll, 500);
+  })();
+  return started;
 }
 async function spPoll(){
   if (S.source !== "spotify") return;
@@ -2240,10 +2310,12 @@ function runCmd(c){
   else if (c === "next") next();
   else if (c === "prev") prev();
   else if (c === "playpause") playPause();
-  else if (c === "wake"){ const wasBlank = state.blanked; $("#blank").classList.remove("on"); state.blanked = false;
-    if (state.started && wasBlank) warmUp(); start();
-    if (S.source === "spotify") spResumeOnWakeDevice();
-    else if (S.source === "radio"){ if (audioEl && audioEl.paused) radioToggle(); } }
+  else if (c === "wake"){
+    const ready = (S.source === "spotify") ? spResumeOnWakeDevice()
+      : (S.source === "radio") ? (async () => { if (audioEl && audioEl.paused) radioToggle(); return true; })()
+      : Promise.resolve(true);
+    playWakeAnimation(ready);
+  }
   else if (c.startsWith("viz:")) setViz(parseInt(c.slice(4),10));
   else if (c.startsWith("palette:")) setPalette(c.slice(8));
 }
