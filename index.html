@@ -480,6 +480,13 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <div class="row"><input type="text" id="wakePlaylistInput" list="wakePlaylistList" placeholder="(Fortsätt där det var)"></div>
       <datalist id="wakePlaylistList"></datalist>
       <div class="note" id="wakeListNote">Enhetsnamnet skrivs in direkt och behöver inte vara påslaget just nu - det matchas mot vad som faktiskt är igång när vakna-kommandot triggas. Spellistan väljs bland förslagen (dyker bara upp när enheten/spellistan faktiskt är synlig för Spotify just nu).</div>
+      <h3 style="margin-top:14px">Belysning (Trådfri)</h3>
+      <div class="note">Vilken Trådfri-grupp (och ev. scen/mood) som ska tändas när kameran väcker skärmen. Listan hämtas från gatewayen via kameradatorn - skapar du nya scener i Trådfri-appen dyker de upp här automatiskt inom någon minut.</div>
+      <div class="row"><input type="text" id="tradfriGroupInput" list="tradfriGroupList" placeholder="T.ex. vardagsrum (tom = ingen)"></div>
+      <datalist id="tradfriGroupList"></datalist>
+      <div class="row"><input type="text" id="tradfriMoodInput" list="tradfriMoodList" placeholder="(tom = bara tänd gruppen)"></div>
+      <datalist id="tradfriMoodList"></datalist>
+      <div class="note" id="tradfriListNote">Gruppnamnet skrivs in direkt. Scenen väljs bland förslagen för den gruppen (dyker upp när du skrivit ett gruppnamn som finns).</div>
     </section>
 
     <section>
@@ -2241,6 +2248,33 @@ async function loadWakeLists(){
     ? "Enhetsnamnet skrivs in direkt och behöver inte vara påslaget just nu. Spellistan väljs bland förslagen."
     : "Kunde inte hämta förslagen just nu - logga in med Spotify. Enhetsnamnet går ändå att skriva in för hand.";
 }
+// grupp-namn -> lista av scen-namn, for den senast hamtade Tradfri-listan,
+// sa scen-faltets <datalist> kan filtreras till just den valda gruppens
+// scener. Rapporteras in av monitor.py (se server.py/api/tradfri-list).
+let TRADFRI_GROUPS = {};
+async function loadTradfriLists(){
+  const grList = $("#tradfriGroupList"), note = $("#tradfriListNote");
+  try {
+    const r = await fetch("/api/tradfri-list", { cache: "no-store" });
+    const d = r.ok ? await r.json() : null;
+    const groups = (d && d.groups) || [];
+    TRADFRI_GROUPS = {};
+    groups.forEach(g => { TRADFRI_GROUPS[g.name] = g.moods || []; });
+    grList.innerHTML = groups.map(g => `<option value="${esc(g.name)}"></option>`).join("");
+    refreshTradfriMoodList();
+    const ageS = d && d.at ? Math.round((Date.now()/1000) - d.at) : null;
+    note.textContent = groups.length
+      ? `Gruppnamnet skrivs in direkt. Scenen väljs bland förslagen för den gruppen.${ageS != null ? " (listan uppdaterad för " + ageS + "s sedan)" : ""}`
+      : "Ingen lista mottagen än - kameradatorn måste ha kört minst en gång med Trådfri-stödet aktivt.";
+  } catch(e){
+    note.textContent = "Kunde inte hämta Trådfri-listan just nu.";
+  }
+}
+function refreshTradfriMoodList(){
+  const name = ($("#tradfriGroupInput").value || "").trim();
+  const moods = TRADFRI_GROUPS[name] || [];
+  $("#tradfriMoodList").innerHTML = moods.map(m => `<option value="${esc(m)}"></option>`).join("");
+}
 async function spResumeOnWakeDevice(){
   const wanted = S.wakeDevice || "Tavlan";
   const dev = await spFindDevice(wanted);
@@ -2471,11 +2505,15 @@ function togglePanel(open){
     // hamtas, sa faltet aldrig ser "tomt"/fel ut om natet ar segt
     $("#wakeDeviceInput").value = S.wakeDevice || "";
     $("#wakePlaylistInput").value = S.wakePlaylistName || "";
+    $("#tradfriGroupInput").value = S.tradfriGroupName || "";
+    $("#tradfriMoodInput").value = S.tradfriMoodName || "";
     // hamtar sjalva forslags-listorna forst nar panelen faktiskt oppnas
     // (inte varje gang renderSp()/spPoll() kors var 2.5s), och baseras pa om
     // det finns ett sparat Spotify-inloggningstoken - inte state.spConnected,
     // som bara ar sant medan killan ar "spotify" och spPoll() faktiskt kor
     if (store.get("sp.token", null)) loadWakeLists();
+    // Tradfri-listan behover ingen Spotify-inloggning - hamtas alltid
+    loadTradfriLists();
   }
 }
 $("#gear").addEventListener("click", () => togglePanel(true));
@@ -2509,6 +2547,8 @@ $("#wakePlaylistInput").addEventListener("change", e => {
   }
 });
 $("#wakeRefreshBtn").addEventListener("click", () => loadWakeLists());
+$("#tradfriGroupInput").addEventListener("change", e => { S.tradfriGroupName = e.target.value.trim(); saveS(); refreshTradfriMoodList(); });
+$("#tradfriMoodInput").addEventListener("change", e => { S.tradfriMoodName = e.target.value.trim(); saveS(); });
 
 function slider(host, key, label, obj, min, max, onChange){
   const row = document.createElement("label"); row.className = "sl";

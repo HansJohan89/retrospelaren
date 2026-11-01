@@ -31,6 +31,9 @@ Vägar:
   /api/sonos-now    GET: vad Sonos (Vardagsrum) spelar just nu, för sidans
                     nu-spelar-panel. POST: monitor.py rapporterar in det
                     (Sonos syns aldrig i Spotifys eget API, se monitor.py)
+  /api/tradfri-list GET: lista över Trådfri-grupper/scener, för inställnings-
+                    panelens förslag. POST: monitor.py rapporterar in den
+                    (gatewayen är bara nåbar lokalt, se monitor.py)
 
 Bara Pythons standardbibliotek. Inget att installera.
 """
@@ -64,6 +67,13 @@ CMD_STATE = {"id": 0, "list": []}
 SONOS_LOCK = __import__("threading").Lock()
 SONOS_NOW = {"room": "", "title": "", "artist": "", "album": "", "art": "", "playing": False, "at": 0}
 SONOS_MAX_AGE_S = 90  # om inget rapporterats in på så här länge räknas det som stoppat
+
+# Lista över Trådfri-grupper och deras scener (moods) - rapporteras in av
+# monitor.py (som har kontakt med gatewayen på det lokala nätverket) så
+# inställningspanelen kan visa förslag. Själva valet (vilken grupp/scen som
+# ska triggas vid väckning) sparas som vanligt via /api/state.
+TRADFRI_LOCK = __import__("threading").Lock()
+TRADFRI_LIST = {"groups": [], "at": 0}
 OG_CACHE = {}
 DEP_CACHE = {}
 ALBUM_CACHE = {}
@@ -127,6 +137,26 @@ def set_sonos_now(patch):
                 SONOS_NOW[k] = patch[k]
         SONOS_NOW["at"] = time.time()
         d = dict(SONOS_NOW)
+    return {"ok": True, "now": d}
+
+
+def get_tradfri_list():
+    """Hamtas av sidans installningspanel for att fylla i forslag pa
+    Tradfri-grupper/scener (moods) - sjalva valet sparas som vanligt i
+    S/settings via /api/state, bara forslagslistan kommer harifran."""
+    with TRADFRI_LOCK:
+        return dict(TRADFRI_LIST)
+
+
+def set_tradfri_list(patch):
+    """Anropas av monitor.py (som har kontakt med Tradfri-gatewayen lokalt,
+    den ar precis som Sonos helt onaba for sidan/Railway) med den senaste
+    listan av grupper och deras scener."""
+    with TRADFRI_LOCK:
+        if "groups" in patch and isinstance(patch["groups"], list):
+            TRADFRI_LIST["groups"] = patch["groups"]
+        TRADFRI_LIST["at"] = time.time()
+        d = dict(TRADFRI_LIST)
     return {"ok": True, "now": d}
 
 
@@ -376,6 +406,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json(load_state())
             if path == "/api/sonos-now":
                 return self._json(get_sonos_now())
+            if path == "/api/tradfri-list":
+                return self._json(get_tradfri_list())
             if path == "/api/ping":
                 return self._json({"ok": True})
             if path == "/api/logo":
@@ -390,7 +422,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         path = urllib.parse.urlparse(self.path).path
-        if path not in ("/api/state", "/api/sonos-now"):
+        if path not in ("/api/state", "/api/sonos-now", "/api/tradfri-list"):
             return self._json({"error": "hittades inte"}, 404)
         try:
             n = int(self.headers.get("Content-Length") or 0)
@@ -403,6 +435,8 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json({"error": "ogiltig data: %s" % e}, 400)
         if path == "/api/sonos-now":
             return self._json(set_sonos_now(data))
+        if path == "/api/tradfri-list":
+            return self._json(set_tradfri_list(data))
         return self._json(save_state(data))
 
     def asset(self, name):
