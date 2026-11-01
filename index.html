@@ -2434,8 +2434,10 @@ function togglePanel(open){
   const willOpen = open ?? !panel.classList.contains("open");
   panel.classList.toggle("open", willOpen);
   // hamtar enhets- och spellista-listorna forst nar panelen faktiskt oppnas
-  // (inte varje gang renderSp()/spPoll() kors var 2.5s) och bara om inloggad
-  if (willOpen && state.spConnected) loadWakeLists();
+  // (inte varje gang renderSp()/spPoll() kors var 2.5s), och baseras pa om
+  // det finns ett sparat Spotify-inloggningstoken - inte state.spConnected,
+  // som bara ar sant medan killan ar "spotify" och spPoll() faktiskt kor
+  if (willOpen && store.get("sp.token", null)) loadWakeLists();
 }
 $("#gear").addEventListener("click", () => togglePanel(true));
 $("#closePanel").addEventListener("click", () => togglePanel(false));
