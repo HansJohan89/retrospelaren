@@ -472,6 +472,12 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
         <button data-v="mic">Ljud in (mikrofon/linje)</button>
       </div>
       <div class="note">Spotify släpper inte ut själva ljudet till webbsidor. Med "Ljud in" lyssnar visualiseringen på en mikrofon eller ett linjeingång &ndash; på Pi:n blir det ALSA loopback, så att bilden följer exakt det som spelas.</div>
+      <h3 style="margin-top:14px">Vakna-läge</h3>
+      <div class="note">Vilken Spotify-enhet och spellista som ska starta när kameran upptäcker rörelse och väcker skärmen.</div>
+      <div class="row"><select id="wakeDeviceSel"><option value="">Första tillgängliga</option></select>
+        <button class="btn" id="wakeRefreshBtn" title="Hämta enheter och spellistor igen">Uppdatera</button></div>
+      <div class="row"><select id="wakePlaylistSel"><option value="">(Fortsätt där det var)</option></select></div>
+      <div class="note" id="wakeListNote">Logga in med Spotify och öppna appen på enheten du vill använda för att den ska synas i listan.</div>
     </section>
 
     <section>
@@ -641,7 +647,8 @@ const store = {
 })();
 const S = Object.assign({
   source: "radio", viz: 1, palette: "svartvit", crt: true, info: true, autoChannel: false,
-  vizInput: "sim", clientId: "", genre: "tag=60s", volume: 0.8
+  vizInput: "sim", clientId: "", genre: "tag=60s", volume: 0.8,
+  wakeDevice: "Tavlan", wakePlaylistUri: "", wakePlaylistName: ""
 }, store.get("settings", {}));
 const FX_DEF = { bright:50, contrast:55, blur:15, persist:20, curve:50, vignette:55, glare:40, scan:45,
   flicker:20, snow:6, hum:18, jitter:8, wobble:0, roll:8, interf:12, ghost:8, chroma:0 };
@@ -2198,20 +2205,58 @@ async function spFindDevice(nameSub){
   const n = nameSub.toLowerCase();
   return list.find(d => (d.name || "").toLowerCase().includes(n)) || null;
 }
-const WAKE_DEVICE_NAME = "Tavlan";
+// hamtar enhets- och spellistlistorna for Vakna-lage-installningarna (anropas
+// lazy, nar installningspanelen oppnas - se togglePanel) och fyller de bada
+// <select>-elementen, med anvandarens sparade val markerat
+async function loadWakeLists(){
+  const devSel = $("#wakeDeviceSel"), plSel = $("#wakePlaylistSel"), note = $("#wakeListNote");
+  const [devR, plR] = await Promise.all([
+    spApi("/me/player/devices"),
+    spApi("/me/playlists?limit=50")
+  ]);
+  let gotDevices = false, gotPlaylists = false;
+  if (devR.status === 200 && devR.data){
+    gotDevices = true;
+    const list = devR.data.devices || [];
+    devSel.innerHTML = '<option value="">Första tillgängliga</option>' +
+      list.map(d => `<option value="${esc(d.name)}"${d.name === S.wakeDevice ? " selected" : ""}>${esc(d.name)}${d.is_active ? " (aktiv nu)" : ""}</option>`).join("");
+    if (S.wakeDevice && !list.some(d => d.name === S.wakeDevice)){
+      devSel.insertAdjacentHTML("beforeend", `<option value="${esc(S.wakeDevice)}" selected>${esc(S.wakeDevice)} (ej ansluten just nu)</option>`);
+    }
+  }
+  if (plR.status === 200 && plR.data){
+    gotPlaylists = true;
+    const list = plR.data.items || [];
+    plSel.innerHTML = '<option value="">(Fortsätt där det var)</option>' +
+      list.map(p => `<option value="${esc(p.uri)}"${p.uri === S.wakePlaylistUri ? " selected" : ""}>${esc(p.name)}</option>`).join("");
+    if (S.wakePlaylistUri && !list.some(p => p.uri === S.wakePlaylistUri)){
+      plSel.insertAdjacentHTML("beforeend", `<option value="${esc(S.wakePlaylistUri)}" selected>${esc(S.wakePlaylistName || "Sparad spellista")} (ej i listan)</option>`);
+    }
+  }
+  note.textContent = (gotDevices && gotPlaylists)
+    ? "Enheten måste vara igång och synlig i Spotify (öppna appen på den) för att dyka upp i listan."
+    : "Kunde inte hämta listan just nu - logga in med Spotify och försök igen.";
+}
 async function spResumeOnWakeDevice(){
-  const dev = await spFindDevice(WAKE_DEVICE_NAME);
-  if (!dev){ osd('Hittar inte Spotify-enheten "' + WAKE_DEVICE_NAME + '"'); return false; }
+  const wanted = S.wakeDevice || "Tavlan";
+  const dev = await spFindDevice(wanted);
+  if (!dev){ osd('Hittar inte Spotify-enheten "' + wanted + '"'); return false; }
   const target = (typeof dev.volume_percent === "number" && dev.volume_percent > 0) ? dev.volume_percent : 60;
   await spApi("/me/player", { method:"PUT", headers:{ "Content-Type":"application/json" },
     body: JSON.stringify({ device_ids:[dev.id], play:true }) });
   // transfer-anropets play:true startar inte alltid uppspelningen på egen hand -
-  // ett explicit play-anrop mot den nya enheten behövs. Enheten kan också behöva
-  // en liten stund att vakna/ansluta, så vi försöker några gånger.
+  // ett explicit play-anrop mot den nya enheten behövs, med den valda
+  // spellistan (om nagon ar vald) som kontext. Enheten kan också behöva en
+  // liten stund att vakna/ansluta, så vi försöker några gånger.
+  const playBody = S.wakePlaylistUri ? JSON.stringify({ context_uri:S.wakePlaylistUri }) : undefined;
   let started = false;
   for (let i = 0; i < 5 && !started; i++){
     await new Promise(res => setTimeout(res, 800));
-    await spApi("/me/player/play?device_id=" + dev.id, { method:"PUT" }).catch(()=>{});
+    await spApi("/me/player/play?device_id=" + dev.id, {
+      method:"PUT",
+      headers: playBody ? { "Content-Type":"application/json" } : undefined,
+      body: playBody
+    }).catch(()=>{});
     const check = await spApi("/me/player").catch(()=>({}));
     if (check.data && check.data.is_playing) started = true;
   }
@@ -2385,7 +2430,13 @@ setInterval(pollCmd, 1000);
 
 // ================= panel och tangenter =================
 const panel = $("#panel");
-function togglePanel(open){ panel.classList.toggle("open", open ?? !panel.classList.contains("open")); }
+function togglePanel(open){
+  const willOpen = open ?? !panel.classList.contains("open");
+  panel.classList.toggle("open", willOpen);
+  // hamtar enhets- och spellista-listorna forst nar panelen faktiskt oppnas
+  // (inte varje gang renderSp()/spPoll() kors var 2.5s) och bara om inloggad
+  if (willOpen && state.spConnected) loadWakeLists();
+}
 $("#gear").addEventListener("click", () => togglePanel(true));
 $("#closePanel").addEventListener("click", () => togglePanel(false));
 $("#srcSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (b){ start(); setSource(b.dataset.v); } });
@@ -2403,6 +2454,14 @@ $("#spLogin").addEventListener("click", spLogin);
 $("#spLogout").addEventListener("click", () => { store.del("sp.token"); state.spConnected = false; renderSp(); if (S.source === "spotify") setTrack(null); });
 $("#wakeTestBtn").addEventListener("click", () => runCmd("wake"));
 $("#spClient").addEventListener("change", e => { S.clientId = e.target.value.trim(); saveS(); });
+$("#wakeDeviceSel").addEventListener("change", e => { S.wakeDevice = e.target.value; saveS(); });
+$("#wakePlaylistSel").addEventListener("change", e => {
+  S.wakePlaylistUri = e.target.value;
+  const opt = e.target.selectedOptions[0];
+  S.wakePlaylistName = (opt && S.wakePlaylistUri) ? opt.textContent : "";
+  saveS();
+});
+$("#wakeRefreshBtn").addEventListener("click", () => loadWakeLists());
 
 function slider(host, key, label, obj, min, max, onChange){
   const row = document.createElement("label"); row.className = "sl";
