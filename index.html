@@ -2499,8 +2499,7 @@ function runCmd(c){
   else if (c === "prev") prev();
   else if (c === "playpause") playPause();
   else if (c === "wake"){
-    const ready = (S.source === "spotify") ? spResumeOnWakeDevice()
-      : (S.source === "radio") ? (async () => { if (audioEl && audioEl.paused) radioToggle(); return true; })()
+    const ready = (S.source === "radio") ? (async () => { if (audioEl && audioEl.paused) radioToggle(); return true; })()
       : Promise.resolve(true);
     playWakeAnimation(ready);
   }
