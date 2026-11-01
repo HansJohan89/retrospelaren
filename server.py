@@ -100,15 +100,29 @@ def load_state():
 
 
 def save_state(patch):
-    """Slår ihop de kända nycklarna i patch med det sparade och skriver filen atomärt."""
+    """Slår ihop de kända nycklarna i patch med det sparade och skriver filen atomärt.
+    "settings" slås ihop FÄLT FÖR FÄLT (inte en full ersättning) - annars kan en
+    klient med en äldre/ofullständig kopia av S (t.ex. en flik som inte laddats
+    om sedan en ny inställning lades till) radera fält den inte känner till bara
+    genom att spara något helt orelaterat. Hände med Trådfri-valen 2026-11-01:
+    en annan flik sparade sin äldre S utan de fälten och suddade ut dem."""
     with STATE_LOCK:
         d = load_state()
         for k in STATE_KEYS:
-            if k in patch:
-                if patch[k] is None:
-                    d.pop(k, None)
-                else:
-                    d[k] = patch[k]
+            if k not in patch:
+                continue
+            if patch[k] is None:
+                d.pop(k, None)
+            elif k == "settings" and isinstance(patch[k], dict):
+                merged = dict(d.get("settings") or {})
+                for sk, sv in patch[k].items():
+                    if sv is None:
+                        merged.pop(sk, None)
+                    else:
+                        merged[sk] = sv
+                d["settings"] = merged
+            else:
+                d[k] = patch[k]
         try:
             os.makedirs(DATA_DIR, exist_ok=True)
             tmp = STATE_FILE + ".tmp"
