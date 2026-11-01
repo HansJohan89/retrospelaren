@@ -1944,7 +1944,11 @@ function frame(nowMs){
   state.progressNow = state.playing && !state.live ? state.progress + (Date.now() - state.polledAt) : state.progress;
   if (state.playing) state.lastActive = nowMs;
   const idle = !state.started || (!state.playing && simAmp < 0.02 && (nowMs - state.lastActive) > 1500);
-  const page = boardStep(idle && state.started, nowMs);
+  // nar forceTestcard ar aktiv (vakna-animationen) hoppar vi helt over den
+  // vanliga tavle-rullningen - annars fyller boardStep() genast pa BOARD.page
+  // igen varje bildruta (idle ar sant innan musiken hunnit starta) och
+  // vader-/buss-/fotbollstavlan dyker upp ovanpa testbilden pa nytt
+  const page = forceTestcard ? "" : boardStep(idle && state.started, nowMs);
   if (forceTestcard) drawTestcard(t);
   else if (idle) (page && page !== "test") ? drawBoardBg(t) : drawTestcard(t);
   else { if (lastVizDrawn !== S.viz){ ctx.fillStyle = P.bg; ctx.fillRect(0,0,W,H); lastVizDrawn = S.viz; } VIZ[S.viz](t); }
