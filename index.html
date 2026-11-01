@@ -594,6 +594,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
         <kbd>S</kbd><span>Inställningar</span>
       </div>
       <div class="note">Styrning utifrån, t.ex. jalusins brytare: <code>/api/send?c=open</code>, <code>close</code>, <code>next</code>, <code>prev</code>, <code>playpause</code>, <code>wake</code>, <code>viz:3</code>, <code>palette:sepia</code></div>
+      <div class="row"><button class="btn" id="wakeTestBtn">Testa vakna-animation</button></div>
     </section>
   </div>
 </aside>
@@ -2339,6 +2340,7 @@ $("#crtChk").addEventListener("change", e => { S.crt = e.target.checked; saveS()
 $("#infoChk").addEventListener("change", e => { S.info = e.target.checked; saveS(); applyInfoVis(); });
 $("#spLogin").addEventListener("click", spLogin);
 $("#spLogout").addEventListener("click", () => { store.del("sp.token"); state.spConnected = false; renderSp(); if (S.source === "spotify") setTrack(null); });
+$("#wakeTestBtn").addEventListener("click", () => runCmd("wake"));
 $("#spClient").addEventListener("change", e => { S.clientId = e.target.value.trim(); saveS(); });
 
 function slider(host, key, label, obj, min, max, onChange){
