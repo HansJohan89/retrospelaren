@@ -57,8 +57,9 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .cover.none{display:none}
 .meta{min-width:0;flex:1;display:flex;flex-direction:column;gap:.6vh;margin-left:calc((var(--covsz,1) - 1) * 17vh);
   transform:translateY(calc((var(--covsz,1) - 1) * -8.5vh))}
+.kicker,.artist,.album,#queue .qh,#queue .qt,#queue .qa{font-weight:var(--fwB,400);font-style:var(--fsB,normal);text-decoration:var(--tdB,none)}
 .kicker{font-size:calc(1.75vh*var(--szB));letter-spacing:.35em;color:var(--mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.title{font-family:var(--fT),serif;font-size:calc(5vh*var(--szT));line-height:1.05;white-space:nowrap;overflow:hidden;color:var(--ink);
+.title{font-family:var(--fT),serif;font-size:calc(5vh*var(--szT));font-weight:var(--fwT,400);font-style:var(--fsT,normal);text-decoration:var(--tdT,none);line-height:1.05;white-space:nowrap;overflow:hidden;color:var(--ink);
   text-shadow:0 0 1.2vh color-mix(in srgb,var(--ink) 45%,transparent)}
 .title span{display:inline-block}
 .title.marquee span{animation:pingpong var(--dur,10s) ease-in-out infinite}
@@ -82,7 +83,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 
 .upper .title,.upper .artist{text-transform:uppercase}
 #edges{position:absolute;top:3%;left:6%;right:6%;z-index:4;display:flex;justify-content:space-between;align-items:center;gap:3vh;
-  font-family:var(--fT),serif;font-size:calc(4.8vh*var(--esz,1));line-height:1.1;letter-spacing:.02em;color:var(--ink);white-space:nowrap;pointer-events:none;
+  font-family:var(--fT),serif;font-size:calc(4.8vh*var(--esz,1));font-weight:var(--fwE,400);font-style:var(--fsE,normal);text-decoration:var(--tdE,none);line-height:1.1;letter-spacing:.02em;color:var(--ink);white-space:nowrap;pointer-events:none;
   text-shadow:0 0 1.4vh color-mix(in srgb,var(--ink) 45%,transparent)}
 #edges .grp{display:flex;align-items:center;gap:.5em;min-width:0}
 #edges .wk{color:var(--mid)}
@@ -107,6 +108,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #osd.on{opacity:.95;transition:opacity .1s}
 
 #board{position:absolute;left:6%;right:6%;top:var(--bt,calc(4% + 7.5vh*var(--esz,1)));bottom:calc(3.4% + var(--bb,0px));z-index:3;color:var(--ink);font-size:calc(2.75vh*var(--sz));
+  font-weight:var(--fwO,400);font-style:var(--fsO,normal);text-decoration:var(--tdO,none);
   opacity:0;pointer-events:none;transition:opacity .5s}
 #board.on{opacity:1}
 #board svg{stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
@@ -377,6 +379,7 @@ input[type=text],input[type=search]{font:inherit;font-size:14px;padding:7px 9px;
   color:var(--panel-ink);border-radius:3px;flex:1;min-width:0}
 input[type=range]{flex:1;accent-color:var(--panel-hot)}
 label.chk{display:flex;gap:8px;align-items:center;margin-top:8px;cursor:pointer}
+.row label.chk{margin-top:0}
 .note{font-size:12.5px;color:#6b5a3e;margin-top:8px;line-height:1.45}
 .note code{background:#f6efdc;padding:1px 4px;border:1px solid var(--panel-line);word-break:break-all;font-size:12px}
 #stations{list-style:none;margin:10px 0 0;padding:0;max-height:300px;overflow:auto;border:1.5px solid var(--panel-line);background:#f6efdc}
@@ -549,6 +552,23 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <div class="row"><span class="lbl">Rubrikstypsnitt</span><select id="fontT"></select></div>
       <div class="row"><span class="lbl">Brödtext</span><select id="fontB"></select></div>
       <div id="lookSl"></div>
+      <h4>Textstil</h4>
+      <div class="row"><span class="lbl">Titel</span>
+        <label class="chk"><input type="checkbox" id="tBoldChk"> Fet</label>
+        <label class="chk"><input type="checkbox" id="tItalicChk"> Kursiv</label>
+        <label class="chk"><input type="checkbox" id="tUnderChk"> Understruken</label></div>
+      <div class="row"><span class="lbl">Brödtext</span>
+        <label class="chk"><input type="checkbox" id="bBoldChk"> Fet</label>
+        <label class="chk"><input type="checkbox" id="bItalicChk"> Kursiv</label>
+        <label class="chk"><input type="checkbox" id="bUnderChk"> Understruken</label></div>
+      <div class="row"><span class="lbl">Övrig text</span>
+        <label class="chk"><input type="checkbox" id="oBoldChk"> Fet</label>
+        <label class="chk"><input type="checkbox" id="oItalicChk"> Kursiv</label>
+        <label class="chk"><input type="checkbox" id="oUnderChk"> Understruken</label></div>
+      <div class="row"><span class="lbl">Datum och klocka</span>
+        <label class="chk"><input type="checkbox" id="eBoldChk"> Fet</label>
+        <label class="chk"><input type="checkbox" id="eItalicChk"> Kursiv</label>
+        <label class="chk"><input type="checkbox" id="eUnderChk"> Understruken</label></div>
       <label class="chk"><input type="checkbox" id="upperChk"> Titel och artist med versaler</label>
       <h4>Omslag</h4>
       <div class="seg" id="coverSeg">
@@ -692,6 +712,7 @@ const PRESETS = {
   dalig:  { bright:48, contrast:58, blur:42, persist:35, curve:60, vignette:65, glare:40, scan:50, flicker:50, snow:55, hum:60, jitter:42, wobble:48, roll:50, interf:70, ghost:55, chroma:25 }
 };
 const LOOK_DEF = { brand:"BLAUPUNKT", fontT:"Limelight", fontB:"Special Elite", size:100, titleSize:100, bodySize:100, edgeSize:100, coverSize:100, upper:false, cover:"square", dial:true,
+  tBold:false, tItalic:false, tUnder:false, bBold:false, bItalic:false, bUnder:false, oBold:false, oItalic:false, oUnder:false, eBold:false, eItalic:false, eUnder:false,
   format:"4:3", scale:100, offX:0, offY:0 };
 const EDGE_DEF = { date:true, week:true, clock:true, wx:true, steps:true, stepsGoal:10000, place:"Falun", lat:60.6065, lon:15.6355 };
 const FONTS_T = ["Limelight","Monoton","Poiret One","Righteous","Abril Fatface","Playfair Display","Bebas Neue","Federo","Josefin Sans","Pacifico","Lobster","Yesteryear",
@@ -2647,6 +2668,10 @@ function applyLook(){
   r.setProperty("--szB", ((Lk.bodySize ?? 100)/100).toFixed(2));
   r.setProperty("--esz", ((Lk.edgeSize ?? 100)/100).toFixed(2));
   r.setProperty("--covsz", ((Lk.coverSize ?? 100)/100).toFixed(2));
+  r.setProperty("--fwT", Lk.tBold ? "700" : "400"); r.setProperty("--fsT", Lk.tItalic ? "italic" : "normal"); r.setProperty("--tdT", Lk.tUnder ? "underline" : "none");
+  r.setProperty("--fwB", Lk.bBold ? "700" : "400"); r.setProperty("--fsB", Lk.bItalic ? "italic" : "normal"); r.setProperty("--tdB", Lk.bUnder ? "underline" : "none");
+  r.setProperty("--fwO", Lk.oBold ? "700" : "400"); r.setProperty("--fsO", Lk.oItalic ? "italic" : "normal"); r.setProperty("--tdO", Lk.oUnder ? "underline" : "none");
+  r.setProperty("--fwE", Lk.eBold ? "700" : "400"); r.setProperty("--fsE", Lk.eItalic ? "italic" : "normal"); r.setProperty("--tdE", Lk.eUnder ? "underline" : "none");
   $("#screen").classList.toggle("upper", !!Lk.upper);
   $("#brandStart").textContent = Lk.brand || " ";
   document.title = Lk.brand || "Spelare";
@@ -2827,6 +2852,12 @@ function buildControls(){
   $("#fmtSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.look.format = b.dataset.v; saveS(); segOn("#fmtSeg", b.dataset.v); applyLook(); });
   $("#brandIn").addEventListener("input", e => { S.look.brand = e.target.value; saveS(); applyLook(); });
   $("#upperChk").addEventListener("change", e => { S.look.upper = e.target.checked; saveS(); applyLook(); });
+  for (const [sel, key] of [["#tBoldChk","tBold"],["#tItalicChk","tItalic"],["#tUnderChk","tUnder"],
+      ["#bBoldChk","bBold"],["#bItalicChk","bItalic"],["#bUnderChk","bUnder"],
+      ["#oBoldChk","oBold"],["#oItalicChk","oItalic"],["#oUnderChk","oUnder"],
+      ["#eBoldChk","eBold"],["#eItalicChk","eItalic"],["#eUnderChk","eUnder"]]){
+    $(sel).addEventListener("change", e => { S.look[key] = e.target.checked; saveS(); applyLook(); });
+  }
   $("#dialChk").addEventListener("change", e => { S.look.dial = e.target.checked; saveS(); applyLook(); });
   $("#warmChk").addEventListener("change", e => { S.warm = e.target.checked; saveS(); });
   $("#edSteps").addEventListener("change", e => { S.edge.steps = e.target.checked; saveS(); loadSteps(); renderEdges.fitted = false; renderEdges(); });
@@ -2873,6 +2904,12 @@ function syncAll(){
   syncers.forEach(f => f());
   $("#fontT").value = S.look.fontT; $("#fontB").value = S.look.fontB; $("#brandIn").value = S.look.brand;
   $("#upperChk").checked = !!S.look.upper; $("#dialChk").checked = !!S.look.dial; $("#warmChk").checked = !!S.warm;
+  for (const [sel, key] of [["#tBoldChk","tBold"],["#tItalicChk","tItalic"],["#tUnderChk","tUnder"],
+      ["#bBoldChk","bBold"],["#bItalicChk","bItalic"],["#bUnderChk","bUnder"],
+      ["#oBoldChk","oBold"],["#oItalicChk","oItalic"],["#oUnderChk","oUnder"],
+      ["#eBoldChk","eBold"],["#eItalicChk","eItalic"],["#eUnderChk","eUnder"]]){
+    $(sel).checked = !!S.look[key];
+  }
   $("#crtChk").checked = S.crt;
   segOn("#coverSeg", S.look.cover); segOn("#fmtSeg", S.look.format);
   $("#edSteps").checked = !!S.edge.steps; $("#stepsGoal").value = S.edge.stepsGoal;
