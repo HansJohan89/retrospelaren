@@ -2117,7 +2117,7 @@ function renderQueue(items){
   // items: [{title, artist}] - visar max 4, tom lista/odefinierat gommer rutan.
   const list = (items || []).filter(x => x && x.title).slice(0, 4);
   elQueue.classList.toggle("hidden", list.length === 0 || !S.info);
-  elQueue.innerHTML = list.length ? ("<div class=\"qh\">Näst på tur</div>" + list.map(x =>
+  elQueue.innerHTML = list.length ? ("<div class=\"qh\">Spelas härnäst...</div>" + list.map(x =>
     `<div class="qrow"><div class="qt">${esc(x.title)}</div><div class="qa">${esc(x.artist || "")}</div></div>`
   ).join("")) : "";
 }
