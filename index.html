@@ -71,7 +71,10 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #queue .qh{font-size:calc(1.75vh*var(--szB));letter-spacing:.3em;text-transform:uppercase;color:var(--mid);margin-bottom:.8vh}
 #queue .qrow{margin-bottom:.7vh}
 #queue .qrow:last-child{margin-bottom:0}
-#queue .qt{font-size:calc(2.2vh*var(--szB));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#queue .qt{font-size:calc(2.2vh*var(--szB));white-space:nowrap;overflow:hidden;position:relative}
+#queue .qt span{display:inline-block;padding-right:3vh}
+#queue .qt.marquee span{animation:qmarq var(--dur,10s) linear infinite}
+@keyframes qmarq{0%,12%{transform:translateX(0)}100%{transform:translateX(-100%)}}
 #queue .qa{font-size:calc(1.75vh*var(--szB));color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 #dial{position:absolute;left:5%;right:5%;bottom:calc(4.2% + var(--bb,0px));height:7.2%;z-index:3;
@@ -2118,8 +2121,21 @@ function renderQueue(items){
   const list = (items || []).filter(x => x && x.title).slice(0, 4);
   elQueue.classList.toggle("hidden", list.length === 0 || !S.info);
   elQueue.innerHTML = list.length ? ("<div class=\"qh\">Spelas härnäst...</div>" + list.map(x =>
-    `<div class="qrow"><div class="qt">${esc(x.title)}</div><div class="qa">${esc(x.artist || "")}</div></div>`
+    `<div class="qrow"><div class="qt"><span>${esc(x.title)}</span></div><div class="qa">${esc(x.artist || "")}</div></div>`
   ).join("")) : "";
+  if (list.length){
+    requestAnimationFrame(() => {
+      elQueue.querySelectorAll(".qt").forEach(qt => {
+        const sp = qt.firstElementChild;
+        if (!sp) return;
+        if (sp.scrollWidth > qt.clientWidth + 2){
+          qt.appendChild(sp.cloneNode(true));
+          qt.style.setProperty("--dur", Math.max(8, (sp.textContent || "").length*0.4) + "s");
+          qt.classList.add("marquee");
+        }
+      });
+    });
+  }
 }
 let infoTimer = 0;
 function setTrack(tr){
