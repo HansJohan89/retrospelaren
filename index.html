@@ -33,7 +33,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 @keyframes roll{0%{transform:translateY(0)}40%{transform:translateY(-18%)}70%{transform:translateY(9%)}100%{transform:translateY(0)}}
 .content{position:absolute;inset:0;will-change:transform}
 
-#info{position:absolute;left:5%;right:5%;bottom:calc(13.5% + var(--bb,0px));height:17%;display:flex;gap:3.2%;align-items:center;
+#info{position:absolute;left:5%;right:calc(28% + 1.4vh);bottom:calc(13.5% + var(--bb,0px));height:17%;display:flex;gap:3.2%;align-items:center;
   transition:opacity .6s, transform .6s;z-index:3}
 #info.out{opacity:0;transform:translateY(6%)}
 #info.hidden,#dial.hidden{display:none}
