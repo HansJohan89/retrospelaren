@@ -64,8 +64,8 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 @keyframes marq{0%,12%{transform:translateX(0)}100%{transform:translateX(calc(-100% ))}}
 .artist{font-size:calc(3.1vh*var(--sz));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
 .album{font-size:calc(2vh*var(--sz));color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#queue{position:absolute;bottom:calc(13.5% + var(--bb,0px));right:9%;width:21%;height:20%;z-index:3;
-  color:var(--ink);overflow:hidden}
+#queue{position:absolute;bottom:calc(13.5% + var(--bb,0px));right:calc(5% + 1.4vh);width:21%;height:20%;z-index:3;
+  text-align:right;color:var(--ink);overflow:hidden}
 #queue.hidden,#queue:empty{display:none}
 #queue .qh{font-size:calc(1.3vh*var(--sz));letter-spacing:.3em;text-transform:uppercase;color:var(--mid);margin-bottom:.8vh}
 #queue .qrow{margin-bottom:.7vh}
