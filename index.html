@@ -1082,6 +1082,11 @@ function drawAtom(t){
 
 // ---------- 5 Ljusorgel ----------
 const peaks = new Float32Array(16);
+// Kolumnerna visas inte i ren frekvensordning (bas->diskant vanster->höger) utan speglat
+// fran mitten: de tva lagsta/baslisgaste banden (som oftast ligger hogst i musik) hamnar
+// mitt i, och allt hogre upp i frekvens trappar ut mot kanterna at bada hall - ett ungefarligt
+// "pyramid"-intryck utan att behova sortera om kolumner i realtid (vilket bara skulle flimra).
+const ORGAN_ORDER = [14,12,10,8,6,4,2,0, 1,3,5,7,9,11,13,15];
 function drawOrgan(t){
   clearBg();
   const R = region(), cols = 16, rows = 12;
@@ -1090,7 +1095,8 @@ function drawOrgan(t){
   ctx.fillStyle = hexA(P.mid,0.5);
   ctx.fillRect(R.x, R.y - rh*0.5, R.w, 2*DPR); ctx.fillRect(R.x, R.y + R.h + rh*0.2, R.w, 2*DPR);
   for (let c=0;c<cols;c++){
-    const v = Math.min(1, Math.max(bandsSm[c*2], bandsSm[c*2+1]) * 1.15);
+    const bi = ORGAN_ORDER[c];
+    const v = Math.min(1, Math.max(bandsSm[bi*2], bandsSm[bi*2+1]) * 1.15);
     peaks[c] = Math.max(v, peaks[c] - 0.008);
     const lit = Math.round(v*rows), pk = Math.min(rows-1, Math.round(peaks[c]*rows));
     for (let r=0;r<rows;r++){
@@ -1521,15 +1527,12 @@ const PAWS_SVG = `<svg class="paws" viewBox="-10 -14 270 216" aria-hidden="true"
 function stepsHtml(){
   if (!S.edge.steps || !STEPS.ok || !STEPS.has_data || STEPS.date !== todayKey()) return "";
   const goal = Math.max(1000, +S.edge.stepsGoal || 10000), n = 10, done = Math.min(n, Math.floor(STEPS.steps / (goal / n)));
-  // I 60-talsfärg: gjorda streck går från rött via orange till grönt mot dagsmålet, resten dämpade; siffran får färgen för hur långt man kommit
-  const color = S.palette === "farg", grad = f => f < .5 ? mix("#d9483b", "#f2a541", f*2) : mix("#f2a541", "#6fbf5a", (f - .5)*2);
   let ticks = "";
   for (let i = 0; i < n; i++){
-    const x = 4 + i * 92 / (n - 1), c = color ? ` stroke="${i < done ? grad(i/(n - 1)) : hexA(P.mid, .6)}"` : "";
-    ticks += i < done ? `<line x1="${x}" y1="4" x2="${x}" y2="36" stroke-width="7"${c}/>` : `<line x1="${x}" y1="13" x2="${x}" y2="27" stroke-width="3"${c}/>`;
+    const x = 4 + i * 92 / (n - 1);
+    ticks += i < done ? `<line x1="${x}" y1="4" x2="${x}" y2="36" stroke-width="7"/>` : `<line x1="${x}" y1="13" x2="${x}" y2="27" stroke-width="3"/>`;
   }
-  const lc = color && done ? ` style="color:${grad(Math.min(1, (done - 1)/(n - 1)))}"` : "";
-  return `<span class="stp" title="${STEPS.steps} steg">${PAWS_SVG}<svg class="rul" viewBox="0 0 100 40" aria-hidden="true">${ticks}</svg><span${lc}>${stepsLabel(STEPS.steps)}</span></span>`;
+  return `<span class="stp" title="${STEPS.steps} steg">${PAWS_SVG}<svg class="rul" viewBox="0 0 100 40" aria-hidden="true">${ticks}</svg><span>${stepsLabel(STEPS.steps)}</span></span>`;
 }
 function renderEdges(){
   const e = S.edge, d = new Date(), Lp = [], Rp = [];
