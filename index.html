@@ -37,7 +37,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
   transition:opacity .6s, transform .6s;z-index:3}
 #info.out{opacity:0;transform:translateY(6%)}
 #info.hidden,#dial.hidden{display:none}
-#info.idle,#dial.idle{opacity:0!important;transition:opacity .8s}
+#info.idle,#dial.idle,#queue.idle{opacity:0!important;transition:opacity .8s}
 .cover{height:100%;aspect-ratio:1;flex:none;margin-left:1.4vh;position:relative;border:max(2px,.35vh) solid var(--mid);padding:.5%;
   background:var(--dim);box-shadow:0 0 2.5vh rgba(0,0,0,.6);
   transform:scale(var(--covsz,1));transform-origin:left bottom}
@@ -56,22 +56,22 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 @keyframes spin{to{transform:rotate(360deg)}}
 .cover.none{display:none}
 .meta{min-width:0;flex:1;display:flex;flex-direction:column;gap:.6vh;margin-left:calc((var(--covsz,1) - 1) * 17vh)}
-.kicker{font-size:calc(1.75vh*var(--sz));letter-spacing:.35em;color:var(--mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.title{font-family:var(--fT),serif;font-size:calc(5vh*var(--sz));line-height:1.05;white-space:nowrap;overflow:hidden;color:var(--ink);
+.kicker{font-size:calc(1.75vh*var(--szB));letter-spacing:.35em;color:var(--mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.title{font-family:var(--fT),serif;font-size:calc(5vh*var(--szT));line-height:1.05;white-space:nowrap;overflow:hidden;color:var(--ink);
   text-shadow:0 0 1.2vh color-mix(in srgb,var(--ink) 45%,transparent)}
 .title span{display:inline-block;padding-right:6vh}
 .title.marquee span{animation:marq var(--dur,14s) linear infinite}
 @keyframes marq{0%,12%{transform:translateX(0)}100%{transform:translateX(calc(-100% ))}}
-.artist{font-size:calc(3.1vh*var(--sz));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
-.album{font-size:calc(2vh*var(--sz));color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.artist{font-size:calc(3.1vh*var(--szB));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.album{font-size:calc(2vh*var(--szB));color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #queue{position:absolute;bottom:calc(13.5% + var(--bb,0px));right:calc(5% + 1.4vh);width:21%;height:20%;z-index:3;
   text-align:right;color:var(--ink);overflow:hidden}
 #queue.hidden,#queue:empty{display:none}
-#queue .qh{font-size:calc(1.3vh*var(--sz));letter-spacing:.3em;text-transform:uppercase;color:var(--mid);margin-bottom:.8vh}
+#queue .qh{font-size:calc(1.3vh*var(--szB));letter-spacing:.3em;text-transform:uppercase;color:var(--mid);margin-bottom:.8vh}
 #queue .qrow{margin-bottom:.7vh}
 #queue .qrow:last-child{margin-bottom:0}
-#queue .qt{font-size:calc(1.7vh*var(--sz));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#queue .qa{font-size:calc(1.3vh*var(--sz));color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#queue .qt{font-size:calc(1.7vh*var(--szB));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#queue .qa{font-size:calc(1.3vh*var(--szB));color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 #dial{position:absolute;left:5%;right:5%;bottom:calc(4.2% + var(--bb,0px));height:7.2%;z-index:3;
   border-top:max(1px,.2vh) solid var(--dim);border-bottom:max(1px,.2vh) solid var(--dim)}
@@ -509,9 +509,9 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
         <button data-v="3">3 VU-mätare</button>
         <button data-v="4">4 Atomålder</button>
         <button data-v="5">5 Ljusorgel</button>
-        <button data-v="6">6 Lissajous</button>
-        <button data-v="7">7 Rullband</button>
-        <button data-v="8">8 Pejling</button>
+        <button data-v="6">6 Plasma</button>
+        <button data-v="7">7 Vattenfall</button>
+        <button data-v="8">8 LED-stapel</button>
       </div>
       <label class="chk"><input type="checkbox" id="autoCh"> Byt kanal vid ny låt</label>
       <h4>Vilka kanaler att växla mellan</h4>
@@ -688,7 +688,7 @@ const PRESETS = {
   sliten: { bright:45, contrast:62, blur:35, persist:45, curve:65, vignette:75, glare:45, scan:55, flicker:45, snow:20, hum:45, jitter:22, wobble:22, roll:28, interf:35, ghost:30, chroma:14 },
   dalig:  { bright:48, contrast:58, blur:42, persist:35, curve:60, vignette:65, glare:40, scan:50, flicker:50, snow:55, hum:60, jitter:42, wobble:48, roll:50, interf:70, ghost:55, chroma:25 }
 };
-const LOOK_DEF = { brand:"BLAUPUNKT", fontT:"Limelight", fontB:"Special Elite", size:100, edgeSize:100, coverSize:100, upper:false, cover:"square", dial:true,
+const LOOK_DEF = { brand:"BLAUPUNKT", fontT:"Limelight", fontB:"Special Elite", size:100, titleSize:100, bodySize:100, edgeSize:100, coverSize:100, upper:false, cover:"square", dial:true,
   format:"4:3", scale:100, offX:0, offY:0 };
 const EDGE_DEF = { date:true, week:true, clock:true, wx:true, steps:true, stepsGoal:10000, place:"Falun", lat:60.6065, lon:15.6355 };
 const FONTS_T = ["Limelight","Monoton","Poiret One","Righteous","Abril Fatface","Playfair Display","Bebas Neue","Federo","Josefin Sans","Pacifico","Lobster","Yesteryear",
@@ -1124,86 +1124,104 @@ function drawOrgan(t){
   ctx.globalAlpha = 1; ctx.shadowBlur = 0;
 }
 
-// ---------- 6 Lissajous (stereo-fas) ----------
-function drawLissa(t){
-  fade(0.22*persistK());
-  const R = region(), cx = R.x+R.w/2, cy = R.y+R.h/2, rad = Math.min(R.w,R.h)*0.46;
-  ctx.strokeStyle = hexA(P.mid,0.3); ctx.lineWidth = 1*DPR;
-  ctx.beginPath(); ctx.arc(cx,cy,rad,0,Math.PI*2);
-  ctx.moveTo(cx-rad,cy); ctx.lineTo(cx+rad,cy); ctx.moveTo(cx,cy-rad); ctx.lineTo(cx,cy+rad); ctx.stroke();
-  ctx.setLineDash([2*DPR,5*DPR]);
-  ctx.beginPath(); ctx.arc(cx,cy,rad*0.5,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
-  let peak = 0.02; for (let i=0;i<FFT;i+=3) peak = Math.max(peak, Math.abs(waveL[i]), Math.abs(waveR[i]));
-  const g = Math.min(2.4, 0.85/Math.max(0.05,peak));
-  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,rad*1.02,0,Math.PI*2); ctx.clip();
-  ctx.strokeStyle = P.ink; ctx.lineWidth = 1.6*DPR; glow(P.ink, 12);
+// ---------- färghjälp för plasma/vattenfall: flerstegs-gradient utan DOM/hex-overhead ----------
+function lerpRGB(a,b,f){ return [a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f]; }
+function stopColor(stops, v){
+  const n = stops.length - 1, f = Math.max(0, Math.min(0.999999, v))*n, i = Math.floor(f);
+  return lerpRGB(stops[i], stops[Math.min(n, i+1)], f - i);
+}
+function paletteStops(){
+  // monokroma lägen far en stegring i samma kulör (som en fosformonitor); 60-talsfärg far ett varmt spektrum
+  return S.palette === "farg" ? [rgbOf(P.bg), rgbOf(P.warm), rgbOf(P.red), rgbOf(P.accent)]
+    : [rgbOf(P.bg), rgbOf(P.dim), rgbOf(P.mid), rgbOf(P.ink)];
+}
+
+// ---------- 6 Plasma (interferensmönster à la Winamp/Milkdrop-stilen) ----------
+const plasmaCv = document.createElement("canvas"), plasmaCx = plasmaCv.getContext("2d");
+function drawPlasma(t){
+  const R = region(), pw = 88, ph = Math.max(1, Math.round(pw * R.h/R.w));
+  if (plasmaCv.width !== pw || plasmaCv.height !== ph){ plasmaCv.width = pw; plasmaCv.height = ph; }
+  const img = plasmaCx.createImageData(pw, ph), data = img.data;
+  const bass = (bandsSm[0]+bandsSm[1]+bandsSm[2])/3, treble = (bandsSm[24]+bandsSm[27]+bandsSm[30])/3;
+  const speed = t*(0.7 + L.rms*1.8), zoom = 2.6 + bass*3.4, stops = paletteStops();
+  for (let y=0;y<ph;y++){
+    const ny = y/ph*zoom;
+    for (let x=0;x<pw;x++){
+      const nx = x/pw*zoom*(pw/ph);
+      let v = Math.sin(nx*3+speed) + Math.sin(ny*3 - speed*1.3) + Math.sin((nx+ny)*2.1+speed*0.6) + Math.sin(Math.sqrt(nx*nx+ny*ny)*4 - speed*1.7);
+      v = Math.min(1, (v+4)/8 + treble*0.3);
+      const c = stopColor(stops, v), idx = (y*pw+x)*4;
+      data[idx]=c[0]; data[idx+1]=c[1]; data[idx+2]=c[2]; data[idx+3]=255;
+    }
+  }
+  plasmaCx.putImageData(img,0,0);
+  ctx.globalCompositeOperation = "source-over"; ctx.shadowBlur = 0;
+  ctx.save(); ctx.beginPath(); ctx.rect(R.x,R.y,R.w,R.h); ctx.clip();
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(plasmaCv, 0,0,pw,ph, R.x,R.y,R.w,R.h);
+  ctx.restore();
+}
+
+// ---------- 7 Spektrumvattenfall (som en studio-/radiopejlanalysator) ----------
+const wfCv = document.createElement("canvas"), wfCx = wfCv.getContext("2d");
+const wfScratch = document.createElement("canvas"), wfScratchCx = wfScratch.getContext("2d");
+function drawWaterfall(t){
+  const R = region(), w = Math.max(1, Math.round(R.w)), h = Math.max(1, Math.round(R.h));
+  if (wfCv.width !== w || wfCv.height !== h){
+    wfCv.width = w; wfCv.height = h; wfScratch.width = w; wfScratch.height = h;
+    wfCx.fillStyle = hexA(P.bg,1); wfCx.fillRect(0,0,w,h);
+  }
+  // skifta hela bilden ett pixelsteg åt vänster (ny data kommer in längst till höger, som en pejlskärm som rullar)
+  wfScratchCx.clearRect(0,0,w,h);
+  wfScratchCx.drawImage(wfCv, 1,0,w-1,h, 0,0,w-1,h);
+  wfCx.clearRect(0,0,w,h);
+  wfCx.drawImage(wfScratch,0,0);
+  const stops = paletteStops();
+  for (let y=0;y<h;y++){
+    const bi = Math.min(NB-1, Math.max(0, Math.floor((1 - y/h) * NB)));
+    const v = Math.min(1, bandsSm[bi]*1.3);
+    const c = stopColor(stops, v);
+    wfCx.fillStyle = `rgb(${c[0]|0},${c[1]|0},${c[2]|0})`;
+    wfCx.fillRect(w-1, y, 1, 1);
+  }
+  ctx.save(); ctx.beginPath(); ctx.rect(R.x,R.y,R.w,R.h); ctx.clip();
+  ctx.drawImage(wfCv, R.x, R.y);
+  ctx.strokeStyle = hexA(P.mid,0.35); ctx.lineWidth = 1*DPR;
   ctx.beginPath();
-  for (let i=0;i<FFT;i+=2){
-    const x = cx + waveL[i]*g*rad, y = cy - waveR[i]*g*rad;
-    i ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
-  }
-  ctx.stroke(); ctx.shadowBlur = 0; ctx.restore();
-  ctx.font = `${Math.round(rad*0.16)}px ${FB}`; ctx.fillStyle = hexA(P.mid,0.85); ctx.textAlign = "center";
-  ctx.fillText("V  ↔  H  FAS", cx, cy+rad+rad*0.26);
-  ctx.textAlign = "left";
+  for (let j=1;j<4;j++){ const y = R.y + R.h*j/4; ctx.moveTo(R.x,y); ctx.lineTo(R.x+R.w,y); }
+  ctx.stroke();
+  ctx.restore();
 }
 
-// ---------- 7 Rullbandspelare ----------
-let reelAngle = 0;
-function drawReels(t){
+// ---------- 8 LED-stapel (färggraderad spektrum-ljudmätare med reflex) ----------
+const ledPeaks = new Float32Array(32);
+function drawLed(t){
   clearBg();
-  const R = region(), rr = Math.min(R.w, R.h)*0.34, cy = R.y + R.h*0.44;
-  const gap = rr*2.7, cx1 = R.x + R.w/2 - gap/2, cx2 = R.x + R.w/2 + gap/2;
-  let prog = 0.35;
-  if (state.track && state.duration > 0 && isFinite(state.progressNow)) prog = Math.max(0.06, Math.min(0.94, state.progressNow/state.duration));
-  reelAngle += (0.6 + L.rms*9 + L.amp*2.4) * 0.016 * (state.playing ? 1 : 0.12);
-  const drawReel = (cx, wound) => {
-    ctx.strokeStyle = hexA(P.mid,0.85); ctx.lineWidth = Math.max(2,rr*0.04);
-    ctx.beginPath(); ctx.arc(cx,cy,rr,0,Math.PI*2); ctx.stroke();
-    const hub = rr*0.32, tapeR = hub + (rr-hub)*wound;
-    ctx.fillStyle = hexA(P.dim,0.9); ctx.beginPath(); ctx.arc(cx,cy,tapeR,0,Math.PI*2); ctx.fill();
-    ctx.save(); ctx.translate(cx,cy); ctx.rotate(reelAngle);
-    ctx.strokeStyle = hexA(P.ink,0.9); ctx.lineWidth = Math.max(2,rr*0.05);
-    for (let k=0;k<3;k++){ const a = k*Math.PI*2/3;
-      ctx.beginPath(); ctx.moveTo(Math.cos(a)*hub*0.22, Math.sin(a)*hub*0.22); ctx.lineTo(Math.cos(a)*hub, Math.sin(a)*hub); ctx.stroke(); }
-    ctx.restore();
-    ctx.fillStyle = P.bg; ctx.beginPath(); ctx.arc(cx,cy,hub*0.28,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle = hexA(P.mid,0.9); ctx.lineWidth = Math.max(1,rr*0.025); ctx.stroke();
-  };
-  drawReel(cx1, 1-prog);
-  drawReel(cx2, prog);
-  ctx.strokeStyle = hexA(P.ink,0.7); ctx.lineWidth = Math.max(1.5, rr*0.035);
-  const y1 = cy - rr*0.92, y2 = cy + rr*0.92;
-  ctx.beginPath(); ctx.moveTo(cx1+rr*0.95,y1); ctx.lineTo(cx2-rr*0.95,y1); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx1+rr*0.95,y2); ctx.lineTo(cx2-rr*0.95,y2); ctx.stroke();
-  ctx.font = `${Math.round(rr*0.22)}px ${FB}`; ctx.fillStyle = hexA(P.mid,0.85); ctx.textAlign = "center";
-  ctx.fillText(state.playing ? "SPELAR" : "PAUS", R.x+R.w/2, cy + rr*1.55);
-  ctx.textAlign = "left";
-}
-
-// ---------- 8 Pejling (radiopejl, cirkulärt spektrum) ----------
-let radarAngle = 0;
-function drawRadar(t){
-  clearBg();
-  const R = region(), cx = R.x+R.w/2, cy = R.y+R.h/2, rad = Math.min(R.w,R.h)*0.46, inner = rad*0.3;
-  ctx.strokeStyle = hexA(P.mid,0.3); ctx.lineWidth = 1*DPR;
-  for (let k=1;k<=3;k++){ ctx.beginPath(); ctx.arc(cx,cy,inner + (rad-inner)*k/3,0,Math.PI*2); ctx.stroke(); }
-  const N = 32;
-  for (let i=0;i<N;i++){
-    const a = -Math.PI/2 + i/N*Math.PI*2, v = Math.min(1, bandsSm[i]*1.15), len = (rad-inner)*v;
-    const c = Math.cos(a), s = Math.sin(a);
-    const col = S.palette === "farg" ? (i > N*0.66 ? P.red : i > N*0.4 ? P.warm : P.ink) : P.ink;
-    ctx.strokeStyle = col; ctx.lineWidth = Math.max(2, rad*0.02); glow(col, v > 0.12 ? 10 : 0);
-    ctx.beginPath(); ctx.moveTo(cx+c*inner, cy+s*inner); ctx.lineTo(cx+c*(inner+len), cy+s*(inner+len)); ctx.stroke();
+  const R = region(), cols = 32, gap = R.w*0.006, cw = (R.w - gap*(cols-1))/cols;
+  const baseline = R.y + R.h*0.64, upH = R.h*0.56, dnH = R.h*0.2, segN = 14;
+  const segH = upH/segN*0.76, segGap = upH/segN*0.24;
+  for (let c=0;c<cols;c++){
+    const v = Math.min(1, bandsSm[c]*1.2);
+    ledPeaks[c] = Math.max(v, ledPeaks[c] - 0.012);
+    const x = R.x + c*(cw+gap), lit = Math.round(v*segN);
+    for (let s=0;s<segN;s++){
+      const y = baseline - (s+1)*(segH+segGap), frac = s/segN;
+      const col = S.palette === "farg" ? (frac < 0.6 ? P.ink : frac < 0.82 ? P.warm : P.red) : (frac < 0.82 ? P.ink : P.accent);
+      if (s < lit){ ctx.fillStyle = col; glow(col, 6); } else { ctx.fillStyle = hexA(P.dim, 0.85); ctx.shadowBlur = 0; }
+      roundRect(x, y - segH, cw, segH, Math.min(cw,segH)*0.3); ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+    const pk = Math.min(segN-1, Math.round(ledPeaks[c]*segN)), py = baseline - (pk+1)*(segH+segGap);
+    ctx.fillStyle = P.accent; glow(P.accent, 8);
+    ctx.fillRect(x, py - segH, cw, Math.max(2*DPR, segH*0.16)); ctx.shadowBlur = 0;
+    // blank reflex under baslinjen, som en glansig konsolyta
+    const topCol = S.palette === "farg" ? P.warm : P.ink;
+    const rg = ctx.createLinearGradient(0, baseline, 0, baseline + dnH);
+    rg.addColorStop(0, hexA(topCol, 0.28*v)); rg.addColorStop(1, hexA(topCol, 0));
+    ctx.fillStyle = rg; ctx.fillRect(x, baseline, cw, dnH*Math.max(0.15, v));
   }
-  ctx.shadowBlur = 0;
-  radarAngle += 0.012 + L.rms*0.02;
-  const sa = radarAngle % (Math.PI*2), sx = cx+Math.cos(sa)*rad, sy = cy+Math.sin(sa)*rad;
-  const grad = ctx.createLinearGradient(cx,cy,sx,sy);
-  grad.addColorStop(0, hexA(P.accent,0)); grad.addColorStop(1, hexA(P.accent,0.55));
-  ctx.strokeStyle = grad; ctx.lineWidth = 2*DPR;
-  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(sx,sy); ctx.stroke();
-  ctx.fillStyle = P.ink; ctx.beginPath(); ctx.arc(cx,cy,rad*0.025,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle = hexA(P.mid,0.5); ctx.lineWidth = 1*DPR;
+  ctx.beginPath(); ctx.moveTo(R.x,baseline); ctx.lineTo(R.x+R.w,baseline); ctx.stroke();
 }
 
 // ---------- 0 Testbild ----------
@@ -2066,8 +2084,8 @@ function drawBoardBg(t){
 }
 
 // ================= huvudloop =================
-const VIZ = { 1:drawOsc, 2:drawEye, 3:drawVU, 4:drawAtom, 5:drawOrgan, 6:drawLissa, 7:drawReels, 8:drawRadar };
-const VIZ_NAMES = { 1:"Oscilloskop", 2:"Magiskt öga", 3:"VU-mätare", 4:"Atomålder", 5:"Ljusorgel", 6:"Lissajous", 7:"Rullband", 8:"Pejling" };
+const VIZ = { 1:drawOsc, 2:drawEye, 3:drawVU, 4:drawAtom, 5:drawOrgan, 6:drawPlasma, 7:drawWaterfall, 8:drawLed };
+const VIZ_NAMES = { 1:"Oscilloskop", 2:"Magiskt öga", 3:"VU-mätare", 4:"Atomålder", 5:"Ljusorgel", 6:"Plasma", 7:"Vattenfall", 8:"LED-stapel" };
 // nasta kanal i rotationen - hoppar bara mellan de som ar ikryssade i S.vizRot (alla om inget ar det)
 function nextVizRot(cur){
   const all = Object.keys(VIZ).map(Number);
@@ -2101,7 +2119,7 @@ function frame(nowMs){
   else { if (lastVizDrawn !== S.viz){ ctx.fillStyle = P.bg; ctx.fillRect(0,0,W,H); lastVizDrawn = S.viz; } VIZ[S.viz](t); }
   postFx();
   if (idle) lastVizDrawn = 0;
-  if (idle !== frame.wasIdle){ elInfo.classList.toggle("idle", idle); $("#dial").classList.toggle("idle", idle); frame.wasIdle = idle; }
+  if (idle !== frame.wasIdle){ elInfo.classList.toggle("idle", idle); $("#dial").classList.toggle("idle", idle); elQueue.classList.toggle("idle", idle); frame.wasIdle = idle; }
   let prog;
   if (!state.track) prog = 0.5 + 0.02*Math.sin(t*0.4);
   else if (state.live){
@@ -2608,6 +2626,8 @@ function loadFonts(){
 function applyLook(){
   const Lk = S.look, r = document.documentElement.style;
   r.setProperty("--sz", (Lk.size/100).toFixed(2));
+  r.setProperty("--szT", ((Lk.titleSize ?? 100)/100).toFixed(2));
+  r.setProperty("--szB", ((Lk.bodySize ?? 100)/100).toFixed(2));
   r.setProperty("--esz", ((Lk.edgeSize ?? 100)/100).toFixed(2));
   r.setProperty("--covsz", ((Lk.coverSize ?? 100)/100).toFixed(2));
   $("#screen").classList.toggle("upper", !!Lk.upper);
@@ -2772,7 +2792,9 @@ function buildControls(){
   const fxChange = () => { segOn("#presetSeg", ""); applyFxStatic(); };
   for (const [k, l] of FX_PIC) syncers.push(slider($("#fxPic"), k, l, fxObj, 0, 100, fxChange));
   for (const [k, l] of FX_DIST) syncers.push(slider($("#fxDist"), k, l, fxObj, 0, 100, fxChange));
-  syncers.push(slider($("#lookSl"), "size", "Textstorlek %", lk, 60, 160, applyLook));
+  syncers.push(slider($("#lookSl"), "titleSize", "Titeltext %", lk, 60, 160, applyLook));
+  syncers.push(slider($("#lookSl"), "bodySize", "Brödtext %", lk, 60, 160, applyLook));
+  syncers.push(slider($("#lookSl"), "size", "Övrig text % (väder/nyheter m.m.)", lk, 60, 160, applyLook));
   syncers.push(slider($("#lookSl"), "edgeSize", "Datum och klocka %", lk, 50, 160, applyLook));
   syncers.push(slider($("#lookSl"), "coverSize", "Omslagsbild %", lk, 50, 200, applyLook));
   syncers.push(slider($("#scrSl"), "scale", "Storlek %", lk, 40, 130, applyLook));
