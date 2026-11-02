@@ -715,7 +715,8 @@ let P = Object.assign({}, PALETTES[S.palette] || PALETTES.svartvit);
 const state = {
   started:false, playing:false, live:false,
   track:null, trackKey:"", progress:0, duration:0, polledAt:0,
-  station:null, stations:[], spConnected:false, spDevice:"", lastActive:0, blanked:false
+  station:null, stations:[], spConnected:false, spDevice:"", lastActive:0, blanked:false,
+  sonosPlaying:false
 };
 
 // ================= ljud =================
@@ -2335,16 +2336,18 @@ async function spResumeOnWakeDevice(){
 }
 async function spPoll(){
   if (S.source !== "spotify") return;
+  // Sonos ager visningen helt sa lange den faktiskt spelar (se sonosPoll) -
+  // kor inte ens Spotify-anropet da, annars kan de tva pollarna kapplopa om
+  // state.track (vem som helst som svarar sist "vinner") och displayen
+  // flimrar mellan de tva varannan sekund.
+  if (state.sonosPlaying) return;
   const r = await spApi("/me/player?additional_types=episode");
-  const sonosOwns = state.track && state.track.src === "sonos";
-  if (r.status === 401){ state.spConnected = false; renderSp(); if (!sonosOwns) state.playing = false; return; }
+  if (state.sonosPlaying) return;  // hann bli sant medan anropet pagick
+  if (r.status === 401){ state.spConnected = false; renderSp(); state.playing = false; return; }
   state.spConnected = true;
   if (r.status === 204 || !r.data || !r.data.item){
-    if (!sonosOwns) state.playing = false;
+    state.playing = false;
     state.spDevice = r.data?.device?.name || "";
-    // Rör inte en Sonos-latinfo som sonosPoll() satt - den äger sin egen
-    // undanrensning (se kommentaren vid sonosPoll). Bara en gammal "sp"-låt
-    // ska försvinna här när Spotify självt inte spelar något längre.
     if (state.track && state.track.src === "sp") setTrack(null);
     renderSp(); return;
   }
@@ -2374,6 +2377,7 @@ async function sonosPoll(){
   try {
     const r = await fetch("/api/sonos-now", { cache: "no-store" });
     const d = r.ok ? await r.json() : null;
+    state.sonosPlaying = !!(d && d.playing);
     if (d && d.playing){
       // Sonos ger ingen tillforlitlig speltid/langd via vart lilla API, sa den
       // behandlas som "live" (samma som radio) - visar en DIREKT-punkt istallet
