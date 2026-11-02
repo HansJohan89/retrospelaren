@@ -68,7 +68,7 @@ CMD_STATE = {"id": 0, "list": []}
 # i Spotifys eget webb-API), och läses av sidan som ett eget, separat spår
 # vid sidan av den vanliga Spotify-statusen.
 SONOS_LOCK = __import__("threading").Lock()
-SONOS_NOW = {"room": "", "title": "", "artist": "", "album": "", "art": "", "next": "", "playing": False, "at": 0}
+SONOS_NOW = {"room": "", "title": "", "artist": "", "album": "", "art": "", "queue": [], "playing": False, "at": 0}
 SONOS_MAX_AGE_S = 90  # om inget rapporterats in på så här länge räknas det som stoppat
 
 # Lista över Trådfri-grupper och deras scener (moods) - rapporteras in av
@@ -149,7 +149,7 @@ def set_sonos_now(patch):
     """Anropas av monitor.py (lokalt pa anvandarens natverk, inget skarmen
     sjalv kan na) nar Sonos-uppspelningen i Vardagsrum andras."""
     with SONOS_LOCK:
-        for k in ("room", "title", "artist", "album", "art", "next", "playing"):
+        for k in ("room", "title", "artist", "album", "art", "queue", "playing"):
             if k in patch:
                 SONOS_NOW[k] = patch[k]
         SONOS_NOW["at"] = time.time()

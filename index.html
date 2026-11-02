@@ -63,7 +63,15 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 @keyframes marq{0%,12%{transform:translateX(0)}100%{transform:translateX(calc(-100% ))}}
 .artist{font-size:calc(3.1vh*var(--sz));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
 .album{font-size:calc(2vh*var(--sz));color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.next{font-size:calc(1.6vh*var(--sz));color:var(--mid);opacity:.65;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.3vh}
+#queue{position:absolute;top:36%;right:6%;width:23%;max-height:26%;z-index:3;
+  border:max(1px,.25vh) solid var(--mid);background:color-mix(in srgb, var(--bg) 72%, transparent);
+  padding:1.3vh 1.5vh;color:var(--ink);box-shadow:0 0 2vh rgba(0,0,0,.4);overflow:hidden}
+#queue.hidden,#queue:empty{display:none}
+#queue .qh{font-size:calc(1.3vh*var(--sz));letter-spacing:.3em;text-transform:uppercase;color:var(--mid);margin-bottom:1vh}
+#queue .qrow{margin-bottom:.9vh}
+#queue .qrow:last-child{margin-bottom:0}
+#queue .qt{font-size:calc(1.7vh*var(--sz));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#queue .qa{font-size:calc(1.3vh*var(--sz));color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 #dial{position:absolute;left:5%;right:5%;bottom:calc(4.2% + var(--bb,0px));height:7.2%;z-index:3;
   border-top:max(1px,.2vh) solid var(--dim);border-bottom:max(1px,.2vh) solid var(--dim)}
@@ -406,9 +414,9 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
           <div class="title" id="title"><span>&nbsp;</span></div>
           <div class="artist" id="artist"></div>
           <div class="album" id="album"></div>
-          <div class="next" id="next"></div>
         </div>
       </div>
+      <div id="queue"></div>
       <div id="dial"><canvas id="dialC"></canvas></div>
       <div id="photo"></div>
       <div id="board"><div class="pg" id="pgWx"></div><div class="pg" id="pgNews"></div><div class="pg" id="pgFb"></div><div class="pg" id="pgHome"></div></div>
@@ -1994,7 +2002,16 @@ function frame(nowMs){
 }
 
 // ================= låtinfo =================
-const elInfo = $("#info"), elTitle = $("#title"), elArtist = $("#artist"), elAlbum = $("#album"), elNext = $("#next"), elKicker = $("#kicker"), elCov = $("#cov"), elCovPh = $("#covPh");
+const elInfo = $("#info"), elTitle = $("#title"), elArtist = $("#artist"), elAlbum = $("#album"), elKicker = $("#kicker"), elCov = $("#cov"), elCovPh = $("#covPh");
+const elQueue = $("#queue");
+function renderQueue(items){
+  // items: [{title, artist}] - visar max 4, tom lista/odefinierat gommer rutan.
+  const list = (items || []).filter(x => x && x.title).slice(0, 4);
+  elQueue.classList.toggle("hidden", list.length === 0 || !S.info);
+  elQueue.innerHTML = list.length ? ("<div class=\"qh\">Näst på tur</div>" + list.map(x =>
+    `<div class="qrow"><div class="qt">${esc(x.title)}</div><div class="qa">${esc(x.artist || "")}</div></div>`
+  ).join("")) : "";
+}
 let infoTimer = 0;
 function setTrack(tr){
   const key = tr ? [tr.title, tr.artist, tr.kicker].join("|") : "";
@@ -2007,13 +2024,12 @@ function setTrack(tr){
   elInfo.classList.add("out");
   clearTimeout(infoTimer);
   infoTimer = setTimeout(() => {
-    if (!tr){ elInfo.classList.add("out"); return; }
+    if (!tr){ elInfo.classList.add("out"); renderQueue([]); return; }
     elKicker.textContent = tr.kicker || "";
     elTitle.innerHTML = ""; const sp = document.createElement("span"); sp.textContent = tr.title || ""; elTitle.appendChild(sp);
     elTitle.classList.remove("marquee");
     elArtist.textContent = tr.artist || "";
     elAlbum.textContent = [tr.album, tr.year].filter(Boolean).join("  ·  ");
-    elNext.textContent = tr.next ? "Näst: " + tr.next : "";
     applyCover(tr.cover || "");
     elInfo.classList.toggle("hidden", !S.info);
     requestAnimationFrame(() => {
@@ -2337,19 +2353,20 @@ async function spResumeOnWakeDevice(){
   })();
   return started;
 }
-let SP_NEXT = { text: "", at: 0 };
-async function spNextLabel(){
+let SP_QUEUE = { list: [], at: 0 };
+async function spQueueList(){
   // Kon andras sallan jamfort med spPoll()s eget intervall, sa den hamtas
   // bara var 8:e sekund oavsett - ingen anledning att belasta Spotifys API
-  // varje enskild poll bara for "nast pa tur"-raden.
-  if (Date.now() - SP_NEXT.at < 8000) return SP_NEXT.text;
-  SP_NEXT.at = Date.now();
+  // varje enskild poll bara for "nast pa tur"-rutan.
+  if (Date.now() - SP_QUEUE.at < 8000) return SP_QUEUE.list;
+  SP_QUEUE.at = Date.now();
   try {
     const r = await spApi("/me/player/queue");
-    const n = (r.data?.queue || [])[0];
-    SP_NEXT.text = n ? [n.name, (n.artists || []).map(a => a.name).join(", ")].filter(Boolean).join(" · ") : "";
-  } catch(e){ SP_NEXT.text = ""; }
-  return SP_NEXT.text;
+    SP_QUEUE.list = (r.data?.queue || []).slice(0, 4).map(n => ({
+      title: n.name || "", artist: (n.artists || []).map(a => a.name).join(", ")
+    }));
+  } catch(e){ SP_QUEUE.list = []; }
+  return SP_QUEUE.list;
 }
 async function spPoll(){
   if (S.source !== "spotify") return;
@@ -2366,6 +2383,7 @@ async function spPoll(){
     state.playing = false;
     state.spDevice = r.data?.device?.name || "";
     if (state.track && state.track.src === "sp") setTrack(null);
+    renderQueue([]);
     renderSp(); return;
   }
   const d = r.data, it = d.item;
@@ -2374,13 +2392,13 @@ async function spPoll(){
   state.spDevice = d.device?.name || "";
   const isEp = it.type === "episode";
   const imgs = isEp ? (it.images || it.show?.images || []) : (it.album?.images || []);
-  const next = await spNextLabel();
   setTrack({
     src:"sp", kicker: "Spotify" + (state.spDevice ? " · " + state.spDevice : ""),
     title: it.name, artist: isEp ? (it.show?.name || "") : (it.artists || []).map(a => a.name).join(", "),
     album: isEp ? "" : (it.album?.name || ""), year: isEp ? "" : (it.album?.release_date || "").slice(0,4),
-    cover: imgs[0]?.url || "", next
+    cover: imgs[0]?.url || ""
   });
+  renderQueue(await spQueueList());
   renderSp();
 }
 function spStart(){ clearInterval(SP.timer); spPoll(); SP.timer = setInterval(spPoll, 2500); }
@@ -2402,9 +2420,11 @@ async function sonosPoll(){
       // for en progressbar som annars skulle visa gammal/fel Spotify-data.
       state.playing = true; state.live = true;
       setTrack({ src:"sonos", kicker: "Sonos" + (d.room ? " · " + d.room : ""),
-        title: d.title || "", artist: d.artist || "", album: d.album || "", cover: d.art || "", next: d.next || "" });
+        title: d.title || "", artist: d.artist || "", album: d.album || "", cover: d.art || "" });
+      renderQueue(d.queue || []);
     } else if (state.track && state.track.src === "sonos"){
       setTrack(null); state.playing = false; state.live = false;
+      renderQueue([]);
     }
   } catch(e){}
 }
