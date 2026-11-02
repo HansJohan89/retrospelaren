@@ -60,9 +60,9 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .kicker{font-size:calc(1.75vh*var(--szB));letter-spacing:.35em;color:var(--mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .title{font-family:var(--fT),serif;font-size:calc(5vh*var(--szT));line-height:1.05;white-space:nowrap;overflow:hidden;color:var(--ink);
   text-shadow:0 0 1.2vh color-mix(in srgb,var(--ink) 45%,transparent)}
-.title span{display:inline-block;padding-right:6vh}
-.title.marquee span{animation:marq var(--dur,14s) linear infinite}
-@keyframes marq{0%,12%{transform:translateX(0)}100%{transform:translateX(calc(-100% ))}}
+.title span{display:inline-block}
+.title.marquee span{animation:pingpong var(--dur,10s) ease-in-out infinite}
+@keyframes pingpong{0%,8%{transform:translateX(0)}42%,58%{transform:translateX(var(--scroll,0))}92%,100%{transform:translateX(0)}}
 .artist{font-size:calc(3.1vh*var(--szB));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
 .album{font-size:calc(2vh*var(--szB));color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #queue{position:absolute;bottom:calc(13.5% + var(--bb,0px));right:calc(5% + 1.4vh);width:21%;height:20%;z-index:3;
@@ -72,9 +72,8 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #queue .qrow{margin-bottom:.7vh}
 #queue .qrow:last-child{margin-bottom:0}
 #queue .qt{font-size:calc(2.2vh*var(--szB));white-space:nowrap;overflow:hidden;position:relative}
-#queue .qt span{display:inline-block;padding-right:3vh}
-#queue .qt.marquee span{animation:qmarq var(--dur,10s) linear infinite}
-@keyframes qmarq{0%,12%{transform:translateX(0)}100%{transform:translateX(-100%)}}
+#queue .qt span{display:inline-block}
+#queue .qt.marquee span{animation:pingpong var(--dur,10s) ease-in-out infinite}
 #queue .qa{font-size:calc(1.75vh*var(--szB));color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 #dial{position:absolute;left:5%;right:5%;bottom:calc(4.2% + var(--bb,0px));height:7.2%;z-index:3;
@@ -2128,9 +2127,10 @@ function renderQueue(items){
       elQueue.querySelectorAll(".qt").forEach(qt => {
         const sp = qt.firstElementChild;
         if (!sp) return;
-        if (sp.scrollWidth > qt.clientWidth + 2){
-          qt.appendChild(sp.cloneNode(true));
-          qt.style.setProperty("--dur", Math.max(8, (sp.textContent || "").length*0.4) + "s");
+        const over = sp.scrollWidth - qt.clientWidth;
+        if (over > 2){
+          qt.style.setProperty("--scroll", (-over) + "px");
+          qt.style.setProperty("--dur", Math.max(6, over*0.05) + "s");
           qt.classList.add("marquee");
         }
       });
@@ -2158,10 +2158,10 @@ function setTrack(tr){
     applyCover(tr.cover || "");
     elInfo.classList.toggle("hidden", !S.info);
     requestAnimationFrame(() => {
-      if (sp.scrollWidth > elTitle.clientWidth + 2){
-        sp.textContent = (tr.title || "") ; const dup = document.createElement("span"); dup.textContent = tr.title || "";
-        elTitle.appendChild(dup);
-        elTitle.style.setProperty("--dur", Math.max(10, (tr.title||"").length*0.45) + "s");
+      const over = sp.scrollWidth - elTitle.clientWidth;
+      if (over > 2){
+        elTitle.style.setProperty("--scroll", (-over) + "px");
+        elTitle.style.setProperty("--dur", Math.max(8, over*0.05) + "s");
         elTitle.classList.add("marquee");
       }
       elInfo.classList.remove("out");
