@@ -1198,14 +1198,17 @@ function drawOrganMirror(t){
   ctx.restore(); ctx.globalAlpha = 1; ctx.shadowBlur = 0;
 }
 
-// ---------- 7 Ljusorgel Båge (samma dioddata, fanad ut som en retro instrumentpanel) ----------
+// ---------- 7 Ljusorgel Båge (samma dioddata, som ett romerskt valv ut mot skärmkanterna) ----------
 const organArcPeaks = new Float32Array(16);
 function drawOrganArc(t){
   clearBg();
   const R = region(), cols = 16, rows = 10;
-  const cx = R.x + R.w/2, cy = R.y + R.h*1.05;
-  const rIn = Math.min(R.w,R.h)*0.3, rOut = Math.min(R.w,R.h)*0.92, segR = (rOut-rIn)/rows;
-  const spanDeg = 112, a0 = -90 - spanDeg/2, segA = spanDeg/(cols-1);
+  // mittpunkten ligger langst ner - valvet reser sig rakt upp i mitten och
+  // planar ut mot nastan vagratt vid sidorna, sa det nar ut mot bada
+  // skarmkanterna (men inte runt hela cirkeln - det ar ju ett valv, inte ett hjul)
+  const cx = R.x + R.w/2, cy = R.y + R.h*0.99;
+  const rIn = Math.min(R.w*0.5, R.h)*0.16, rOut = Math.min(R.w*0.5, R.h)*0.98, segR = (rOut-rIn)/rows;
+  const spanDeg = 172, a0 = -spanDeg/2, segA = spanDeg/(cols-1);
   for (let c=0;c<cols;c++){
     const bi = ORGAN_ORDER[c];
     const v = Math.min(1, Math.max(bandsSm[bi*2], bandsSm[bi*2+1]) * 1.15);
@@ -1223,9 +1226,12 @@ function drawOrganArc(t){
     }
   }
   ctx.globalAlpha = 1; ctx.shadowBlur = 0;
-  // en tunn bage som ram runt diodfaltet
-  ctx.strokeStyle = hexA(P.mid,0.45); ctx.lineWidth = 1*DPR;
-  ctx.beginPath(); ctx.arc(cx,cy,rOut+segR*0.3,(a0-2)*Math.PI/180,(a0+spanDeg+2)*Math.PI/180); ctx.stroke();
+  // pulserande membran i bagens mittpunkt, som ett högtalarelement
+  const pulse = rIn * (0.55 + Math.min(1.3, L.rms*3.2));
+  const mem = ctx.createRadialGradient(cx,cy,0,cx,cy,pulse);
+  const memCol = ledColor(0.3);
+  mem.addColorStop(0, hexA(memCol,0.9)); mem.addColorStop(0.65, hexA(memCol,0.3)); mem.addColorStop(1, hexA(memCol,0));
+  ctx.fillStyle = mem; ctx.beginPath(); ctx.arc(cx,cy,pulse,0,Math.PI*2); ctx.fill();
 }
 
 // ---------- 8 Ljusorgel Fjäril (symmetrisk at bade hall - vanster/höger och upp/ner) ----------
