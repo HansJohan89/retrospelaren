@@ -735,6 +735,12 @@ const FFT = 2048;
 const wave = new Float32Array(FFT), waveL = new Float32Array(FFT), waveR = new Float32Array(FFT);
 const freq = new Uint8Array(FFT/2);
 const NB = 32, bands = new Float32Array(NB), bandsSm = new Float32Array(NB);
+// sjalvjusterande "tak" per frekvensband (lang, langsamt sjunkande toppnivå) - utan den
+// hamnar nästan all synlig dynamik hos de band som rakt av har mest rå energi (oftast bas),
+// medan diskant antingen ligger still i botten eller studsar rakt i topp vid minsta transient.
+// Genom att normalisera varje band mot sin egen senaste topp far ALLA staplar chansen att
+// na hela vagen upp nar just det bandet ar som starkast, inte bara ett fast hogt/lagt parti.
+const bandCeil = new Float32Array(NB).fill(0.1);
 
 function ensureAudio(){
   if (actx) { if (actx.state === "suspended") actx.resume(); return; }
@@ -788,7 +794,10 @@ function computeLevels(t){
       const f0 = 40*Math.pow(16000/40, b/NB), f1 = 40*Math.pow(16000/40, (b+1)/NB);
       let i0 = Math.floor(f0/nyq*bins), i1 = Math.max(i0+1, Math.ceil(f1/nyq*bins)), m=0;
       for (let i=i0;i<i1 && i<bins;i++) m = Math.max(m, freq[i]);
-      bands[b] = Math.pow(m/255, 1.6) * (1 + b/NB*0.6);
+      const raw = m/255;
+      bandCeil[b] = raw > bandCeil[b] ? raw : Math.max(raw, bandCeil[b]*0.992);
+      const norm = raw / Math.max(bandCeil[b], 0.08);
+      bands[b] = Math.pow(Math.min(1, norm), 1.2);
     }
     L.amp = 1;
   } else {
