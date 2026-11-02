@@ -38,7 +38,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #info.out{opacity:0;transform:translateY(6%)}
 #info.hidden,#dial.hidden{display:none}
 #info.idle,#dial.idle{opacity:0!important;transition:opacity .8s}
-.cover{height:100%;aspect-ratio:1;flex:none;position:relative;border:max(2px,.35vh) solid var(--mid);padding:.5%;
+.cover{height:100%;aspect-ratio:1;flex:none;margin-left:1.4vh;position:relative;border:max(2px,.35vh) solid var(--mid);padding:.5%;
   background:var(--dim);box-shadow:0 0 2.5vh rgba(0,0,0,.6);
   transform:scale(var(--covsz,1));transform-origin:left bottom}
 .cover img{width:100%;height:100%;object-fit:cover;display:block;filter:var(--cover-filter)}
@@ -55,7 +55,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .cover.vinyl.spin{animation:spin 1.8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .cover.none{display:none}
-.meta{min-width:0;flex:1;display:flex;flex-direction:column;gap:.6vh}
+.meta{min-width:0;flex:1;display:flex;flex-direction:column;gap:.6vh;margin-left:calc((var(--covsz,1) - 1) * 17vh)}
 .kicker{font-size:calc(1.75vh*var(--sz));letter-spacing:.35em;color:var(--mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .title{font-family:var(--fT),serif;font-size:calc(5vh*var(--sz));line-height:1.05;white-space:nowrap;overflow:hidden;color:var(--ink);
   text-shadow:0 0 1.2vh color-mix(in srgb,var(--ink) 45%,transparent)}
@@ -64,12 +64,12 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 @keyframes marq{0%,12%{transform:translateX(0)}100%{transform:translateX(calc(-100% ))}}
 .artist{font-size:calc(3.1vh*var(--sz));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
 .album{font-size:calc(2vh*var(--sz));color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#queue{position:absolute;bottom:calc(13.5% + var(--bb,0px));right:9%;width:21%;height:17%;z-index:3;
+#queue{position:absolute;bottom:calc(13.5% + var(--bb,0px));right:9%;width:21%;height:20%;z-index:3;
   border:max(1px,.25vh) solid var(--mid);background:color-mix(in srgb, var(--bg) 72%, transparent);
   padding:1.3vh 1.5vh;color:var(--ink);box-shadow:0 0 2vh rgba(0,0,0,.4);overflow:hidden}
 #queue.hidden,#queue:empty{display:none}
-#queue .qh{font-size:calc(1.3vh*var(--sz));letter-spacing:.3em;text-transform:uppercase;color:var(--mid);margin-bottom:1vh}
-#queue .qrow{margin-bottom:.9vh}
+#queue .qh{font-size:calc(1.3vh*var(--sz));letter-spacing:.3em;text-transform:uppercase;color:var(--mid);margin-bottom:.8vh}
+#queue .qrow{margin-bottom:.7vh}
 #queue .qrow:last-child{margin-bottom:0}
 #queue .qt{font-size:calc(1.7vh*var(--sz));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #queue .qa{font-size:calc(1.3vh*var(--sz));color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -2006,8 +2006,8 @@ function frame(nowMs){
 const elInfo = $("#info"), elTitle = $("#title"), elArtist = $("#artist"), elAlbum = $("#album"), elKicker = $("#kicker"), elCov = $("#cov"), elCovPh = $("#covPh");
 const elQueue = $("#queue");
 function renderQueue(items){
-  // items: [{title, artist}] - visar max 4, tom lista/odefinierat gommer rutan.
-  const list = (items || []).filter(x => x && x.title).slice(0, 4);
+  // items: [{title, artist}] - visar max 5, tom lista/odefinierat gommer rutan.
+  const list = (items || []).filter(x => x && x.title).slice(0, 5);
   elQueue.classList.toggle("hidden", list.length === 0 || !S.info);
   elQueue.innerHTML = list.length ? ("<div class=\"qh\">Näst på tur</div>" + list.map(x =>
     `<div class="qrow"><div class="qt">${esc(x.title)}</div><div class="qa">${esc(x.artist || "")}</div></div>`
@@ -2363,7 +2363,7 @@ async function spQueueList(){
   SP_QUEUE.at = Date.now();
   try {
     const r = await spApi("/me/player/queue");
-    SP_QUEUE.list = (r.data?.queue || []).slice(0, 4).map(n => ({
+    SP_QUEUE.list = (r.data?.queue || []).slice(0, 5).map(n => ({
       title: n.name || "", artist: (n.artists || []).map(a => a.name).join(", ")
     }));
   } catch(e){ SP_QUEUE.list = []; }
