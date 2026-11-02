@@ -1198,40 +1198,55 @@ function drawOrganMirror(t){
   ctx.restore(); ctx.globalAlpha = 1; ctx.shadowBlur = 0;
 }
 
-// ---------- 7 Ljusorgel Båge (samma dioddata, som ett romerskt valv ut mot skärmkanterna) ----------
-const organArcPeaks = new Float32Array(16);
-function drawOrganArc(t){
-  clearBg();
-  const R = region(), cols = 16, rows = 10;
-  // mittpunkten ligger langst ner - valvet reser sig rakt upp i mitten och
-  // planar ut mot nastan vagratt vid sidorna, sa det nar ut mot bada
-  // skarmkanterna (men inte runt hela cirkeln - det ar ju ett valv, inte ett hjul)
-  const cx = R.x + R.w/2, cy = R.y + R.h*0.99;
-  const rIn = Math.min(R.w*0.5, R.h)*0.16, rOut = Math.min(R.w*0.5, R.h)*0.98, segR = (rOut-rIn)/rows;
-  const spanDeg = 172, a0 = -spanDeg/2, segA = spanDeg/(cols-1);
+// ---------- 7 Ljusorgel Båge (tva solfjadrar i bottenhörnen, vanda mot varandra) ----------
+const ARC_ORDER_L = ORGAN_ORDER.slice(0,8), ARC_ORDER_R = ORGAN_ORDER.slice(8,16);
+const organArcPeaksL = new Float32Array(8), organArcPeaksR = new Float32Array(8);
+function drawArcFan(cx, cy, angStart, angEnd, order, peaks, rIn, rOut, rows){
+  // en solfjader: `order` ar de 8 frekvensbanden (index i bandsSm, parvis) den
+  // visar, fran angStart till angEnd grader (0=rakt upp, positivt=medurs)
+  const cols = order.length, segR = (rOut-rIn)/rows;
   for (let c=0;c<cols;c++){
-    const bi = ORGAN_ORDER[c];
+    const bi = order[c];
     const v = Math.min(1, Math.max(bandsSm[bi*2], bandsSm[bi*2+1]) * 1.15);
-    organArcPeaks[c] = Math.max(v, organArcPeaks[c] - 0.008);
-    const lit = Math.round(v*rows), pk = Math.min(rows-1, Math.round(organArcPeaks[c]*rows));
-    const ang = (a0 + c*segA) * Math.PI/180;
+    peaks[c] = Math.max(v, peaks[c] - 0.008);
+    const lit = Math.round(v*rows), pk = Math.min(rows-1, Math.round(peaks[c]*rows));
+    const ang = (angStart + (angEnd-angStart)*c/(cols-1)) * Math.PI/180;
     for (let r=0;r<rows;r++){
       const on = r < lit || (r === pk && pk > 0);
-      const ri = rIn + r*segR + segR*0.12, ro = ri + segR*0.76;
+      const ri = rIn + r*segR + segR*0.15, ro = ri + segR*0.7;
       ctx.save(); ctx.translate(cx,cy); ctx.rotate(ang);
-      if (on){ ctx.fillStyle = ledColor(r/rows); glow(ledColor(r/rows), 11); ctx.globalAlpha = (r === pk && r >= lit) ? 0.7 : 1; }
+      if (on){ ctx.fillStyle = ledColor(r/rows); glow(ledColor(r/rows), 12); ctx.globalAlpha = (r === pk && r >= lit) ? 0.7 : 1; }
       else { ctx.fillStyle = hexA(P.dim, 0.85); ctx.shadowBlur = 0; ctx.globalAlpha = 1; }
-      roundRect(-segR*0.3, -ro, segR*0.6, ro-ri, segR*0.18); ctx.fill();
+      roundRect(-segR*0.34, -ro, segR*0.68, ro-ri, segR*0.22); ctx.fill();
       ctx.restore();
     }
   }
   ctx.globalAlpha = 1; ctx.shadowBlur = 0;
-  // pulserande membran i bagens mittpunkt, som ett högtalarelement
-  const pulse = rIn * (0.55 + Math.min(1.3, L.rms*3.2));
-  const mem = ctx.createRadialGradient(cx,cy,0,cx,cy,pulse);
-  const memCol = ledColor(0.3);
-  mem.addColorStop(0, hexA(memCol,0.9)); mem.addColorStop(0.65, hexA(memCol,0.3)); mem.addColorStop(1, hexA(memCol,0));
-  ctx.fillStyle = mem; ctx.beginPath(); ctx.arc(cx,cy,pulse,0,Math.PI*2); ctx.fill();
+}
+function drawSpeakerMembrane(cx, cy, rBase){
+  // ett hogtalarelement vid fjaderns bas - upphangningsring + konformad
+  // diafragma som pulserar med basen, istallet for ett otydligt glödklot
+  const pulse = rBase * (0.55 + Math.min(1.1, L.rms*2.8));
+  ctx.strokeStyle = hexA(P.mid, 0.6); ctx.lineWidth = Math.max(1.5*DPR, rBase*0.06);
+  ctx.beginPath(); ctx.arc(cx, cy, rBase, 0, Math.PI*2); ctx.stroke();
+  const col = ledColor(0.3);
+  const grad = ctx.createRadialGradient(cx,cy,0,cx,cy,pulse);
+  grad.addColorStop(0, hexA(col,0.95)); grad.addColorStop(0.72, hexA(col,0.4)); grad.addColorStop(1, hexA(col,0.05));
+  ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(cx,cy,pulse,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = hexA(P.ink, 0.9); ctx.beginPath(); ctx.arc(cx,cy,rBase*0.24,0,Math.PI*2); ctx.fill();
+}
+function drawOrganArc(t){
+  clearBg();
+  const R = region(), rows = 8;
+  const inset = Math.min(R.w,R.h)*0.03, cyB = R.y + R.h*0.97;
+  const reach = Math.min(R.w*0.6, R.h*1.05), rBase = reach*0.12, rIn = rBase*1.9, rOut = reach;
+  const cxL = R.x + inset, cxR = R.x + R.w - inset;
+  // vanster horn: fran rakt upp (0) och medurs in mot topp-mitten
+  drawArcFan(cxL, cyB, 0, 68, ARC_ORDER_L, organArcPeaksL, rIn, rOut, rows);
+  // höger horn: spegelvant - fran rakt upp (0) och moturs in mot topp-mitten
+  drawArcFan(cxR, cyB, 0, -68, ARC_ORDER_R, organArcPeaksR, rIn, rOut, rows);
+  drawSpeakerMembrane(cxL, cyB, rBase);
+  drawSpeakerMembrane(cxR, cyB, rBase);
 }
 
 // ---------- 8 Ljusorgel Fjäril (symmetrisk at bade hall - vanster/höger och upp/ner) ----------
