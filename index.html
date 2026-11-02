@@ -2115,10 +2115,17 @@ function frame(nowMs){
 // ================= låtinfo =================
 const elInfo = $("#info"), elTitle = $("#title"), elArtist = $("#artist"), elAlbum = $("#album"), elKicker = $("#kicker"), elCov = $("#cov"), elCovPh = $("#covPh");
 const elQueue = $("#queue");
+let queueKey = null;
 function renderQueue(items){
   // items: [{title, artist}] - visar max 4, tom lista/odefinierat gommer rutan.
   const list = (items || []).filter(x => x && x.title).slice(0, 4);
   elQueue.classList.toggle("hidden", list.length === 0 || !S.info);
+  // bygg bara om DOM:en nar kon faktiskt andrats - annars pollas renderQueue()
+  // sa ofta (var 1.5s fran Sonos) att den pendlande scroll-animationen
+  // nollstalls innan den hinner synas
+  const key = list.map(x => x.title + "\u0001" + (x.artist || "")).join("\u0002");
+  if (key === queueKey) return;
+  queueKey = key;
   elQueue.innerHTML = list.length ? ("<div class=\"qh\">Spelas härnäst...</div>" + list.map(x =>
     `<div class="qrow"><div class="qt"><span>${esc(x.title)}</span></div><div class="qa">${esc(x.artist || "")}</div></div>`
   ).join("")) : "";
