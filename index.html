@@ -515,9 +515,9 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
         <button data-v="3">3 VU-mätare</button>
         <button data-v="4">4 Atomålder</button>
         <button data-v="5">5 Ljusorgel</button>
-        <button data-v="6">6 Spektrumvåg</button>
-        <button data-v="7">7 Partikelring</button>
-        <button data-v="8">8 Kalejdoskop</button>
+        <button data-v="6">6 Ljusorgel Spegel</button>
+        <button data-v="7">7 Ljusorgel Båge</button>
+        <button data-v="8">8 Ljusorgel Fjäril</button>
       </div>
       <label class="chk"><input type="checkbox" id="autoCh"> Byt kanal vid ny låt</label>
       <h4>Vilka kanaler att växla mellan</h4>
@@ -1148,81 +1148,111 @@ function drawOrgan(t){
   ctx.globalAlpha = 1; ctx.shadowBlur = 0;
 }
 
-// ---------- 6 Spektrumvåg (mjuk glödande spektrumkurva med spegling, "hi-fi"-klassikern) ----------
-function smoothPath(pts){
-  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
-  for (let i=1;i<pts.length-1;i++){
-    const mx = (pts[i][0]+pts[i+1][0])/2, my = (pts[i][1]+pts[i+1][1])/2;
-    ctx.quadraticCurveTo(pts[i][0], pts[i][1], mx, my);
-  }
-  ctx.lineTo(pts[pts.length-1][0], pts[pts.length-1][1]);
+// ---------- ljusorgel-hjalpare, delade av alla tre varianterna nedan ----------
+function ledColor(frac){
+  // frac: hur langt upp i kolumnen (0=botten,1=topp) - gron/gul/rod diodtrappa i
+  // fargläge, monokrom diodfärg annars. Samma trappa som originalet.
+  if (S.palette === "farg") return frac >= 0.83 ? P.red : frac >= 0.58 ? P.warm : P.mid;
+  return frac >= 0.83 ? P.accent : P.ink;
 }
-function drawWave(t){
-  fade(0.3*persistK());
-  const R = region(), baseline = R.y + R.h*0.62, N = NB, pts = [];
-  for (let i=0;i<N;i++){
-    const x = R.x + R.w*i/(N-1), v = Math.min(1, bandsSm[i]*1.3);
-    pts.push([x, baseline - v*R.h*0.5]);
-  }
-  const topCol = S.palette === "farg" ? P.accent : P.ink;
-  // fylld yta under kurvan
-  smoothPath(pts); ctx.lineTo(R.x+R.w, baseline); ctx.lineTo(R.x, baseline); ctx.closePath();
-  const grad = ctx.createLinearGradient(0, baseline-R.h*0.5, 0, baseline);
-  grad.addColorStop(0, hexA(topCol, 0.5)); grad.addColorStop(1, hexA(topCol, 0.03));
-  ctx.fillStyle = grad; ctx.fill();
-  // glödande linje ovanpå
-  smoothPath(pts);
-  ctx.strokeStyle = topCol; ctx.lineWidth = 2.4*DPR; glow(topCol, 18); ctx.stroke(); ctx.shadowBlur = 0;
-  // spegling nedåt, nedtonad
-  ctx.save(); ctx.globalAlpha = 0.3; ctx.translate(0, baseline*2); ctx.scale(1,-1);
-  smoothPath(pts); ctx.strokeStyle = topCol; ctx.lineWidth = 2*DPR; ctx.stroke();
-  ctx.restore();
-  ctx.strokeStyle = hexA(P.mid,0.4); ctx.lineWidth = 1*DPR;
-  ctx.beginPath(); ctx.moveTo(R.x,baseline); ctx.lineTo(R.x+R.w,baseline); ctx.stroke();
+function ledCell(x,y,w,h,on,col,a){
+  if (on){ ctx.fillStyle = col; glow(col, 12); ctx.globalAlpha = a ?? 1; }
+  else { ctx.fillStyle = hexA(P.dim, 0.9); ctx.shadowBlur = 0; ctx.globalAlpha = 1; }
+  roundRect(x,y,w,h,Math.min(w,h)*0.35); ctx.fill();
 }
 
-// ---------- 7 Partikelring (ljudreaktiv partikelgalax med släp) ----------
-function drawParticles(t){
+// ---------- 6 Ljusorgel Spegel (samma diodrader, fast med en glansig konsolreflex under) ----------
+const organMirrorPeaks = new Float32Array(16);
+function drawOrganMirror(t){
   clearBg();
-  const R = region(), cx = R.x+R.w/2, cy = R.y+R.h/2;
-  const r0 = Math.min(R.w,R.h)*0.12, r1 = Math.min(R.w,R.h)*0.47, N = 48, rot = t*0.16;
-  for (let i=0;i<N;i++){
-    const bi = i % NB, v = Math.min(1, bandsSm[bi]*1.25);
-    const a = rot + i/N*Math.PI*2, r = r0 + (r1-r0)*v;
-    const x = cx+Math.cos(a)*r, y = cy+Math.sin(a)*r;
-    const col = S.palette === "farg" ? (v>0.66?P.red:v>0.35?P.warm:P.accent) : P.ink;
-    ctx.fillStyle = col; glow(col, 6+v*16);
-    ctx.beginPath(); ctx.arc(x,y,(1.3+v*3.2)*DPR,0,Math.PI*2); ctx.fill();
+  const R0 = region(), cols = 16, rows = 11;
+  const baseline = R0.y + R0.h*0.72, R = { x:R0.x, y:R0.y, w:R0.w, h:baseline-R0.y };
+  const cw = R.w/cols, rh = R.h/rows, lw = cw*0.7, lh = rh*0.64;
+  for (let c=0;c<cols;c++){
+    const bi = ORGAN_ORDER[c];
+    const v = Math.min(1, Math.max(bandsSm[bi*2], bandsSm[bi*2+1]) * 1.15);
+    organMirrorPeaks[c] = Math.max(v, organMirrorPeaks[c] - 0.008);
+    const lit = Math.round(v*rows), pk = Math.min(rows-1, Math.round(organMirrorPeaks[c]*rows));
+    for (let r=0;r<rows;r++){
+      const x = R.x + c*cw + (cw-lw)/2, y = R.y + R.h - (r+1)*rh + (rh-lh)/2;
+      const on = r < lit || (r === pk && pk > 0);
+      ledCell(x, y, lw, lh, on, ledColor(r/rows), (r === pk && r >= lit) ? 0.7 : 1);
+    }
   }
-  ctx.shadowBlur = 0;
-  const pulse = r0*(1 + Math.min(1.1, 0.4+L.rms*3));
-  const core = ctx.createRadialGradient(cx,cy,0,cx,cy,pulse);
-  core.addColorStop(0, hexA(P.accent,0.9)); core.addColorStop(0.6, hexA(P.accent,0.25)); core.addColorStop(1, hexA(P.accent,0));
-  ctx.fillStyle = core; ctx.beginPath(); ctx.arc(cx,cy,pulse,0,Math.PI*2); ctx.fill();
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+  // kromlist vid baslinjen
+  ctx.fillStyle = hexA(P.mid,0.6); ctx.fillRect(R.x, baseline, R.w, 2*DPR);
+  // glansig reflex: hela raden spegelvand nedat, nedtonad och ihoptryckt
+  ctx.save();
+  ctx.beginPath(); ctx.rect(R0.x, baseline, R0.w, R0.y+R0.h*0.26); ctx.clip();
+  ctx.translate(0, baseline*2); ctx.scale(1, -0.55); ctx.globalAlpha = 0.3;
+  for (let c=0;c<cols;c++){
+    const bi = ORGAN_ORDER[c], v = Math.min(1, Math.max(bandsSm[bi*2], bandsSm[bi*2+1]) * 1.15);
+    const lit = Math.round(v*rows);
+    for (let r=0;r<lit;r++){
+      const x = R.x + c*cw + (cw-lw)/2, y = R.y + R.h - (r+1)*rh + (rh-lh)/2;
+      ctx.fillStyle = ledColor(r/rows); glow(ledColor(r/rows), 6);
+      roundRect(x,y,lw,lh,Math.min(lw,lh)*0.35); ctx.fill();
+    }
+  }
+  ctx.restore(); ctx.globalAlpha = 1; ctx.shadowBlur = 0;
 }
 
-// ---------- 8 Kalejdoskop (roterande spegelsymmetri - 60-talets psykedelia) ----------
-function drawKaleido(t){
-  fade(0.22*persistK());
-  const R = region(), cx = R.x+R.w/2, cy = R.y+R.h/2, rad = Math.min(R.w,R.h)*0.48, SEG = 8, N = 16;
-  const cols3 = S.palette === "farg" ? [P.accent, P.warm, P.red] : [P.ink, P.ink, P.ink];
-  ctx.save(); ctx.translate(cx,cy);
-  for (let s=0;s<SEG;s++){
-    ctx.save(); ctx.rotate(s/SEG*Math.PI*2 + t*0.035);
-    ctx.scale(1, s%2 ? -1 : 1);   // varannan sektor speglad -> äkta kalejdoskopmönster
-    ctx.beginPath();
-    for (let i=0;i<N;i++){
-      const v = Math.min(1, bandsSm[i]*1.3);
-      const a = (i/(N-1)) * (Math.PI*2/SEG);
-      const r = rad*0.12 + rad*0.88*v*(0.4+0.6*Math.sin(i/N*Math.PI));
-      const x = Math.cos(a)*r, y = Math.sin(a)*r;
-      i ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
+// ---------- 7 Ljusorgel Båge (samma dioddata, fanad ut som en retro instrumentpanel) ----------
+const organArcPeaks = new Float32Array(16);
+function drawOrganArc(t){
+  clearBg();
+  const R = region(), cols = 16, rows = 10;
+  const cx = R.x + R.w/2, cy = R.y + R.h*1.05;
+  const rIn = Math.min(R.w,R.h)*0.3, rOut = Math.min(R.w,R.h)*0.92, segR = (rOut-rIn)/rows;
+  const spanDeg = 112, a0 = -90 - spanDeg/2, segA = spanDeg/(cols-1);
+  for (let c=0;c<cols;c++){
+    const bi = ORGAN_ORDER[c];
+    const v = Math.min(1, Math.max(bandsSm[bi*2], bandsSm[bi*2+1]) * 1.15);
+    organArcPeaks[c] = Math.max(v, organArcPeaks[c] - 0.008);
+    const lit = Math.round(v*rows), pk = Math.min(rows-1, Math.round(organArcPeaks[c]*rows));
+    const ang = (a0 + c*segA) * Math.PI/180;
+    for (let r=0;r<rows;r++){
+      const on = r < lit || (r === pk && pk > 0);
+      const ri = rIn + r*segR + segR*0.12, ro = ri + segR*0.76;
+      ctx.save(); ctx.translate(cx,cy); ctx.rotate(ang);
+      if (on){ ctx.fillStyle = ledColor(r/rows); glow(ledColor(r/rows), 11); ctx.globalAlpha = (r === pk && r >= lit) ? 0.7 : 1; }
+      else { ctx.fillStyle = hexA(P.dim, 0.85); ctx.shadowBlur = 0; ctx.globalAlpha = 1; }
+      roundRect(-segR*0.3, -ro, segR*0.6, ro-ri, segR*0.18); ctx.fill();
+      ctx.restore();
     }
-    const col = cols3[s%3];
-    ctx.strokeStyle = col; ctx.lineWidth = 1.8*DPR; glow(col, 12); ctx.stroke();
-    ctx.restore();
   }
-  ctx.restore(); ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+  // en tunn bage som ram runt diodfaltet
+  ctx.strokeStyle = hexA(P.mid,0.45); ctx.lineWidth = 1*DPR;
+  ctx.beginPath(); ctx.arc(cx,cy,rOut+segR*0.3,(a0-2)*Math.PI/180,(a0+spanDeg+2)*Math.PI/180); ctx.stroke();
+}
+
+// ---------- 8 Ljusorgel Fjäril (symmetrisk at bade hall - vanster/höger och upp/ner) ----------
+const organWingPeaks = new Float32Array(16);
+function drawOrganWing(t){
+  clearBg();
+  const R0 = region(), cols = 16, rows = 6;
+  const cy = R0.y + R0.h/2, cw = R0.w/2/cols, rh = (R0.h/2)/rows, lw = cw*0.7, lh = rh*0.62;
+  for (let c=0;c<cols;c++){
+    const bi = ORGAN_ORDER[c];
+    const v = Math.min(1, Math.max(bandsSm[bi*2], bandsSm[bi*2+1]) * 1.2);
+    organWingPeaks[c] = Math.max(v, organWingPeaks[c] - 0.008);
+    const lit = Math.round(v*rows), pk = Math.min(rows-1, Math.round(organWingPeaks[c]*rows));
+    for (let r=0;r<rows;r++){
+      const on = r < lit || (r === pk && pk > 0);
+      const col = ledColor(r/rows), a = (r === pk && r >= lit) ? 0.7 : 1;
+      const yUp = cy - (r+1)*rh + (rh-lh)/2, yDn = cy + r*rh + (rh-lh)/2;
+      // fyra speglade kvadranter: vanster/höger om mitten, upp/ner om baslinjen
+      const xR = R0.x + R0.w/2 + c*cw + (cw-lw)/2, xL = R0.x + R0.w/2 - (c+1)*cw + (cw-lw)/2;
+      ledCell(xR, yUp, lw, lh, on, col, a); ledCell(xL, yUp, lw, lh, on, col, a);
+      ledCell(xR, yDn, lw, lh, on, col, a); ledCell(xL, yDn, lw, lh, on, col, a);
+    }
+  }
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+  ctx.fillStyle = hexA(P.mid,0.5);
+  ctx.fillRect(R0.x, cy-1*DPR, R0.w, 2*DPR);
+  ctx.fillRect(R0.x+R0.w/2-1*DPR, R0.y, 2*DPR, R0.h);
 }
 
 // ---------- 0 Testbild ----------
@@ -2085,8 +2115,8 @@ function drawBoardBg(t){
 }
 
 // ================= huvudloop =================
-const VIZ = { 1:drawOsc, 2:drawEye, 3:drawVU, 4:drawAtom, 5:drawOrgan, 6:drawWave, 7:drawParticles, 8:drawKaleido };
-const VIZ_NAMES = { 1:"Oscilloskop", 2:"Magiskt öga", 3:"VU-mätare", 4:"Atomålder", 5:"Ljusorgel", 6:"Spektrumvåg", 7:"Partikelring", 8:"Kalejdoskop" };
+const VIZ = { 1:drawOsc, 2:drawEye, 3:drawVU, 4:drawAtom, 5:drawOrgan, 6:drawOrganMirror, 7:drawOrganArc, 8:drawOrganWing };
+const VIZ_NAMES = { 1:"Oscilloskop", 2:"Magiskt öga", 3:"VU-mätare", 4:"Atomålder", 5:"Ljusorgel", 6:"Ljusorgel Spegel", 7:"Ljusorgel Båge", 8:"Ljusorgel Fjäril" };
 // nasta kanal i rotationen - hoppar bara mellan de som ar ikryssade i S.vizRot (alla om inget ar det)
 function nextVizRot(cur){
   const all = Object.keys(VIZ).map(Number);
