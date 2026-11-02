@@ -55,7 +55,8 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .cover.vinyl.spin{animation:spin 1.8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .cover.none{display:none}
-.meta{min-width:0;flex:1;display:flex;flex-direction:column;gap:.6vh;margin-left:calc((var(--covsz,1) - 1) * 17vh)}
+.meta{min-width:0;flex:1;display:flex;flex-direction:column;gap:.6vh;margin-left:calc((var(--covsz,1) - 1) * 17vh);
+  transform:translateY(calc((var(--covsz,1) - 1) * -8.5vh))}
 .kicker{font-size:calc(1.75vh*var(--szB));letter-spacing:.35em;color:var(--mid);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .title{font-family:var(--fT),serif;font-size:calc(5vh*var(--szT));line-height:1.05;white-space:nowrap;overflow:hidden;color:var(--ink);
   text-shadow:0 0 1.2vh color-mix(in srgb,var(--ink) 45%,transparent)}
