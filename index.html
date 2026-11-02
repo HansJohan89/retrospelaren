@@ -38,8 +38,9 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #info.out{opacity:0;transform:translateY(6%)}
 #info.hidden,#dial.hidden{display:none}
 #info.idle,#dial.idle{opacity:0!important;transition:opacity .8s}
-.cover{height:calc(100% * var(--covsz,1));aspect-ratio:1;flex:none;position:relative;border:max(2px,.35vh) solid var(--mid);padding:.5%;
-  background:var(--dim);box-shadow:0 0 2.5vh rgba(0,0,0,.6)}
+.cover{height:100%;aspect-ratio:1;flex:none;position:relative;border:max(2px,.35vh) solid var(--mid);padding:.5%;
+  background:var(--dim);box-shadow:0 0 2.5vh rgba(0,0,0,.6);
+  transform:scale(var(--covsz,1));transform-origin:left bottom}
 .cover img{width:100%;height:100%;object-fit:cover;display:block;filter:var(--cover-filter)}
 .cover img[src=""]{visibility:hidden}
 .cover .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--fT),serif;
@@ -63,7 +64,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 @keyframes marq{0%,12%{transform:translateX(0)}100%{transform:translateX(calc(-100% ))}}
 .artist{font-size:calc(3.1vh*var(--sz));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
 .album{font-size:calc(2vh*var(--sz));color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#queue{position:absolute;top:36%;right:6%;width:23%;max-height:26%;z-index:3;
+#queue{position:absolute;bottom:calc(13.5% + var(--bb,0px));right:9%;width:21%;height:17%;z-index:3;
   border:max(1px,.25vh) solid var(--mid);background:color-mix(in srgb, var(--bg) 72%, transparent);
   padding:1.3vh 1.5vh;color:var(--ink);box-shadow:0 0 2vh rgba(0,0,0,.4);overflow:hidden}
 #queue.hidden,#queue:empty{display:none}
