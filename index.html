@@ -392,6 +392,8 @@ kbd{font:12px "Special Elite",monospace;border:1px solid var(--panel-ink);border
 select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--panel-ink);background:#f6efdc;color:var(--panel-ink);border-radius:3px;flex:1;min-width:0}
 .lbl{min-width:128px;font-size:13.5px}
 #panel h4{font:12px "Special Elite",monospace;letter-spacing:.2em;text-transform:uppercase;margin:14px 0 2px;color:#8a7756}
+.vizRot{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:6px}
+.vizRot label{display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -507,8 +509,13 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
         <button data-v="3">3 VU-mätare</button>
         <button data-v="4">4 Atomålder</button>
         <button data-v="5">5 Ljusorgel</button>
+        <button data-v="6">6 Lissajous</button>
+        <button data-v="7">7 Rullband</button>
+        <button data-v="8">8 Pejling</button>
       </div>
       <label class="chk"><input type="checkbox" id="autoCh"> Byt kanal vid ny låt</label>
+      <h4>Vilka kanaler att växla mellan</h4>
+      <div class="vizRot" id="vizRotSeg"></div>
     </section>
 
     <section>
@@ -684,8 +691,12 @@ const PRESETS = {
 const LOOK_DEF = { brand:"BLAUPUNKT", fontT:"Limelight", fontB:"Special Elite", size:100, edgeSize:100, coverSize:100, upper:false, cover:"square", dial:true,
   format:"4:3", scale:100, offX:0, offY:0 };
 const EDGE_DEF = { date:true, week:true, clock:true, wx:true, steps:true, stepsGoal:10000, place:"Falun", lat:60.6065, lon:15.6355 };
-const FONTS_T = ["Limelight","Monoton","Poiret One","Righteous","Abril Fatface","Playfair Display","Bebas Neue","Federo","Josefin Sans","Pacifico","Lobster","Yesteryear"];
-const FONTS_B = ["Special Elite","Courier Prime","Cutive Mono","Josefin Sans","Jost","Oswald","Libre Baskerville","Bebas Neue"];
+const FONTS_T = ["Limelight","Monoton","Poiret One","Righteous","Abril Fatface","Playfair Display","Bebas Neue","Federo","Josefin Sans","Pacifico","Lobster","Yesteryear",
+  "Alfa Slab One","Bungee","Rye","Cinzel Decorative","Fredericka the Great","Vast Shadow","Big Shoulders Display","Shrikhand","Vollkorn","Ultra"];
+const FONTS_B = ["Special Elite","Courier Prime","Cutive Mono","Josefin Sans","Jost","Oswald","Libre Baskerville","Bebas Neue",
+  "VT323","Space Mono","IBM Plex Mono","Inconsolata","Rubik","JetBrains Mono","Archivo Narrow"];
+const VIZROT_DEF = { 1:true, 2:true, 3:true, 4:true, 5:true, 6:true, 7:true, 8:true };
+S.vizRot = Object.assign({}, VIZROT_DEF, S.vizRot || {});
 S.fx = Object.assign({}, FX_DEF, S.fx || {}); if (S.warm === undefined) S.warm = true;
 S.look = Object.assign({}, LOOK_DEF, S.look || {});
 S.edge = Object.assign({}, EDGE_DEF, S.edge || {});
@@ -1111,6 +1122,88 @@ function drawOrgan(t){
     }
   }
   ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+}
+
+// ---------- 6 Lissajous (stereo-fas) ----------
+function drawLissa(t){
+  fade(0.22*persistK());
+  const R = region(), cx = R.x+R.w/2, cy = R.y+R.h/2, rad = Math.min(R.w,R.h)*0.46;
+  ctx.strokeStyle = hexA(P.mid,0.3); ctx.lineWidth = 1*DPR;
+  ctx.beginPath(); ctx.arc(cx,cy,rad,0,Math.PI*2);
+  ctx.moveTo(cx-rad,cy); ctx.lineTo(cx+rad,cy); ctx.moveTo(cx,cy-rad); ctx.lineTo(cx,cy+rad); ctx.stroke();
+  ctx.setLineDash([2*DPR,5*DPR]);
+  ctx.beginPath(); ctx.arc(cx,cy,rad*0.5,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+  let peak = 0.02; for (let i=0;i<FFT;i+=3) peak = Math.max(peak, Math.abs(waveL[i]), Math.abs(waveR[i]));
+  const g = Math.min(2.4, 0.85/Math.max(0.05,peak));
+  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,rad*1.02,0,Math.PI*2); ctx.clip();
+  ctx.strokeStyle = P.ink; ctx.lineWidth = 1.6*DPR; glow(P.ink, 12);
+  ctx.beginPath();
+  for (let i=0;i<FFT;i+=2){
+    const x = cx + waveL[i]*g*rad, y = cy - waveR[i]*g*rad;
+    i ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
+  }
+  ctx.stroke(); ctx.shadowBlur = 0; ctx.restore();
+  ctx.font = `${Math.round(rad*0.16)}px ${FB}`; ctx.fillStyle = hexA(P.mid,0.85); ctx.textAlign = "center";
+  ctx.fillText("V  ↔  H  FAS", cx, cy+rad+rad*0.26);
+  ctx.textAlign = "left";
+}
+
+// ---------- 7 Rullbandspelare ----------
+let reelAngle = 0;
+function drawReels(t){
+  clearBg();
+  const R = region(), rr = Math.min(R.w, R.h)*0.34, cy = R.y + R.h*0.44;
+  const gap = rr*2.7, cx1 = R.x + R.w/2 - gap/2, cx2 = R.x + R.w/2 + gap/2;
+  let prog = 0.35;
+  if (state.track && state.duration > 0 && isFinite(state.progressNow)) prog = Math.max(0.06, Math.min(0.94, state.progressNow/state.duration));
+  reelAngle += (0.6 + L.rms*9 + L.amp*2.4) * 0.016 * (state.playing ? 1 : 0.12);
+  const drawReel = (cx, wound) => {
+    ctx.strokeStyle = hexA(P.mid,0.85); ctx.lineWidth = Math.max(2,rr*0.04);
+    ctx.beginPath(); ctx.arc(cx,cy,rr,0,Math.PI*2); ctx.stroke();
+    const hub = rr*0.32, tapeR = hub + (rr-hub)*wound;
+    ctx.fillStyle = hexA(P.dim,0.9); ctx.beginPath(); ctx.arc(cx,cy,tapeR,0,Math.PI*2); ctx.fill();
+    ctx.save(); ctx.translate(cx,cy); ctx.rotate(reelAngle);
+    ctx.strokeStyle = hexA(P.ink,0.9); ctx.lineWidth = Math.max(2,rr*0.05);
+    for (let k=0;k<3;k++){ const a = k*Math.PI*2/3;
+      ctx.beginPath(); ctx.moveTo(Math.cos(a)*hub*0.22, Math.sin(a)*hub*0.22); ctx.lineTo(Math.cos(a)*hub, Math.sin(a)*hub); ctx.stroke(); }
+    ctx.restore();
+    ctx.fillStyle = P.bg; ctx.beginPath(); ctx.arc(cx,cy,hub*0.28,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = hexA(P.mid,0.9); ctx.lineWidth = Math.max(1,rr*0.025); ctx.stroke();
+  };
+  drawReel(cx1, 1-prog);
+  drawReel(cx2, prog);
+  ctx.strokeStyle = hexA(P.ink,0.7); ctx.lineWidth = Math.max(1.5, rr*0.035);
+  const y1 = cy - rr*0.92, y2 = cy + rr*0.92;
+  ctx.beginPath(); ctx.moveTo(cx1+rr*0.95,y1); ctx.lineTo(cx2-rr*0.95,y1); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx1+rr*0.95,y2); ctx.lineTo(cx2-rr*0.95,y2); ctx.stroke();
+  ctx.font = `${Math.round(rr*0.22)}px ${FB}`; ctx.fillStyle = hexA(P.mid,0.85); ctx.textAlign = "center";
+  ctx.fillText(state.playing ? "SPELAR" : "PAUS", R.x+R.w/2, cy + rr*1.55);
+  ctx.textAlign = "left";
+}
+
+// ---------- 8 Pejling (radiopejl, cirkulärt spektrum) ----------
+let radarAngle = 0;
+function drawRadar(t){
+  clearBg();
+  const R = region(), cx = R.x+R.w/2, cy = R.y+R.h/2, rad = Math.min(R.w,R.h)*0.46, inner = rad*0.3;
+  ctx.strokeStyle = hexA(P.mid,0.3); ctx.lineWidth = 1*DPR;
+  for (let k=1;k<=3;k++){ ctx.beginPath(); ctx.arc(cx,cy,inner + (rad-inner)*k/3,0,Math.PI*2); ctx.stroke(); }
+  const N = 32;
+  for (let i=0;i<N;i++){
+    const a = -Math.PI/2 + i/N*Math.PI*2, v = Math.min(1, bandsSm[i]*1.15), len = (rad-inner)*v;
+    const c = Math.cos(a), s = Math.sin(a);
+    const col = S.palette === "farg" ? (i > N*0.66 ? P.red : i > N*0.4 ? P.warm : P.ink) : P.ink;
+    ctx.strokeStyle = col; ctx.lineWidth = Math.max(2, rad*0.02); glow(col, v > 0.12 ? 10 : 0);
+    ctx.beginPath(); ctx.moveTo(cx+c*inner, cy+s*inner); ctx.lineTo(cx+c*(inner+len), cy+s*(inner+len)); ctx.stroke();
+  }
+  ctx.shadowBlur = 0;
+  radarAngle += 0.012 + L.rms*0.02;
+  const sa = radarAngle % (Math.PI*2), sx = cx+Math.cos(sa)*rad, sy = cy+Math.sin(sa)*rad;
+  const grad = ctx.createLinearGradient(cx,cy,sx,sy);
+  grad.addColorStop(0, hexA(P.accent,0)); grad.addColorStop(1, hexA(P.accent,0.55));
+  ctx.strokeStyle = grad; ctx.lineWidth = 2*DPR;
+  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(sx,sy); ctx.stroke();
+  ctx.fillStyle = P.ink; ctx.beginPath(); ctx.arc(cx,cy,rad*0.025,0,Math.PI*2); ctx.fill();
 }
 
 // ---------- 0 Testbild ----------
@@ -1973,8 +2066,16 @@ function drawBoardBg(t){
 }
 
 // ================= huvudloop =================
-const VIZ = { 1:drawOsc, 2:drawEye, 3:drawVU, 4:drawAtom, 5:drawOrgan };
-const VIZ_NAMES = { 1:"Oscilloskop", 2:"Magiskt öga", 3:"VU-mätare", 4:"Atomålder", 5:"Ljusorgel" };
+const VIZ = { 1:drawOsc, 2:drawEye, 3:drawVU, 4:drawAtom, 5:drawOrgan, 6:drawLissa, 7:drawReels, 8:drawRadar };
+const VIZ_NAMES = { 1:"Oscilloskop", 2:"Magiskt öga", 3:"VU-mätare", 4:"Atomålder", 5:"Ljusorgel", 6:"Lissajous", 7:"Rullband", 8:"Pejling" };
+// nasta kanal i rotationen - hoppar bara mellan de som ar ikryssade i S.vizRot (alla om inget ar det)
+function nextVizRot(cur){
+  const all = Object.keys(VIZ).map(Number);
+  const on = all.filter(n => S.vizRot[n] !== false);
+  const pool = on.length ? on : all;
+  const i = pool.indexOf(cur);
+  return pool[(i + 1 + pool.length) % pool.length] ?? pool[0];
+}
 let lastVizDrawn = 0;
 // nar sann: tvingar fram den riktiga inbyggda testbilden (drawTestcard) i
 // huvudloopen, oavsett idle-status - anvands av vakna-animationen sa att
@@ -2054,7 +2155,7 @@ function setTrack(tr){
       elInfo.classList.remove("out");
     });
   }, first ? 50 : 650);
-  if (!first && S.autoChannel && tr) setViz(S.viz % 5 + 1, true);
+  if (!first && S.autoChannel && tr) setViz(nextVizRot(S.viz), true);
 }
 function isLocalNetworkUrl(url){
   // Sonos (och annat pa det lokala natverket) delar bilder via sin egen
@@ -2480,7 +2581,7 @@ async function applyVizInput(){
   else stopMic();
 }
 function setViz(n, noisy){
-  n = Math.max(1, Math.min(5, n|0));
+  n = Math.max(1, Math.min(8, n|0));
   S.viz = n; saveS(); segOn("#vizSeg", String(n));
   channelNoise(noisy ? 520 : 420);
   osd(n + " · " + VIZ_NAMES[n]);
@@ -2603,6 +2704,14 @@ $("#palSeg").addEventListener("click", e => { const b = e.target.closest("button
 $("#vinSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.vizInput = b.dataset.v; saveS(); start(); applyVizInput(); });
 $("#vol").addEventListener("input", e => { S.volume = +e.target.value; saveS(); if (outGain) outGain.gain.value = S.volume; });
 $("#autoCh").addEventListener("change", e => { S.autoChannel = e.target.checked; saveS(); });
+(function buildVizRot(){
+  const el = $("#vizRotSeg");
+  el.innerHTML = Object.keys(VIZ).map(n => `<label><input type="checkbox" data-v="${n}">${n} ${VIZ_NAMES[n]}</label>`).join("");
+  el.addEventListener("change", e => {
+    const cb = e.target.closest("input[type=checkbox]"); if (!cb) return;
+    S.vizRot[cb.dataset.v] = cb.checked; saveS();
+  });
+})();
 $("#crtChk").addEventListener("change", e => { S.crt = e.target.checked; saveS(); applyFxStatic(); });
 $("#infoChk").addEventListener("change", e => { S.info = e.target.checked; saveS(); applyInfoVis(); });
 $("#spLogin").addEventListener("click", spLogin);
@@ -2744,8 +2853,8 @@ document.addEventListener("keydown", e => {
   if (e.target.matches("input, textarea")) { if (e.key === "Escape") e.target.blur(); return; }
   const k = e.key.toLowerCase();
   if (!state.started && k !== "s"){ start(); if (k !== " ") return; }
-  if (k >= "1" && k <= "5") setViz(+k);
-  else if (k === "c") setViz(S.viz % 5 + 1);
+  if (k >= "1" && k <= "8") setViz(+k);
+  else if (k === "c") setViz(nextVizRot(S.viz));
   else if (k === "b"){ const ks = Object.keys(PALETTES); setPalette(ks[(ks.indexOf(S.palette)+1) % ks.length]); osd(document.querySelector(`#palSeg button[data-v="${S.palette}"]`).textContent); }
   else if (k === " "){ e.preventDefault(); playPause(); }
   else if (k === "n" || k === "arrowright") next();
@@ -2765,6 +2874,7 @@ document.addEventListener("mousemove", () => { document.body.classList.remove("h
   $("#spClient").value = S.clientId;
   $("#vol").value = S.volume;
   $("#autoCh").checked = S.autoChannel;
+  $("#vizRotSeg").querySelectorAll("input[type=checkbox]").forEach(cb => { cb.checked = S.vizRot[cb.dataset.v] !== false; });
   buildControls(); syncAll();
   loadFonts(); applyLook();
   applyInfoVis();
