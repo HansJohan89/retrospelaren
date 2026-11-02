@@ -509,9 +509,9 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
         <button data-v="3">3 VU-mätare</button>
         <button data-v="4">4 Atomålder</button>
         <button data-v="5">5 Ljusorgel</button>
-        <button data-v="6">6 Plasma</button>
-        <button data-v="7">7 Vattenfall</button>
-        <button data-v="8">8 LED-stapel</button>
+        <button data-v="6">6 Spektrumvåg</button>
+        <button data-v="7">7 Partikelring</button>
+        <button data-v="8">8 Kalejdoskop</button>
       </div>
       <label class="chk"><input type="checkbox" id="autoCh"> Byt kanal vid ny låt</label>
       <h4>Vilka kanaler att växla mellan</h4>
@@ -1124,104 +1124,81 @@ function drawOrgan(t){
   ctx.globalAlpha = 1; ctx.shadowBlur = 0;
 }
 
-// ---------- färghjälp för plasma/vattenfall: flerstegs-gradient utan DOM/hex-overhead ----------
-function lerpRGB(a,b,f){ return [a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f]; }
-function stopColor(stops, v){
-  const n = stops.length - 1, f = Math.max(0, Math.min(0.999999, v))*n, i = Math.floor(f);
-  return lerpRGB(stops[i], stops[Math.min(n, i+1)], f - i);
-}
-function paletteStops(){
-  // monokroma lägen far en stegring i samma kulör (som en fosformonitor); 60-talsfärg far ett varmt spektrum
-  return S.palette === "farg" ? [rgbOf(P.bg), rgbOf(P.warm), rgbOf(P.red), rgbOf(P.accent)]
-    : [rgbOf(P.bg), rgbOf(P.dim), rgbOf(P.mid), rgbOf(P.ink)];
-}
-
-// ---------- 6 Plasma (interferensmönster à la Winamp/Milkdrop-stilen) ----------
-const plasmaCv = document.createElement("canvas"), plasmaCx = plasmaCv.getContext("2d");
-function drawPlasma(t){
-  const R = region(), pw = 88, ph = Math.max(1, Math.round(pw * R.h/R.w));
-  if (plasmaCv.width !== pw || plasmaCv.height !== ph){ plasmaCv.width = pw; plasmaCv.height = ph; }
-  const img = plasmaCx.createImageData(pw, ph), data = img.data;
-  const bass = (bandsSm[0]+bandsSm[1]+bandsSm[2])/3, treble = (bandsSm[24]+bandsSm[27]+bandsSm[30])/3;
-  const speed = t*(0.7 + L.rms*1.8), zoom = 2.6 + bass*3.4, stops = paletteStops();
-  for (let y=0;y<ph;y++){
-    const ny = y/ph*zoom;
-    for (let x=0;x<pw;x++){
-      const nx = x/pw*zoom*(pw/ph);
-      let v = Math.sin(nx*3+speed) + Math.sin(ny*3 - speed*1.3) + Math.sin((nx+ny)*2.1+speed*0.6) + Math.sin(Math.sqrt(nx*nx+ny*ny)*4 - speed*1.7);
-      v = Math.min(1, (v+4)/8 + treble*0.3);
-      const c = stopColor(stops, v), idx = (y*pw+x)*4;
-      data[idx]=c[0]; data[idx+1]=c[1]; data[idx+2]=c[2]; data[idx+3]=255;
-    }
+// ---------- 6 Spektrumvåg (mjuk glödande spektrumkurva med spegling, "hi-fi"-klassikern) ----------
+function smoothPath(pts){
+  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i=1;i<pts.length-1;i++){
+    const mx = (pts[i][0]+pts[i+1][0])/2, my = (pts[i][1]+pts[i+1][1])/2;
+    ctx.quadraticCurveTo(pts[i][0], pts[i][1], mx, my);
   }
-  plasmaCx.putImageData(img,0,0);
-  ctx.globalCompositeOperation = "source-over"; ctx.shadowBlur = 0;
-  ctx.save(); ctx.beginPath(); ctx.rect(R.x,R.y,R.w,R.h); ctx.clip();
-  ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(plasmaCv, 0,0,pw,ph, R.x,R.y,R.w,R.h);
+  ctx.lineTo(pts[pts.length-1][0], pts[pts.length-1][1]);
+}
+function drawWave(t){
+  fade(0.3*persistK());
+  const R = region(), baseline = R.y + R.h*0.62, N = NB, pts = [];
+  for (let i=0;i<N;i++){
+    const x = R.x + R.w*i/(N-1), v = Math.min(1, bandsSm[i]*1.3);
+    pts.push([x, baseline - v*R.h*0.5]);
+  }
+  const topCol = S.palette === "farg" ? P.accent : P.ink;
+  // fylld yta under kurvan
+  smoothPath(pts); ctx.lineTo(R.x+R.w, baseline); ctx.lineTo(R.x, baseline); ctx.closePath();
+  const grad = ctx.createLinearGradient(0, baseline-R.h*0.5, 0, baseline);
+  grad.addColorStop(0, hexA(topCol, 0.5)); grad.addColorStop(1, hexA(topCol, 0.03));
+  ctx.fillStyle = grad; ctx.fill();
+  // glödande linje ovanpå
+  smoothPath(pts);
+  ctx.strokeStyle = topCol; ctx.lineWidth = 2.4*DPR; glow(topCol, 18); ctx.stroke(); ctx.shadowBlur = 0;
+  // spegling nedåt, nedtonad
+  ctx.save(); ctx.globalAlpha = 0.3; ctx.translate(0, baseline*2); ctx.scale(1,-1);
+  smoothPath(pts); ctx.strokeStyle = topCol; ctx.lineWidth = 2*DPR; ctx.stroke();
   ctx.restore();
-}
-
-// ---------- 7 Spektrumvattenfall (som en studio-/radiopejlanalysator) ----------
-const wfCv = document.createElement("canvas"), wfCx = wfCv.getContext("2d");
-const wfScratch = document.createElement("canvas"), wfScratchCx = wfScratch.getContext("2d");
-function drawWaterfall(t){
-  const R = region(), w = Math.max(1, Math.round(R.w)), h = Math.max(1, Math.round(R.h));
-  if (wfCv.width !== w || wfCv.height !== h){
-    wfCv.width = w; wfCv.height = h; wfScratch.width = w; wfScratch.height = h;
-    wfCx.fillStyle = hexA(P.bg,1); wfCx.fillRect(0,0,w,h);
-  }
-  // skifta hela bilden ett pixelsteg åt vänster (ny data kommer in längst till höger, som en pejlskärm som rullar)
-  wfScratchCx.clearRect(0,0,w,h);
-  wfScratchCx.drawImage(wfCv, 1,0,w-1,h, 0,0,w-1,h);
-  wfCx.clearRect(0,0,w,h);
-  wfCx.drawImage(wfScratch,0,0);
-  const stops = paletteStops();
-  for (let y=0;y<h;y++){
-    const bi = Math.min(NB-1, Math.max(0, Math.floor((1 - y/h) * NB)));
-    const v = Math.min(1, bandsSm[bi]*1.3);
-    const c = stopColor(stops, v);
-    wfCx.fillStyle = `rgb(${c[0]|0},${c[1]|0},${c[2]|0})`;
-    wfCx.fillRect(w-1, y, 1, 1);
-  }
-  ctx.save(); ctx.beginPath(); ctx.rect(R.x,R.y,R.w,R.h); ctx.clip();
-  ctx.drawImage(wfCv, R.x, R.y);
-  ctx.strokeStyle = hexA(P.mid,0.35); ctx.lineWidth = 1*DPR;
-  ctx.beginPath();
-  for (let j=1;j<4;j++){ const y = R.y + R.h*j/4; ctx.moveTo(R.x,y); ctx.lineTo(R.x+R.w,y); }
-  ctx.stroke();
-  ctx.restore();
-}
-
-// ---------- 8 LED-stapel (färggraderad spektrum-ljudmätare med reflex) ----------
-const ledPeaks = new Float32Array(32);
-function drawLed(t){
-  clearBg();
-  const R = region(), cols = 32, gap = R.w*0.006, cw = (R.w - gap*(cols-1))/cols;
-  const baseline = R.y + R.h*0.64, upH = R.h*0.56, dnH = R.h*0.2, segN = 14;
-  const segH = upH/segN*0.76, segGap = upH/segN*0.24;
-  for (let c=0;c<cols;c++){
-    const v = Math.min(1, bandsSm[c]*1.2);
-    ledPeaks[c] = Math.max(v, ledPeaks[c] - 0.012);
-    const x = R.x + c*(cw+gap), lit = Math.round(v*segN);
-    for (let s=0;s<segN;s++){
-      const y = baseline - (s+1)*(segH+segGap), frac = s/segN;
-      const col = S.palette === "farg" ? (frac < 0.6 ? P.ink : frac < 0.82 ? P.warm : P.red) : (frac < 0.82 ? P.ink : P.accent);
-      if (s < lit){ ctx.fillStyle = col; glow(col, 6); } else { ctx.fillStyle = hexA(P.dim, 0.85); ctx.shadowBlur = 0; }
-      roundRect(x, y - segH, cw, segH, Math.min(cw,segH)*0.3); ctx.fill();
-    }
-    ctx.shadowBlur = 0;
-    const pk = Math.min(segN-1, Math.round(ledPeaks[c]*segN)), py = baseline - (pk+1)*(segH+segGap);
-    ctx.fillStyle = P.accent; glow(P.accent, 8);
-    ctx.fillRect(x, py - segH, cw, Math.max(2*DPR, segH*0.16)); ctx.shadowBlur = 0;
-    // blank reflex under baslinjen, som en glansig konsolyta
-    const topCol = S.palette === "farg" ? P.warm : P.ink;
-    const rg = ctx.createLinearGradient(0, baseline, 0, baseline + dnH);
-    rg.addColorStop(0, hexA(topCol, 0.28*v)); rg.addColorStop(1, hexA(topCol, 0));
-    ctx.fillStyle = rg; ctx.fillRect(x, baseline, cw, dnH*Math.max(0.15, v));
-  }
-  ctx.strokeStyle = hexA(P.mid,0.5); ctx.lineWidth = 1*DPR;
+  ctx.strokeStyle = hexA(P.mid,0.4); ctx.lineWidth = 1*DPR;
   ctx.beginPath(); ctx.moveTo(R.x,baseline); ctx.lineTo(R.x+R.w,baseline); ctx.stroke();
+}
+
+// ---------- 7 Partikelring (ljudreaktiv partikelgalax med släp) ----------
+function drawParticles(t){
+  clearBg();
+  const R = region(), cx = R.x+R.w/2, cy = R.y+R.h/2;
+  const r0 = Math.min(R.w,R.h)*0.12, r1 = Math.min(R.w,R.h)*0.47, N = 48, rot = t*0.16;
+  for (let i=0;i<N;i++){
+    const bi = i % NB, v = Math.min(1, bandsSm[bi]*1.25);
+    const a = rot + i/N*Math.PI*2, r = r0 + (r1-r0)*v;
+    const x = cx+Math.cos(a)*r, y = cy+Math.sin(a)*r;
+    const col = S.palette === "farg" ? (v>0.66?P.red:v>0.35?P.warm:P.accent) : P.ink;
+    ctx.fillStyle = col; glow(col, 6+v*16);
+    ctx.beginPath(); ctx.arc(x,y,(1.3+v*3.2)*DPR,0,Math.PI*2); ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+  const pulse = r0*(1 + Math.min(1.1, 0.4+L.rms*3));
+  const core = ctx.createRadialGradient(cx,cy,0,cx,cy,pulse);
+  core.addColorStop(0, hexA(P.accent,0.9)); core.addColorStop(0.6, hexA(P.accent,0.25)); core.addColorStop(1, hexA(P.accent,0));
+  ctx.fillStyle = core; ctx.beginPath(); ctx.arc(cx,cy,pulse,0,Math.PI*2); ctx.fill();
+}
+
+// ---------- 8 Kalejdoskop (roterande spegelsymmetri - 60-talets psykedelia) ----------
+function drawKaleido(t){
+  fade(0.22*persistK());
+  const R = region(), cx = R.x+R.w/2, cy = R.y+R.h/2, rad = Math.min(R.w,R.h)*0.48, SEG = 8, N = 16;
+  const cols3 = S.palette === "farg" ? [P.accent, P.warm, P.red] : [P.ink, P.ink, P.ink];
+  ctx.save(); ctx.translate(cx,cy);
+  for (let s=0;s<SEG;s++){
+    ctx.save(); ctx.rotate(s/SEG*Math.PI*2 + t*0.035);
+    ctx.scale(1, s%2 ? -1 : 1);   // varannan sektor speglad -> äkta kalejdoskopmönster
+    ctx.beginPath();
+    for (let i=0;i<N;i++){
+      const v = Math.min(1, bandsSm[i]*1.3);
+      const a = (i/(N-1)) * (Math.PI*2/SEG);
+      const r = rad*0.12 + rad*0.88*v*(0.4+0.6*Math.sin(i/N*Math.PI));
+      const x = Math.cos(a)*r, y = Math.sin(a)*r;
+      i ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
+    }
+    const col = cols3[s%3];
+    ctx.strokeStyle = col; ctx.lineWidth = 1.8*DPR; glow(col, 12); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore(); ctx.shadowBlur = 0;
 }
 
 // ---------- 0 Testbild ----------
@@ -2084,8 +2061,8 @@ function drawBoardBg(t){
 }
 
 // ================= huvudloop =================
-const VIZ = { 1:drawOsc, 2:drawEye, 3:drawVU, 4:drawAtom, 5:drawOrgan, 6:drawPlasma, 7:drawWaterfall, 8:drawLed };
-const VIZ_NAMES = { 1:"Oscilloskop", 2:"Magiskt öga", 3:"VU-mätare", 4:"Atomålder", 5:"Ljusorgel", 6:"Plasma", 7:"Vattenfall", 8:"LED-stapel" };
+const VIZ = { 1:drawOsc, 2:drawEye, 3:drawVU, 4:drawAtom, 5:drawOrgan, 6:drawWave, 7:drawParticles, 8:drawKaleido };
+const VIZ_NAMES = { 1:"Oscilloskop", 2:"Magiskt öga", 3:"VU-mätare", 4:"Atomålder", 5:"Ljusorgel", 6:"Spektrumvåg", 7:"Partikelring", 8:"Kalejdoskop" };
 // nasta kanal i rotationen - hoppar bara mellan de som ar ikryssade i S.vizRot (alla om inget ar det)
 function nextVizRot(cur){
   const all = Object.keys(VIZ).map(Number);
