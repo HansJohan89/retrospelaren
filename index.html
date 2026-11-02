@@ -2116,6 +2116,18 @@ function frame(nowMs){
 const elInfo = $("#info"), elTitle = $("#title"), elArtist = $("#artist"), elAlbum = $("#album"), elKicker = $("#kicker"), elCov = $("#cov"), elCovPh = $("#covPh");
 const elQueue = $("#queue");
 let queueKey = null;
+// Alla pendlande textremsor (nu-titeln + kon) ska ga i samma takt - annars
+// blir det rorigt nar flera scrollar med olika hastighet samtidigt. Varje
+// gang nagon matts om raknas den gemensamma cykellangden om, tajmad mot
+// den som har langst stracka att rora sig.
+const MARQUEE_PX_PER_S = 26;
+function syncMarqueeDur(){
+  const els = [elTitle, ...elQueue.querySelectorAll(".qt")].filter(el => el.classList.contains("marquee"));
+  if (!els.length) return;
+  const maxOver = Math.max(...els.map(el => +el.dataset.over || 0));
+  const dur = Math.max(8, maxOver / MARQUEE_PX_PER_S).toFixed(2) + "s";
+  els.forEach(el => el.style.setProperty("--dur", dur));
+}
 function renderQueue(items){
   // items: [{title, artist}] - visar max 4, tom lista/odefinierat gommer rutan.
   const list = (items || []).filter(x => x && x.title).slice(0, 4);
@@ -2135,12 +2147,14 @@ function renderQueue(items){
         const sp = qt.firstElementChild;
         if (!sp) return;
         const over = sp.scrollWidth - qt.clientWidth;
+        qt.classList.remove("marquee"); delete qt.dataset.over;
         if (over > 2){
+          qt.dataset.over = over;
           qt.style.setProperty("--scroll", (-over) + "px");
-          qt.style.setProperty("--dur", Math.max(6, over*0.05) + "s");
           qt.classList.add("marquee");
         }
       });
+      syncMarqueeDur();
     });
   }
 }
@@ -2166,11 +2180,13 @@ function setTrack(tr){
     elInfo.classList.toggle("hidden", !S.info);
     requestAnimationFrame(() => {
       const over = sp.scrollWidth - elTitle.clientWidth;
+      delete elTitle.dataset.over;
       if (over > 2){
+        elTitle.dataset.over = over;
         elTitle.style.setProperty("--scroll", (-over) + "px");
-        elTitle.style.setProperty("--dur", Math.max(8, over*0.05) + "s");
         elTitle.classList.add("marquee");
       }
+      syncMarqueeDur();
       elInfo.classList.remove("out");
     });
   }, first ? 50 : 650);
