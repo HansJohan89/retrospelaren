@@ -38,7 +38,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #info.out{opacity:0;transform:translateY(6%)}
 #info.hidden,#dial.hidden{display:none}
 #info.idle,#dial.idle{opacity:0!important;transition:opacity .8s}
-.cover{height:100%;aspect-ratio:1;flex:none;position:relative;border:max(2px,.35vh) solid var(--mid);padding:.5%;
+.cover{height:calc(100% * var(--covsz,1));aspect-ratio:1;flex:none;position:relative;border:max(2px,.35vh) solid var(--mid);padding:.5%;
   background:var(--dim);box-shadow:0 0 2.5vh rgba(0,0,0,.6)}
 .cover img{width:100%;height:100%;object-fit:cover;display:block;filter:var(--cover-filter)}
 .cover img[src=""]{visibility:hidden}
@@ -63,6 +63,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 @keyframes marq{0%,12%{transform:translateX(0)}100%{transform:translateX(calc(-100% ))}}
 .artist{font-size:calc(3.1vh*var(--sz));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
 .album{font-size:calc(2vh*var(--sz));color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.next{font-size:calc(1.6vh*var(--sz));color:var(--mid);opacity:.65;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.3vh}
 
 #dial{position:absolute;left:5%;right:5%;bottom:calc(4.2% + var(--bb,0px));height:7.2%;z-index:3;
   border-top:max(1px,.2vh) solid var(--dim);border-bottom:max(1px,.2vh) solid var(--dim)}
@@ -405,6 +406,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
           <div class="title" id="title"><span>&nbsp;</span></div>
           <div class="artist" id="artist"></div>
           <div class="album" id="album"></div>
+          <div class="next" id="next"></div>
         </div>
       </div>
       <div id="dial"><canvas id="dialC"></canvas></div>
@@ -671,7 +673,7 @@ const PRESETS = {
   sliten: { bright:45, contrast:62, blur:35, persist:45, curve:65, vignette:75, glare:45, scan:55, flicker:45, snow:20, hum:45, jitter:22, wobble:22, roll:28, interf:35, ghost:30, chroma:14 },
   dalig:  { bright:48, contrast:58, blur:42, persist:35, curve:60, vignette:65, glare:40, scan:50, flicker:50, snow:55, hum:60, jitter:42, wobble:48, roll:50, interf:70, ghost:55, chroma:25 }
 };
-const LOOK_DEF = { brand:"BLAUPUNKT", fontT:"Limelight", fontB:"Special Elite", size:100, edgeSize:100, upper:false, cover:"square", dial:true,
+const LOOK_DEF = { brand:"BLAUPUNKT", fontT:"Limelight", fontB:"Special Elite", size:100, edgeSize:100, coverSize:100, upper:false, cover:"square", dial:true,
   format:"4:3", scale:100, offX:0, offY:0 };
 const EDGE_DEF = { date:true, week:true, clock:true, wx:true, steps:true, stepsGoal:10000, place:"Falun", lat:60.6065, lon:15.6355 };
 const FONTS_T = ["Limelight","Monoton","Poiret One","Righteous","Abril Fatface","Playfair Display","Bebas Neue","Federo","Josefin Sans","Pacifico","Lobster","Yesteryear"];
@@ -1992,7 +1994,7 @@ function frame(nowMs){
 }
 
 // ================= låtinfo =================
-const elInfo = $("#info"), elTitle = $("#title"), elArtist = $("#artist"), elAlbum = $("#album"), elKicker = $("#kicker"), elCov = $("#cov"), elCovPh = $("#covPh");
+const elInfo = $("#info"), elTitle = $("#title"), elArtist = $("#artist"), elAlbum = $("#album"), elNext = $("#next"), elKicker = $("#kicker"), elCov = $("#cov"), elCovPh = $("#covPh");
 let infoTimer = 0;
 function setTrack(tr){
   const key = tr ? [tr.title, tr.artist, tr.kicker].join("|") : "";
@@ -2011,6 +2013,7 @@ function setTrack(tr){
     elTitle.classList.remove("marquee");
     elArtist.textContent = tr.artist || "";
     elAlbum.textContent = [tr.album, tr.year].filter(Boolean).join("  ·  ");
+    elNext.textContent = tr.next ? "Näst: " + tr.next : "";
     applyCover(tr.cover || "");
     elInfo.classList.toggle("hidden", !S.info);
     requestAnimationFrame(() => {
@@ -2334,6 +2337,20 @@ async function spResumeOnWakeDevice(){
   })();
   return started;
 }
+let SP_NEXT = { text: "", at: 0 };
+async function spNextLabel(){
+  // Kon andras sallan jamfort med spPoll()s eget intervall, sa den hamtas
+  // bara var 8:e sekund oavsett - ingen anledning att belasta Spotifys API
+  // varje enskild poll bara for "nast pa tur"-raden.
+  if (Date.now() - SP_NEXT.at < 8000) return SP_NEXT.text;
+  SP_NEXT.at = Date.now();
+  try {
+    const r = await spApi("/me/player/queue");
+    const n = (r.data?.queue || [])[0];
+    SP_NEXT.text = n ? [n.name, (n.artists || []).map(a => a.name).join(", ")].filter(Boolean).join(" · ") : "";
+  } catch(e){ SP_NEXT.text = ""; }
+  return SP_NEXT.text;
+}
 async function spPoll(){
   if (S.source !== "spotify") return;
   // Sonos ager visningen helt sa lange den faktiskt spelar (se sonosPoll) -
@@ -2357,11 +2374,12 @@ async function spPoll(){
   state.spDevice = d.device?.name || "";
   const isEp = it.type === "episode";
   const imgs = isEp ? (it.images || it.show?.images || []) : (it.album?.images || []);
+  const next = await spNextLabel();
   setTrack({
     src:"sp", kicker: "Spotify" + (state.spDevice ? " · " + state.spDevice : ""),
     title: it.name, artist: isEp ? (it.show?.name || "") : (it.artists || []).map(a => a.name).join(", "),
     album: isEp ? "" : (it.album?.name || ""), year: isEp ? "" : (it.album?.release_date || "").slice(0,4),
-    cover: imgs[0]?.url || ""
+    cover: imgs[0]?.url || "", next
   });
   renderSp();
 }
@@ -2384,7 +2402,7 @@ async function sonosPoll(){
       // for en progressbar som annars skulle visa gammal/fel Spotify-data.
       state.playing = true; state.live = true;
       setTrack({ src:"sonos", kicker: "Sonos" + (d.room ? " · " + d.room : ""),
-        title: d.title || "", artist: d.artist || "", album: d.album || "", cover: d.art || "" });
+        title: d.title || "", artist: d.artist || "", album: d.album || "", cover: d.art || "", next: d.next || "" });
     } else if (state.track && state.track.src === "sonos"){
       setTrack(null); state.playing = false; state.live = false;
     }
@@ -2458,6 +2476,7 @@ function applyLook(){
   const Lk = S.look, r = document.documentElement.style;
   r.setProperty("--sz", (Lk.size/100).toFixed(2));
   r.setProperty("--esz", ((Lk.edgeSize ?? 100)/100).toFixed(2));
+  r.setProperty("--covsz", ((Lk.coverSize ?? 100)/100).toFixed(2));
   $("#screen").classList.toggle("upper", !!Lk.upper);
   $("#brandStart").textContent = Lk.brand || " ";
   document.title = Lk.brand || "Spelare";
@@ -2614,6 +2633,7 @@ function buildControls(){
   for (const [k, l] of FX_DIST) syncers.push(slider($("#fxDist"), k, l, fxObj, 0, 100, fxChange));
   syncers.push(slider($("#lookSl"), "size", "Textstorlek %", lk, 60, 160, applyLook));
   syncers.push(slider($("#lookSl"), "edgeSize", "Datum och klocka %", lk, 50, 160, applyLook));
+  syncers.push(slider($("#lookSl"), "coverSize", "Omslagsbild %", lk, 50, 200, applyLook));
   syncers.push(slider($("#scrSl"), "scale", "Storlek %", lk, 40, 130, applyLook));
   syncers.push(slider($("#scrSl"), "offX", "Sidled %", lk, -30, 30, applyLook));
   syncers.push(slider($("#scrSl"), "offY", "Höjdled %", lk, -30, 30, applyLook));
