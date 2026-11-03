@@ -362,19 +362,20 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #start .knob::after{content:"";position:absolute;left:50%;top:8%;width:.6vh;height:35%;background:var(--ink);transform:translateX(-50%)}
 #start.gone{display:none}
 
-#gear{position:fixed;right:14px;bottom:14px;z-index:20;width:38px;height:38px;border-radius:50%;border:2px solid #555;
+#gear,#macropadBtn{position:fixed;right:14px;bottom:14px;z-index:20;width:38px;height:38px;border-radius:50%;border:2px solid #555;
   background:#111;color:#bbb;font:18px/34px "Special Elite",monospace;cursor:pointer;opacity:.25;transition:opacity .3s}
-#gear:hover,#gear:focus-visible{opacity:1}
-#panel{position:fixed;top:0;right:0;bottom:0;width:min(440px,100vw);z-index:30;background:var(--panel);color:var(--panel-ink);
+#gear:hover,#gear:focus-visible,#macropadBtn:hover,#macropadBtn:focus-visible{opacity:1}
+#macropadBtn{bottom:58px;font-size:15px}
+#panel,#mpPanel{position:fixed;top:0;right:0;bottom:0;width:min(440px,100vw);z-index:30;background:var(--panel);color:var(--panel-ink);
   transform:translateX(102%);transition:transform .35s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;
   box-shadow:-10px 0 40px rgba(0,0,0,.6);font-size:15px}
-#panel.open{transform:none}
-#panel header{padding:18px 20px 12px;border-bottom:2px solid var(--panel-line);display:flex;align-items:baseline;justify-content:space-between}
-#panel header h2{font-family:Limelight,serif;font-weight:400;font-size:28px;margin:0}
-#panel header button{all:unset;cursor:pointer;font-size:22px;padding:0 6px}
-#panel .scroll{overflow:auto;padding:6px 20px 30px;flex:1}
-#panel section{padding:14px 0;border-bottom:1px dashed var(--panel-line)}
-#panel h3{font:13px "Special Elite",monospace;letter-spacing:.25em;text-transform:uppercase;margin:0 0 10px;color:#6b5a3e}
+#panel.open,#mpPanel.open{transform:none}
+#panel header,#mpPanel header{padding:18px 20px 12px;border-bottom:2px solid var(--panel-line);display:flex;align-items:baseline;justify-content:space-between}
+#panel header h2,#mpPanel header h2{font-family:Limelight,serif;font-weight:400;font-size:28px;margin:0}
+#panel header button,#mpPanel header button{all:unset;cursor:pointer;font-size:22px;padding:0 6px}
+#panel .scroll,#mpPanel .scroll{overflow:auto;padding:6px 20px 30px;flex:1}
+#panel section,#mpPanel section{padding:14px 0;border-bottom:1px dashed var(--panel-line)}
+#panel h3,#mpPanel h3{font:13px "Special Elite",monospace;letter-spacing:.25em;text-transform:uppercase;margin:0 0 10px;color:#6b5a3e}
 .seg{display:flex;flex-wrap:wrap;gap:6px}
 .seg button,.btn{font:inherit;font-size:14px;padding:6px 11px;border:1.5px solid var(--panel-ink);background:transparent;color:var(--panel-ink);
   border-radius:3px;cursor:pointer}
@@ -412,9 +413,14 @@ kbd{font:12px "Special Elite",monospace;border:1px solid var(--panel-ink);border
 .mpRow input[type=number]{width:4.5em;font:inherit;font-size:14px;padding:6px 4px;border:1.5px solid var(--panel-ink);background:#fff;color:var(--panel-ink);border-radius:3px}
 .mpRow input[type=color]{width:2.4em;height:2.4em;padding:0;border:1.5px solid var(--panel-ink);border-radius:3px}
 .mpRow .mpDel{margin-left:auto}
-.mpGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-top:8px}
-.mpGrid button{font:13px "Special Elite",monospace;letter-spacing:.04em;padding:16px 8px;border:1.5px solid var(--panel-ink);border-radius:5px;background:#f6efdc;color:var(--panel-ink);cursor:pointer;text-align:center;min-height:3.4em}
-.mpGrid button:active{background:var(--panel-ink);color:#f6efdc}
+#mpDisplay{position:fixed;inset:0;z-index:40;background:var(--panel);color:var(--panel-ink);display:none;flex-direction:column}
+#mpDisplay.open{display:flex}
+#mpDisplay header{padding:16px 22px 10px;border-bottom:2px solid var(--panel-line);display:flex;align-items:baseline;justify-content:space-between;flex:none}
+#mpDisplay header h2{font-family:Limelight,serif;font-weight:400;font-size:26px;margin:0}
+#mpDisplay header button{all:unset;cursor:pointer;font-size:24px;padding:0 8px}
+.mpDisplayGrid{flex:1;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;padding:22px;align-content:start}
+.mpDisplayGrid button{font:18px "Special Elite",monospace;letter-spacing:.04em;padding:5vh 10px;border:2px solid var(--panel-ink);border-radius:8px;background:#f6efdc;color:var(--panel-ink);cursor:pointer;text-align:center;min-height:3em}
+.mpDisplayGrid button:active{background:var(--panel-ink);color:#f6efdc}
 select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--panel-ink);background:#f6efdc;color:var(--panel-ink);border-radius:3px;flex:1;min-width:0}
 .lbl{min-width:128px;font-size:13.5px}
 #panel h4{font:12px "Special Elite",monospace;letter-spacing:.2em;text-transform:uppercase;margin:14px 0 2px;color:#8a7756}
@@ -468,6 +474,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
 </div>
 
 <button id="gear" title="Inställningar (S)" aria-label="Inställningar">&#9881;</button>
+<button id="macropadBtn" class="mpGear" title="Macropad (M)" aria-label="Macropad">&#9638;</button>
 
 <aside id="panel" aria-label="Inställningar">
   <header><h2>Inställningar</h2><button id="closePanel" aria-label="Stäng">&times;</button></header>
@@ -532,11 +539,8 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
 
     <section>
       <h3>Virtuell macropad (test)</h3>
-      <div class="note">Testa macropad-upplägget innan den fysiska finns: lägg till knappar nedan, välj vad var och en ska göra (musik/skärm, kanal, palett eller belysning), och tryck sedan på dem i rutnätet längst ner - det skickar exakt samma kommandon (<code>/api/send</code>) som en riktig macropad skulle göra.</div>
-      <div id="mpConfig"></div>
-      <div class="row"><button class="btn" id="mpAddBtn">+ Lägg till knapp</button></div>
-      <h4 style="margin-top:14px">Kör</h4>
-      <div id="mpGrid" class="mpGrid"><div class="note">Lägg till minst en knapp ovan.</div></div>
+      <div class="note">Testa macropad-upplägget innan den fysiska finns - ställ in vilka knappar den ska ha i en egen liten panel, och fäll upp en stor körbar vy när du faktiskt vill använda den. Samma kommandon (<code>/api/send</code>) som en riktig macropad skulle skicka.</div>
+      <div class="row"><button class="btn" id="mpConfigBtn">Ställ in knappar</button><button class="btn primary" id="mpShowBtn">Visa macropad</button></div>
     </section>
 
     <section>
@@ -688,12 +692,31 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
         <kbd>I</kbd><span>Visa / dölj info</span>
         <kbd>F</kbd><span>Helskärm</span>
         <kbd>S</kbd><span>Inställningar</span>
+        <kbd>M</kbd><span>Macropad</span>
       </div>
       <div class="note">Styrning utifrån, t.ex. jalusins brytare: <code>/api/send?c=open</code>, <code>close</code>, <code>next</code>, <code>prev</code>, <code>playpause</code>, <code>wake</code>, <code>viz:3</code>, <code>palette:sepia</code></div>
       <div class="row"><button class="btn" id="wakeTestBtn">Testa vakna-animation</button></div>
     </section>
   </div>
 </aside>
+
+<aside id="mpPanel" aria-label="Macropad - inställningar">
+  <header><h2>Macropad</h2><button id="closeMpPanel" aria-label="Stäng">&times;</button></header>
+  <div class="scroll">
+    <section>
+      <h3>Knappar</h3>
+      <div class="note">Lägg till knappar och välj vad var och en ska göra (musik/skärm, kanal, palett eller belysning).</div>
+      <div id="mpConfig"></div>
+      <div class="row"><button class="btn" id="mpAddBtn">+ Lägg till knapp</button></div>
+      <div class="row"><button class="btn primary" id="mpOpenDisplayBtn">Visa macropad &rarr;</button></div>
+    </section>
+  </div>
+</aside>
+
+<div id="mpDisplay" aria-label="Macropad">
+  <header><h2>Macropad</h2><button id="closeMpDisplay" aria-label="Stäng">&times;</button></header>
+  <div id="mpDisplayGrid" class="mpDisplayGrid"><div class="note">Lägg till minst en knapp i inställningarna.</div></div>
+</div>
 
 <script>
 "use strict";
@@ -2683,8 +2706,8 @@ function mpSubHtml(b){
   return `<select class="mpV1">${MP_CMD_OPTS.map(([v,l]) => `<option value="${v}"${(b.v1||"open")===v?" selected":""}>${esc(l)}</option>`).join("")}</select>`;
 }
 function renderMacropad(){
-  const cfg = $("#mpConfig"), grid = $("#mpGrid");
-  if (!cfg || !grid) return;
+  const cfg = $("#mpConfig");
+  if (!cfg) return;
   cfg.innerHTML = S.macropad.map((b, i) => `<div class="mpRow" data-i="${i}">
       <input type="text" class="mpLabel" placeholder="${esc(mpDefaultLabel(b))}" value="${esc(b.label || "")}">
       <select class="mpKind">
@@ -2709,7 +2732,7 @@ function renderMacropad(){
   renderMacropadGrid();
 }
 function renderMacropadGrid(){
-  const grid = $("#mpGrid"); if (!grid) return;
+  const grid = $("#mpDisplayGrid"); if (!grid) return;
   if (!S.macropad.length){ grid.innerHTML = '<div class="note">Lägg till minst en knapp ovan.</div>'; return; }
   grid.innerHTML = S.macropad.map((b, i) => `<button type="button" data-i="${i}">${esc(b.label || mpDefaultLabel(b))}</button>`).join("");
   grid.querySelectorAll("button").forEach(btn => btn.addEventListener("click", () => {
@@ -2998,6 +3021,25 @@ function togglePanel(open){
 }
 $("#gear").addEventListener("click", () => togglePanel(true));
 $("#closePanel").addEventListener("click", () => togglePanel(false));
+
+// ---------- macropad: egen inställningspanel + egen stor körvy ----------
+const mpPanel = $("#mpPanel"), mpDisplay = $("#mpDisplay");
+function toggleMpPanel(open){
+  const willOpen = open ?? !mpPanel.classList.contains("open");
+  mpPanel.classList.toggle("open", willOpen);
+  if (willOpen) renderMacropad();
+}
+function toggleMpDisplay(open){
+  const willOpen = open ?? !mpDisplay.classList.contains("open");
+  mpDisplay.classList.toggle("open", willOpen);
+  if (willOpen) renderMacropadGrid();
+}
+$("#macropadBtn").addEventListener("click", () => toggleMpDisplay(true));
+$("#closeMpDisplay").addEventListener("click", () => toggleMpDisplay(false));
+$("#closeMpPanel").addEventListener("click", () => toggleMpPanel(false));
+$("#mpConfigBtn").addEventListener("click", () => { togglePanel(false); toggleMpPanel(true); });
+$("#mpShowBtn").addEventListener("click", () => { togglePanel(false); toggleMpDisplay(true); });
+$("#mpOpenDisplayBtn").addEventListener("click", () => { toggleMpPanel(false); toggleMpDisplay(true); });
 $("#srcSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (b){ start(); setSource(b.dataset.v); } });
 $("#genreSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.genre = b.dataset.q; saveS(); segOn("#genreSeg", S.genre); loadStations(S.genre); });
 $("#stSearchBtn").addEventListener("click", () => { const v = $("#stSearch").value.trim(); if (v){ segOn("#genreSeg",""); loadStations("name=" + encodeURIComponent(v)); } });
@@ -3179,7 +3221,8 @@ document.addEventListener("keydown", e => {
   else if (k === "i"){ S.info = !S.info; saveS(); applyInfoVis(); }
   else if (k === "f"){ document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.().catch(()=>{}); }
   else if (k === "s") togglePanel();
-  else if (k === "escape") togglePanel(false);
+  else if (k === "m") toggleMpDisplay();
+  else if (k === "escape"){ togglePanel(false); toggleMpPanel(false); toggleMpDisplay(false); }
 });
 
 let cursorTimer = 0;
