@@ -186,14 +186,14 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .tile.tsign .sign{height:100%}
 .fbBox{display:flex;flex-direction:column;min-height:0;min-width:0}
 .fbBox > .bh,.fbBox > .nx,.fbBox > .nxm,.bus > .bh{flex:none}
-.fbBox .nxm{display:flex;justify-content:center;align-items:center;gap:4cqi;margin-bottom:1.4vh;color:var(--mid);min-width:0;font-size:min(1em,2.7cqi)}
+.fbBox .nxm{display:flex;justify-content:flex-start;align-items:center;gap:4.6cqi;margin-bottom:1.8vh;color:var(--mid);min-width:0;font-size:min(1.35em,3.6cqi)}
 /* Föregående och nästa match bredvid varandra: rubrik och datum till vänster om emblemen */
-.fbBox .nxm .mm{display:flex;align-items:center;gap:1.6cqi;min-width:0;flex:0 1 auto}
+.fbBox .nxm .mm{display:flex;align-items:center;gap:1.8cqi;min-width:0;flex:0 1 auto}
 .fbBox .nxm .lb{display:flex;flex-direction:column;gap:.5vh;white-space:nowrap}
 .fbBox .nxm .lb small{font-size:.8em;color:var(--mid)}
 .fbBox .nxm .sc{color:var(--ink);font-family:var(--fT),serif;font-size:1.5em;white-space:nowrap}
-.fbBox .nxm .vs{display:flex;align-items:center;justify-content:center;gap:1.2cqi;flex:none}
-.fbBox .nxm img{width:min(10vh,8cqi);height:min(10vh,8cqi);object-fit:contain;filter:var(--cover-filter);flex:none}
+.fbBox .nxm .vs{display:flex;align-items:center;justify-content:center;gap:1.4cqi;flex:none}
+.fbBox .nxm img,.fbBox .nxm .tb{width:min(13vh,10.5cqi);height:min(13vh,10.5cqi);object-fit:contain;filter:var(--cover-filter);flex:none}
 .fbBox .nxm b{font-weight:400;color:var(--ink)}
 .fbBox .nxm i{font-style:normal;color:var(--ink)}
 .fbBox .nxm .dt{color:var(--ink);white-space:nowrap;font-size:.9em}
@@ -204,7 +204,8 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 /* Tabellens text följer spaltens bredd, så att alla kolumner får plats även i helskärm */
 #pgWx .fbBox .mt,#pgWx .fbBox .mh{font-size:min(1em,3cqi)}
 .mt .r{display:grid;grid-template-columns:3ch 3vh 1fr auto;gap:1.2vh;align-items:center;padding:.3vh .8vh;flex:none}
-.mt .r img{width:3vh;height:3vh;object-fit:contain;filter:var(--cover-filter)}
+.mt .r img,.mt .r .tb{width:3vh;height:3vh;object-fit:contain;filter:var(--cover-filter)}
+.tb{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:var(--dim);color:var(--ink);font-family:var(--fT),serif;font-size:.5em;letter-spacing:.02em}
 /* Detaljerad tabell: spelade, vunna, oavgjorda, förlorade, målskillnad, mål och poäng. Mål döljs när spalten är smal. */
 .fbBox{container-type:inline-size}
 .fbBox .fbWait{margin:auto;display:flex;flex-direction:column;align-items:center;gap:1vh;color:var(--mid);letter-spacing:.2em;text-transform:uppercase}
@@ -285,12 +286,12 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .spCol{display:flex;flex-direction:column;gap:1.8vh;min-width:0;min-height:0}
 .spCol .fbT{flex:1;min-height:0}
 .fbHead{display:flex;align-items:center;gap:2.4vh}
-.fbHead img{width:9vh;height:9vh;object-fit:contain;filter:var(--cover-filter)}
+.fbHead img,.fbHead .tb{width:9vh;height:9vh;object-fit:contain;filter:var(--cover-filter)}
 .fbHead .n{font-family:var(--fT),serif;font-size:2.2em;line-height:1}
 .fbHead .s{color:var(--mid);margin-top:.8vh}
 .fbCard .h{font-size:.75em;letter-spacing:.3em;text-transform:uppercase;color:var(--mid);border-bottom:max(1px,.15vh) solid var(--dim);padding-bottom:.6vh;margin-bottom:1vh}
 .fbM{display:grid;grid-template-columns:4.4vh 1fr auto;gap:1.6vh;align-items:center;padding:.5vh 0}
-.fbM img,.fbT img{width:100%;height:4.4vh;object-fit:contain;filter:var(--cover-filter)}
+.fbM img,.fbT img,.fbM .tb,.fbT .tb{width:100%;height:4.4vh;object-fit:contain;filter:var(--cover-filter)}
 .fbM .o{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fbM .w{font-size:.75em;color:var(--mid)}
 .fbM .r{text-align:right;white-space:nowrap}
@@ -298,7 +299,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .fbM .r small{display:block;font-size:.7em;color:var(--mid);letter-spacing:.15em}
 .fbT{display:flex;flex-direction:column;min-height:0;font-size:.82em}
 .fbT .row{display:grid;grid-template-columns:3ch 3vh 1fr auto;gap:1.2vh;align-items:center;padding:.25vh .8vh;flex:1;max-height:4.4vh}
-.fbT .row img{height:2.8vh}
+.fbT .row img,.fbT .row .tb{width:2.8vh;height:2.8vh}
 .fbT .row .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fbT .row.me{background:var(--ink);color:var(--bg)}
 .fbT .row.me img{filter:none}
@@ -321,7 +322,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .tile .nw{display:flex;gap:1.8vh;min-height:0;flex:0 1 auto;max-height:100%}
 .tile .nw img{height:100%;max-height:16vh;aspect-ratio:4/3;object-fit:cover;filter:var(--cover-filter);flex:none}
 .tile .bus ul{gap:.6vh}
-.tile .fbHead img{width:6vh;height:6vh}
+.tile .fbHead img,.tile .fbHead .tb{width:6vh;height:6vh}
 .tile .fbHead .n{font-size:1.5em}
 .tile .hrs{display:flex;justify-content:space-between;margin-top:2vh;font-size:.8em;text-align:center}
 @container (max-height:250px){ .tile .hrs{display:none} .tile .row2 svg{width:6vh;height:6vh} }
@@ -1861,10 +1862,10 @@ function renderFbBox(T){
   const st = T.standing || {}, nm = T.next_match;
   const nd = nm ? new Date(nm.date) : null;
   // Nästa match som två emblem (hemmalaget först) och tid, i stället för text
-  const own = st.team && st.team.logo ? logo(st.team.logo) : "", opp = nm ? logo(nm.opponent_logo) : "";
+  const own = st.team ? logo(st.team.logo, T.team_name) : "", opp = nm ? logo(nm.opponent_logo, nm.opponent) : "";
   const dd = t => `${SV_DAYS[t.getDay()]} ${t.getDate()}/${t.getMonth()+1}`;
   const pair = (m, mid) => `<span class="vs">${m.is_home ? own + mid + opp2(m) : opp2(m) + mid + own}</span>`;
-  const opp2 = m => logo(m.opponent_logo);
+  const opp2 = m => logo(m.opponent_logo, m.opponent);
   // Pågående match (ESPN): ställningen i stället för streck
   const nxt = nm ? (nm.live
     ? `<div class="mm"><span class="lb"><b>Pågår:</b><small>avspark ${hhmm(nd)}</small></span>${pair(nm, `<span class="sc">${esc(nm.live.replace(/\s*-\s*/, "–"))}</span>`)}</div>`
@@ -1872,11 +1873,11 @@ function renderFbBox(T){
   const next = nxt ? `<div class="nxm">${nxt}</div>` : "";
   const v = x => x == null ? "" : x;
   const diff = r => r.gf == null || r.ga == null ? "" : (r.gf - r.ga > 0 ? "+" : "") + (r.gf - r.ga);
-  const rows = (T.table || []).map(r => `<div class="r x${r.id === T.team_id ? " me" : ""}"><span>${r.position}</span>${logo(r.logo)}<span class="t">${esc(r.id === T.team_id ? T.team_name : r.name)}</span>` +
+  const rows = (T.table || []).map(r => `<div class="r x${r.id === T.team_id ? " me" : ""}"><span>${r.position}</span>${logo(r.logo, r.id === T.team_id ? T.team_name : r.name)}<span class="t">${esc(r.id === T.team_id ? T.team_name : r.name)}</span>` +
     `<span class="n">${v(r.g)}</span><span class="n">${v(r.w)}</span><span class="n">${v(r.d)}</span><span class="n">${v(r.l)}</span><span class="n">${diff(r)}</span>` +
     `<span class="n gm">${r.gf == null ? "" : r.gf + "–" + r.ga}</span><span class="pt">${r.points}</span></div>`).join("");
   const head = `<div class="mh"><span></span><span></span><span></span><span>S</span><span>V</span><span>O</span><span>F</span><span>+/−</span><span class="gm">Mål</span><span>P</span></div>`;
-  return `<div class="fbBox"><div class="bh">${esc(T.league)}</div>${next}${head}<div class="mt">${rows}</div></div>`;
+  return `<div class="fbBox">${next}${head}<div class="mt">${rows}</div></div>`;
 }
 function newsHost(link){ try{ return new URL(link).hostname.replace(/^www\./, ""); }catch(e){ return ""; } }
 async function ensureImg(x){
@@ -1962,7 +1963,14 @@ async function loadHockey(){
 }
 const SV_DAYS = ["sön","mån","tis","ons","tor","fre","lör"];
 const ordinal = n => `${n}:${n % 10 in {1:1,2:1} && !(n % 100 in {11:1,12:1}) ? "a" : "e"}`;
-const logo = u => u ? `<img src="/api/img?url=${encodeURIComponent(u)}" alt="" onerror="this.style.visibility='hidden'">` : "<span></span>";
+// En del klubbar saknar emblem hos Highlightly (404 - inte bara ett tomt fält), så en initialbadge
+// visas i stället för en osynlig lucka, både när url helt saknas och om bilden faller på läsning.
+function teamBadgeHtml(name){
+  const initials = (name || "").trim().split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "?";
+  return `<span class="tb">${esc(initials)}</span>`;
+}
+function teamBadgeFallback(img){ img.outerHTML = teamBadgeHtml(img.dataset.name || ""); }
+const logo = (u, name) => u ? `<img src="/api/img?url=${encodeURIComponent(u)}" alt="" data-name="${esc(name || "")}" onerror="teamBadgeFallback(this)">` : (name ? teamBadgeHtml(name) : "<span></span>");
 function outcome(m){
   const p = String(m.score || "").split("-").map(x => parseInt(x, 10)); if (p.length !== 2 || p.some(isNaN)) return "";
   const own = m.is_home ? p[0] : p[1], opp = m.is_home ? p[1] : p[0];
@@ -1975,11 +1983,11 @@ function renderSportCol(T, label){
   const st = T.standing || {};
   const d = x => { const t = new Date(x); return isNaN(t) ? "" : `${SV_DAYS[t.getDay()]} ${t.getDate()}/${t.getMonth()+1}`; };
   const nm = T.next_match;
-  const next = nm ? `<div class="fbM">${logo(nm.opponent_logo)}<div><div class="o">${esc(nm.opponent)}</div><div class="w">${nm.is_home ? "Hemma" : "Borta"}</div></div>
+  const next = nm ? `<div class="fbM">${logo(nm.opponent_logo, nm.opponent)}<div><div class="o">${esc(nm.opponent)}</div><div class="w">${nm.is_home ? "Hemma" : "Borta"}</div></div>
       <div class="r"><b>${d(nm.date)}</b><small>${hhmm(new Date(nm.date))}</small></div></div>` : `<div class="fbMsg">Ingen kommande match.</div>`;
-  const rows = (T.table || []).map(r => `<div class="row${r.id === T.team_id ? " me" : ""}"><span>${r.position}</span>${logo(r.logo)}<span class="t">${esc(r.id === T.team_id ? T.team_name : r.name)}</span><span>${r.points} p</span></div>`).join("");
+  const rows = (T.table || []).map(r => `<div class="row${r.id === T.team_id ? " me" : ""}"><span>${r.position}</span>${logo(r.logo, r.id === T.team_id ? T.team_name : r.name)}<span class="t">${esc(r.id === T.team_id ? T.team_name : r.name)}</span><span>${r.points} p</span></div>`).join("");
   return `<div class="spCol">
-      <div class="fbHead">${st.team ? logo(st.team.logo) : ""}<div><div class="n">${esc(T.team_name)}</div><div class="s">${esc(T.league)}${st.position ? ` · ${ordinal(st.position)} plats · ${st.points} poäng` : ""}</div></div></div>
+      <div class="fbHead">${st.team ? logo(st.team.logo, T.team_name) : ""}<div><div class="n">${esc(T.team_name)}</div><div class="s">${esc(T.league)}${st.position ? ` · ${ordinal(st.position)} plats · ${st.points} poäng` : ""}</div></div></div>
       <div class="fbCard"><div class="h">Nästa match</div>${next}</div>
       <div class="fbT">${rows}</div></div>`;
 }
@@ -2020,7 +2028,7 @@ function homeTile(k){
     const line = (X, label) => {
       if (!X) return "";
       const st = X.standing || {}, nm = X.next_match;
-      return `<div class="fbHead">${st.team ? logo(st.team.logo) : ""}<div><div class="n">${esc(label)}</div>${st.position ? `<div class="s">${ordinal(st.position)} plats · ${st.points} p</div>` : ""}</div></div>
+      return `<div class="fbHead">${st.team ? logo(st.team.logo, st.team.name) : ""}<div><div class="n">${esc(label)}</div>${st.position ? `<div class="s">${ordinal(st.position)} plats · ${st.points} p</div>` : ""}</div></div>
         ${nm ? `<div class="sub">Nästa: <span style="color:var(--ink)">${esc(nm.opponent)}</span> · ${nm.is_home ? "hemma" : "borta"} · ${d(nm.date)}</div>` : ""}`;
     };
     return `<div class="tile"><div class="h">AIK · Fotboll &amp; Hockey</div>${line(T, "Fotboll")}${line(H, "Hockey")}</div>`;
