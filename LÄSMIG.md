@@ -105,17 +105,69 @@ Spela sedan musik i Spotify på valfri enhet. Titel, artist, album, år, omslag 
 - *Simulerad takt* – rörelse i jämn takt som följer play/paus, eller
 - *Ljud in* – visualiseringen lyssnar på mikrofon eller linjeingång. På Pi:n kopplas detta till ALSA loopback så att bilden följer exakt det som spelas.
 
-## Styrning utifrån (jalusin)
+## Styrning utifrån (jalusin, macropad, m.m.)
 
-Servern tar emot enkla kommandon som sidan hämtar varje sekund:
+Servern tar emot enkla kommandon via en delad kö: vem som helst med nätverksåtkomst till
+servern kan lägga in ett kommando med `/api/send?c=...`, och den som vill utföra det hämtar
+kön med `/api/cmd?since=N` (returnerar `{"last": N, "items": [{"id", "c"}, ...]}`). **Två
+olika mottagare pollar samma kö, var och en filtrerar på de kommandon den bryr sig om:**
+- **Sidan själv** (webbläsaren, var 300:e ms) - kör musik/skärm-kommandona nedan direkt.
+- **monitor.py på kameradatorn** (Windows, har kontakt med Trådfri-gatewayen lokalt) - kör
+  `tradfri-refresh` och de nya `light:...`-kommandona (se nästa avsnitt) mot gatewayen.
+
+En macropad behöver alltså bara kunna göra ett enkelt HTTP-anrop per knapptryck - oavsett
+om den sitter på Pi:n som USB-tangentbord (ett litet Python-skript med t.ex. `evdev` som
+lyssnar på tangenttryckningar och gör anropet) eller något annat. Inget nytt att bygga för
+musik/skärm - de kommandona finns redan:
 
 ```
-curl "http://127.0.0.1:8888/api/send?c=open"      # tänd bild, starta musik
-curl "http://127.0.0.1:8888/api/send?c=close"     # pausa, släck bild
-curl "http://127.0.0.1:8888/api/send?c=next"      # också: prev, playpause, viz:3, palette:sepia
+curl "http://127.0.0.1:8888/api/send?c=open"       # tänd bild, starta musik
+curl "http://127.0.0.1:8888/api/send?c=close"      # pausa, släck bild
+curl "http://127.0.0.1:8888/api/send?c=next"       # också: prev, playpause
+curl "http://127.0.0.1:8888/api/send?c=playpause"
+curl "http://127.0.0.1:8888/api/send?c=viz:3"      # byt kanal/visualisering
+curl "http://127.0.0.1:8888/api/send?c=palette:sepia"
 ```
 
 Reedbrytarens Python-skript på Pi:n behöver alltså bara anropa `open`/`close`.
+Kör macropaden mot Railway-adressen i stället för `127.0.0.1` om den inte sitter på
+samma dator som servern, t.ex. `https://retrospelaren-production.up.railway.app/api/send?c=open`.
+
+### Belysning (Trådfri) - nytt kommandoformat
+
+Inställningssidan har nu en egen sektion ("Styr belysningen nu") under Vakna-läge/Belysning
+som tänder/släcker, dimmar, byter färgton och kör scener direkt - oavsett vad som spelas.
+Den skickar kommandon i samma kö, kodade som `light:` följt av en URL-kodad JSON-sträng:
+
+```
+light:{"group":"Vardagsrum","action":"on"}
+light:{"group":"Vardagsrum","action":"off"}
+light:{"group":"Vardagsrum","action":"dim","value":60}      # 1-100 (%)
+light:{"group":"Vardagsrum","action":"temp","value":30}     # 0=varmast, 100=kallast
+light:{"group":"Vardagsrum","action":"color","value":"ffcc88"}  # hex, endast RGB-lampor
+light:{"group":"Vardagsrum","action":"scene","value":"Kväll"}   # samma scennamn som i Trådfri-appen
+```
+
+En macropad kan alltså skicka exakt samma sak - t.ex.:
+```
+curl "http://127.0.0.1:8888/api/send?c=$(python3 -c "import json,urllib.parse;print('light:'+urllib.parse.quote(json.dumps({'group':'Vardagsrum','action':'scene','value':'Kväll'})))")"
+```
+
+**Kräver en motsvarande utbyggnad av `monitor.py` på kameradatorn** (eller vilket skript som
+nu pratar med gatewayen) som pollar `/api/cmd` separat (precis som den redan gör för
+`tradfri-refresh`), känner igen kommandon som börjar med `light:`, parsar ut JSON-delen och
+slår upp gruppen **på namn** (samma namn som redan rapporteras i `/api/tradfri-list`) via
+pytradfri, och utför:
+- `on`/`off` - sätt gruppens state
+- `dim` - sätt `light_control.set_dimmer()`, skala 1-100 → pytradfri 1-254
+- `temp` - sätt färgtemperatur om lamptypen stödjer det (varmvit/kallvit-spektrum)
+- `color` - sätt RGB-färg om lamptypen stödjer det (de flesta Trådfri-lampor är bara
+  vit-spektrum och saknar detta - ignoreras då tyst)
+- `scene` - kör samma mood/scen-logik som redan finns för väckning, men direkt istället
+  för vid ett bevakningstillfälle
+
+Detta tillägg finns inte i det här repot (det ska köras lokalt, med kontakt med gatewayen) -
+hör av dig så skriver jag ett konkret tillägg att klistra in i ditt befintliga skript.
 
 ## På Raspberry Pi (senare)
 

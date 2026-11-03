@@ -401,6 +401,11 @@ kbd{font:12px "Special Elite",monospace;border:1px solid var(--panel-ink);border
 .keys{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font-size:13px}
 .sl{display:grid;grid-template-columns:128px 1fr 30px;gap:8px;align-items:center;margin-top:6px;font-size:13.5px}
 .sl output{text-align:right;font-size:12px;color:#6b5a3e}
+.lgRow{border:1.5px solid var(--panel-ink);border-radius:4px;padding:8px 10px;margin-top:8px;background:#f6efdc}
+.lgName{font:13px "Special Elite",monospace;letter-spacing:.08em;margin-bottom:4px}
+.lgBtns{display:flex;gap:6px;margin-bottom:4px}
+.lgRow .sl{grid-template-columns:84px 1fr 56px}
+.lgRow select{width:100%;margin-top:6px}
 select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--panel-ink);background:#f6efdc;color:var(--panel-ink);border-radius:3px;flex:1;min-width:0}
 .lbl{min-width:128px;font-size:13.5px}
 #panel h4{font:12px "Special Elite",monospace;letter-spacing:.2em;text-transform:uppercase;margin:14px 0 2px;color:#8a7756}
@@ -511,6 +516,9 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <div class="row"><span style="min-width:9em;display:inline-block">Vid väckning</span><select id="tradfriMoodInput"><option value="">(tom = bara tänd gruppen)</option></select></div>
       <div class="row"><span style="min-width:9em;display:inline-block">Vid stängt jalusi</span><select id="tradfriSleepMoodInput"><option value="">(tom = inget)</option></select></div>
       <div class="note" id="tradfriListNote">Hämtat direkt från gatewayen via kameradatorn.</div>
+      <h4 style="margin-top:14px">Styr belysningen nu</h4>
+      <div class="note">Tänd/släck, ljusstyrka, färgton och scener - direkt, oavsett vad som spelas. Samma kommandon kan skickas utifrån (macropad, se LÄSMIG.md) via <code>/api/send?c=light:...</code>.</div>
+      <div id="lightCtl"><div class="note">Inga grupper hämtade än - tryck Uppdatera ovan.</div></div>
     </section>
 
     <section>
@@ -2559,6 +2567,7 @@ async function loadTradfriLists(){
     groups.forEach(g => { TRADFRI_GROUPS[g.name] = g.moods || []; });
     _tradfriFillSelect($("#tradfriGroupInput"), groups.map(g => g.name), "(ingen)", S.tradfriGroupName || "");
     refreshTradfriMoodList();
+    renderLightCtl();
     const ageS = d && d.at ? Math.round((Date.now()/1000) - d.at) : null;
     note.textContent = groups.length
       ? `Hämtat direkt från gatewayen via kameradatorn.${ageS != null ? " (uppdaterad för " + ageS + "s sedan)" : ""}`
@@ -2566,6 +2575,40 @@ async function loadTradfriLists(){
   } catch(e){
     note.textContent = "Kunde inte hämta Trådfri-listan just nu.";
   }
+}
+// ---------- manuell ljusstyrning (samma /api/send-mekanism som jalusibrytaren, se LÄSMIG.md) ----------
+// Kommandot kodas som "light:" + JSON {group, action, value} - sidan själv gör ingenting med det
+// (runCmd() känner inte igen "light:"-prefixet), det är kameradatorns Trådfri-skript som pollar
+// /api/cmd separat och utför det mot gatewayen. Samma kommandorad kan skickas från en macropad.
+async function lightCmd(group, action, value){
+  const payload = JSON.stringify({ group, action, value: value === undefined ? null : value });
+  try { await fetch("/api/send?c=" + encodeURIComponent("light:" + payload)); } catch(e){}
+}
+function tempLabel(v){ return v < 34 ? "Varm" : v > 66 ? "Kall" : "Neutral"; }
+function renderLightCtl(){
+  const host = $("#lightCtl"); if (!host) return;
+  const names = Object.keys(TRADFRI_GROUPS);
+  if (!names.length){ host.innerHTML = '<div class="note">Inga grupper hämtade än - tryck Uppdatera ovan.</div>'; return; }
+  host.innerHTML = names.map(name => {
+    const opts = (TRADFRI_GROUPS[name] || []).map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join("");
+    return `<div class="lgRow">
+      <div class="lgName">${esc(name)}</div>
+      <div class="lgBtns"><button type="button" class="btn" data-g="${esc(name)}" data-a="on">Tänd</button><button type="button" class="btn" data-g="${esc(name)}" data-a="off">Släck</button></div>
+      <label class="sl"><span>Ljusstyrka</span><input type="range" min="1" max="100" step="1" value="100" data-g="${esc(name)}" data-a="dim"><output>100%</output></label>
+      <label class="sl"><span>Färgton</span><input type="range" min="0" max="100" step="1" value="50" data-g="${esc(name)}" data-a="temp"><output>Neutral</output></label>
+      <select data-g="${esc(name)}" data-a="scene"><option value="">Kör scen...</option>${opts}</select>
+    </div>`;
+  }).join("");
+  host.querySelectorAll("button[data-a]").forEach(b => b.addEventListener("click", () => lightCmd(b.dataset.g, b.dataset.a)));
+  host.querySelectorAll("input[type=range][data-a]").forEach(inp => {
+    const out = inp.nextElementSibling;
+    inp.addEventListener("input", () => { out.textContent = inp.dataset.a === "temp" ? tempLabel(+inp.value) : inp.value + "%"; });
+    inp.addEventListener("change", () => lightCmd(inp.dataset.g, inp.dataset.a, +inp.value));
+  });
+  host.querySelectorAll("select[data-a=scene]").forEach(sel => sel.addEventListener("change", () => {
+    if (sel.value) lightCmd(sel.dataset.g, "scene", sel.value);
+    sel.value = "";
+  }));
 }
 function refreshTradfriMoodList(){
   const name = $("#tradfriGroupInput").value || "";
