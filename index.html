@@ -424,7 +424,10 @@ kbd{font:12px "Special Elite",monospace;border:1px solid var(--panel-ink);border
 .mpKnob{display:flex;flex-direction:column;align-items:center;gap:6px;width:190px}
 .mpKnob .mpKnobLbl{font:13px "Special Elite",monospace;letter-spacing:.08em;text-align:center}
 .mpKnob .mpKnobLbl small{display:block;opacity:.65;font-size:11px;letter-spacing:.04em;font-style:normal}
-.mpSlider{-webkit-appearance:none;appearance:none;width:100%;height:34px;background:transparent;cursor:pointer;touch-action:none;margin:2px 0}
+.mpSliderRow{display:flex;align-items:center;gap:6px;width:100%}
+.mpStepBtn{flex:none;width:28px;height:28px;padding:0;font-size:17px;line-height:1;display:flex;align-items:center;justify-content:center}
+.mpStepBtn:disabled{opacity:.35;cursor:not-allowed}
+.mpSlider{-webkit-appearance:none;appearance:none;flex:1 1 auto;min-width:0;height:34px;background:transparent;cursor:pointer;touch-action:none;margin:2px 0}
 .mpSlider::-webkit-slider-runnable-track{height:16px;border-radius:8px;border:1.5px solid var(--panel-ink);background:var(--trackGrad,#2b2013)}
 .mpSlider::-moz-range-track{height:16px;border-radius:8px;border:1.5px solid var(--panel-ink);background:var(--trackGrad,#2b2013)}
 .mpSlider::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;margin-top:-6px;
@@ -737,17 +740,29 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
   <div class="mpKnobs">
     <div class="mpKnob">
       <span class="mpKnobLbl">Volym</span>
-      <input type="range" class="mpSlider" id="mpKnobVol" min="0" max="100" step="1" value="50" style="--trackGrad:linear-gradient(90deg,#2b2013,#e8b354)" disabled>
+      <div class="mpSliderRow">
+        <button type="button" class="btn mpStepBtn" data-target="mpKnobVol" data-delta="-1" aria-label="Minska">&minus;</button>
+        <input type="range" class="mpSlider" id="mpKnobVol" min="0" max="100" step="1" value="50" style="--trackGrad:linear-gradient(90deg,#2b2013,#e8b354)" disabled>
+        <button type="button" class="btn mpStepBtn" data-target="mpKnobVol" data-delta="1" aria-label="Öka">+</button>
+      </div>
       <output class="mpKnobVal" id="mpKnobVolVal"></output>
     </div>
     <div class="mpKnob">
       <span class="mpKnobLbl">Ljusstyrka</span>
-      <input type="range" class="mpSlider" id="mpKnobDim" min="1" max="100" step="1" value="100" style="--trackGrad:linear-gradient(90deg,#1c140a,#f6efdc)" disabled>
+      <div class="mpSliderRow">
+        <button type="button" class="btn mpStepBtn" data-target="mpKnobDim" data-delta="-1" aria-label="Minska">&minus;</button>
+        <input type="range" class="mpSlider" id="mpKnobDim" min="1" max="100" step="1" value="100" style="--trackGrad:linear-gradient(90deg,#1c140a,#f6efdc)" disabled>
+        <button type="button" class="btn mpStepBtn" data-target="mpKnobDim" data-delta="1" aria-label="Öka">+</button>
+      </div>
       <output class="mpKnobVal" id="mpKnobDimVal"></output>
     </div>
     <div class="mpKnob">
       <span class="mpKnobLbl">Färg</span>
-      <input type="range" class="mpSlider" id="mpKnobColor" min="0" max="100" step="1" value="10" disabled>
+      <div class="mpSliderRow">
+        <button type="button" class="btn mpStepBtn" data-target="mpKnobColor" data-delta="-1" aria-label="Minska">&minus;</button>
+        <input type="range" class="mpSlider" id="mpKnobColor" min="0" max="100" step="1" value="10" disabled>
+        <button type="button" class="btn mpStepBtn" data-target="mpKnobColor" data-delta="1" aria-label="Öka">+</button>
+      </div>
       <output class="mpKnobVal" id="mpKnobColorVal"><span class="mpColorSwatch" id="mpColorSwatch"></span><span id="mpColorText"></span></output>
     </div>
   </div>
@@ -2858,6 +2873,21 @@ mpColorSlider.dispatchEvent(new Event("input"));  // initiera swatch/text till s
   for (let i = 0; i <= 100; i += 4) stops.push(`${mpColorSwatch(i)} ${i}%`);
   mpColorSlider.style.setProperty("--trackGrad", `linear-gradient(90deg, ${stops.join(",")})`);
 })();
+// +/- knappar vid varje reglage - for att stega enkelsteg i taget och testa
+// hur snabbt det svarar. Steget ar alltid 1 (reglagens egen step), oavsett
+// vilken riktning man klickar; samma "input"-event triggas som vid drag, sa
+// UI-uppdatering/throttling/natverksanrop blir identiskt.
+document.querySelectorAll(".mpStepBtn").forEach(btn => {
+  const slider = $("#" + btn.dataset.target), delta = +btn.dataset.delta;
+  btn.addEventListener("click", () => {
+    if (slider.disabled) return;
+    const min = +slider.min, max = +slider.max;
+    const next = Math.max(min, Math.min(max, +slider.value + delta));
+    if (next === +slider.value) return;
+    slider.value = next;
+    slider.dispatchEvent(new Event("input"));
+  });
+});
 function renderMpRoomButtons(){
   const host = $("#mpRoomRow"); if (!host) return;
   const names = Object.keys(TRADFRI_GROUPS);
@@ -2868,6 +2898,7 @@ function renderMpRoomButtons(){
 function mpUpdateKnobState(){
   const has = !!mpActiveRoom;
   mpVolSlider.disabled = mpDimSlider.disabled = mpColorSlider.disabled = !has;
+  document.querySelectorAll(".mpStepBtn").forEach(b => { b.disabled = !has; });
   mpKnobRoomLbl.textContent = has ? mpActiveRoom : "inget valt";
   renderMpRoomButtons();
 }
