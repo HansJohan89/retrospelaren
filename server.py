@@ -81,6 +81,7 @@ OG_CACHE = {}
 DEP_CACHE = {}
 ALBUM_CACHE = {}
 FOOTBALL_CACHE = {}
+HOCKEY_CACHE = {"data": None, "at": 0, "fail": 0, "err": ""}
 STEPS_CACHE = {"data": None, "at": 0}
 # Var inställningarna sparas. På Railway: volymens monteringspunkt (RAILWAY_VOLUME_MOUNT_PATH).
 DATA_DIR = (os.environ.get("DATA_DIR") or os.environ.get("RAILWAY_VOLUME_MOUNT_PATH") or os.path.join(ROOT, "data")).strip()
@@ -284,6 +285,53 @@ def football_highlightly(key):
             "recent_results": [summary(m) for m in done]}
 
 
+HOCKEY_LEAGUE = 42483    # Hockeyallsvenskan
+HOCKEY_AIK = 440751
+
+
+def hockey_season():
+    """Highlightlys hockey-API vill ha säsongen som startårtalet (26/27 -> 2026)."""
+    from datetime import datetime
+    now = datetime.now()
+    return now.year if now.month >= 7 else now.year - 1
+
+
+def hockey_highlightly(key):
+    """AIK i Hockeyallsvenskan. Samma Highlightly-nyckel som fotbollen, annan domän.
+    Standings-fälten skiljer sig från fotbollens: ingen 'points' (IIHF-poäng 3-2-1-0
+    räknas ut här ur wins/winsOvertime/losesOvertime) och ingen oavgjord (d=0)."""
+    def get(path, params):
+        return _get_json(f"https://hockey.highlightly.net{path}?{urllib.parse.urlencode(params)}", {"x-rapidapi-key": key})
+    league, team, season = HOCKEY_LEAGUE, HOCKEY_AIK, hockey_season()
+    groups = get("/standings", {"leagueId": league, "season": season}).get("groups") or [{}]
+    raw = groups[0].get("standings", [])
+
+    def pts(s):
+        w, wo, lo = s.get("wins") or 0, s.get("winsOvertime") or 0, s.get("losesOvertime") or 0
+        return w * 3 - wo + lo
+
+    table = sorted([{"position": s.get("position"), "points": pts(s), "name": s["team"].get("name"),
+                      "id": s["team"].get("id"), "logo": s["team"].get("logo"), "g": s.get("gamesPlayed"),
+                      "w": s.get("wins"), "d": 0, "l": s.get("loses"),
+                      "gf": s.get("scoredGoals"), "ga": s.get("receivedGoals")} for s in raw],
+                   key=lambda r: r["position"] or 99)
+    allm = get("/matches", {"leagueId": league, "season": season, "homeTeamId": team, "limit": 10}).get("data", []) + \
+           get("/matches", {"leagueId": league, "season": season, "awayTeamId": team, "limit": 10}).get("data", [])
+    up = [m for m in allm if (m.get("state") or {}).get("description") == "Not started"]
+
+    def summary(m):
+        if not m:
+            return None
+        home = m["homeTeam"]["id"] == team
+        opp = m["awayTeam"] if home else m["homeTeam"]
+        return {"opponent": opp.get("name"), "opponent_logo": opp.get("logo"), "is_home": home, "date": m.get("date")}
+    return {"team_name": "AIK", "team_id": team, "league": "Hockeyallsvenskan",
+            "standing": next((r for r in table if r["id"] == team), None),
+            "table": table,
+            "next_match": summary(min(up, key=lambda m: m["date"]) if up else None),
+            "recent_results": []}
+
+
 def secret(name):
     """Hemlig nyckel: miljövariabeln NAME, annars filen name.key bredvid servern (filerna finns i .gitignore)."""
     k = os.environ.get(name, "").strip()
@@ -415,6 +463,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.album(q.get("url", [""])[0])
             if path == "/api/football":
                 return self.football(q)
+            if path == "/api/hockey":
+                return self.hockey(q)
             if path == "/api/send":
                 return self.send_cmd(q.get("c", [""])[0])
             if path == "/api/cmd":
@@ -922,6 +972,46 @@ class Handler(SimpleHTTPRequestHandler):
         except Exception as e:
             name = "ESPN" if src == "espn" else "Highlightly"
             c.update(fail=now, err=f"{name}: {e}")
+            return self._json(c["data"] or {"ok": False, "error": c["err"]})
+        c.update(data=data, at=now, fail=0)
+        try:
+            os.makedirs(DATA_DIR, exist_ok=True)
+            with open(fp + ".tmp", "w", encoding="utf-8") as f:
+                json.dump({"data": data, "at": now}, f, ensure_ascii=False)
+            os.replace(fp + ".tmp", fp)
+        except OSError:
+            pass
+        return self._json(data)
+
+    # --- Hockey: Highlightly, AIK i Hockeyallsvenskan (samma nyckel/kvot som fotbollens Highlightly-källa) ---
+    def hockey(self, q):
+        import time
+        try:
+            mins = max(60, min(24 * 60, int(q.get("mins", ["60"])[0] or 60)))
+        except ValueError:
+            mins = 60
+        c = HOCKEY_CACHE
+        fp = os.path.join(DATA_DIR, "hockey-highlightly.json")
+        if not c["data"]:
+            try:
+                with open(fp, encoding="utf-8") as f:
+                    d = json.load(f)
+                c.update(data=d["data"], at=d["at"])
+            except (OSError, ValueError, KeyError):
+                pass
+        now = time.time()
+        if c["data"] and now - c["at"] < mins * 60:
+            return self._json(c["data"])
+        if now - c["fail"] < 1800:
+            return self._json(c["data"] or {"ok": False, "error": c["err"]})
+        try:
+            key = secret("HIGHLIGHTLY_API_KEY")
+            if not key:
+                return self._json({"ok": False, "nokey": True, "error": "Ingen HIGHLIGHTLY_API_KEY på servern"})
+            team = hockey_highlightly(key)
+            data = {"ok": True, "at": int(now * 1000), "src": "highlightly", "teams": [team]}
+        except Exception as e:
+            c.update(fail=now, err=f"Highlightly: {e}")
             return self._json(c["data"] or {"ok": False, "error": c["err"]})
         c.update(data=data, at=now, fail=0)
         try:

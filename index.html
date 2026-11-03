@@ -279,6 +279,9 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 @keyframes kb{from{transform:scale(1)}to{transform:scale(1.07)}}
 .fbGrid{display:grid;grid-template-columns:1fr 1.05fr;gap:4.5vh;flex:1;min-height:0}
 .fbL{display:flex;flex-direction:column;gap:2.4vh;min-width:0}
+.spGrid{display:grid;grid-template-columns:1fr 1fr;gap:5vh;flex:1;min-height:0}
+.spCol{display:flex;flex-direction:column;gap:1.8vh;min-width:0;min-height:0}
+.spCol .fbT{flex:1;min-height:0}
 .fbHead{display:flex;align-items:center;gap:2.4vh}
 .fbHead img{width:9vh;height:9vh;object-fit:contain;filter:var(--cover-filter)}
 .fbHead .n{font-family:var(--fT),serif;font-size:2.2em;line-height:1}
@@ -612,12 +615,13 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <textarea id="albums" rows="3" placeholder="Delningslänkar till album, en per rad (photos.app.goo.gl/...)" style="width:100%;font:inherit;font-size:13px;padding:7px 9px;border:1.5px solid var(--panel-ink);background:#f6efdc;color:var(--panel-ink);border-radius:3px;margin-top:8px"></textarea>
       <label class="chk"><input type="checkbox" id="photoOrig"> Foton i originalfärg (annars bildrörets färgläge)</label>
       <div class="note" id="photoStatus"></div>
-      <label class="chk"><input type="checkbox" id="idFb"> Fotboll (AIK)</label>
+      <label class="chk"><input type="checkbox" id="idFb"> Fotboll &amp; hockey (AIK)</label>
       <label class="chk"><input type="checkbox" id="idWxFb"> AIK-tabell bredvid bussarna på vädersidan</label>
       <div class="row"><span class="lbl">Fotbollskälla</span><select id="fbSrc"><option value="espn">ESPN (ingen nyckel, ingen kvot)</option><option value="highlightly">Highlightly (100 anrop/dygn)</option></select></div>
       <div class="row"><span class="lbl">Hämta var</span><input type="number" id="fbMins" min="5" max="1440" step="5" style="width:6em"> <span class="lbl">minut</span></div>
-      <div class="note">Under en AIK-match hämtar ESPN var 5:e minut. Highlightly hämtar högst en gång i timmen.</div>
+      <div class="note">Under en AIK-match hämtar ESPN var 5:e minut. Highlightly hämtar högst en gång i timmen. Hockeyn (Hockeyallsvenskan) kommer alltid från Highlightly, högst en gång i timmen.</div>
       <div class="note" id="fbStatus"></div>
+      <div class="note" id="hkStatus"></div>
       <label class="chk"><input type="checkbox" id="idTest"> Testbild</label>
       <div id="idleSl"></div>
       <div class="row"><span class="lbl">Nyhetskälla</span><select id="feedSel"></select></div>
@@ -1857,14 +1861,11 @@ function renderFbBox(T){
   const dd = t => `${SV_DAYS[t.getDay()]} ${t.getDate()}/${t.getMonth()+1}`;
   const pair = (m, mid) => `<span class="vs">${m.is_home ? own + mid + opp2(m) : opp2(m) + mid + own}</span>`;
   const opp2 = m => logo(m.opponent_logo);
-  const last = (T.recent_results || []).filter(Boolean)[0];
-  const prev = last ? `<div class="mm"><span class="lb"><b>Senast:</b><small>${new Date(last.date).getDate()}/${new Date(last.date).getMonth()+1}${outcome(last) ? " · " + outcome(last).toLowerCase() : ""}</small></span>` +
-    pair(last, `<span class="sc">${esc(String(last.score || "?").replace(/\s*-\s*/, "–"))}</span>`) + `</div>` : "";
   // Pågående match (ESPN): ställningen i stället för streck
   const nxt = nm ? (nm.live
     ? `<div class="mm"><span class="lb"><b>Pågår:</b><small>avspark ${hhmm(nd)}</small></span>${pair(nm, `<span class="sc">${esc(nm.live.replace(/\s*-\s*/, "–"))}</span>`)}</div>`
     : `<div class="mm"><span class="lb"><b>Nästa:</b><small>${dd(nd)} ${hhmm(nd)}</small></span>${pair(nm, "<i>–</i>")}</div>`) : "";
-  const next = prev || nxt ? `<div class="nxm">${prev}${nxt}</div>` : "";
+  const next = nxt ? `<div class="nxm">${nxt}</div>` : "";
   const v = x => x == null ? "" : x;
   const diff = r => r.gf == null || r.ga == null ? "" : (r.gf - r.ga > 0 ? "+" : "") + (r.gf - r.ga);
   const rows = (T.table || []).map(r => `<div class="r x${r.id === T.team_id ? " me" : ""}"><span>${r.position}</span>${logo(r.logo)}<span class="t">${esc(r.id === T.team_id ? T.team_name : r.name)}</span>` +
@@ -1940,6 +1941,21 @@ async function loadFootball(){
     else $("#fbStatus").textContent = j.nokey ? "Servern saknar HIGHLIGHTLY_API_KEY." : (j.error || "Kunde inte hämta fotboll.");
   }catch(e){ $("#fbStatus").textContent = "Fotbollen svarar inte."; }
 }
+
+// ---------- hockey (Highlightly via servern, samma mönster som fotbollen) ----------
+let HOCKEY = { ok:false, teams:[], at:0 };
+async function loadHockey(){
+  if (!S.idle.fb && !S.home.aik){ $("#hkStatus").textContent = ""; return; }
+  try{
+    const j = await (await fetch("/api/hockey?mins=60")).json();
+    if (j.ok){
+      const changed = JSON.stringify(j.teams) !== JSON.stringify(HOCKEY.teams);
+      HOCKEY = j; $("#hkStatus").textContent = `Hämtat från Highlightly ${hhmm(new Date(j.at))}.`;
+      if (changed){ document.querySelectorAll("#board .pg").forEach(el => { el._h = ""; }); renderBoard(); }
+    }
+    else $("#hkStatus").textContent = j.nokey ? "Servern saknar HIGHLIGHTLY_API_KEY." : (j.error || "Kunde inte hämta hockey.");
+  }catch(e){ $("#hkStatus").textContent = "Hockeyn svarar inte."; }
+}
 const SV_DAYS = ["sön","mån","tis","ons","tor","fre","lör"];
 const ordinal = n => `${n}:${n % 10 in {1:1,2:1} && !(n % 100 in {11:1,12:1}) ? "a" : "e"}`;
 const logo = u => u ? `<img src="/api/img?url=${encodeURIComponent(u)}" alt="" onerror="this.style.visibility='hidden'">` : "<span></span>";
@@ -1948,22 +1964,27 @@ function outcome(m){
   const own = m.is_home ? p[0] : p[1], opp = m.is_home ? p[1] : p[0];
   return own > opp ? "Vinst" : own < opp ? "Förlust" : "Oavgjort";
 }
-function renderFbPage(){
-  if (!FOOT.ok || !FOOT.teams.length) return "";
-  const T = FOOT.teams[0], st = T.standing || {};
+// En spalt (fotboll eller hockey): emblem+namn+placering, nästa match, hela tabellen.
+// Bygger på samma dataform för båda sporterna (server.py normaliserar hockeyn till fotbollens form).
+function renderSportCol(T, label){
+  if (!T) return `<div class="spCol"><div class="fbHead"><div><div class="n">${esc(label)}</div></div></div><div class="fbMsg">Tabellen hämtas igen om en stund.</div></div>`;
+  const st = T.standing || {};
   const d = x => { const t = new Date(x); return isNaN(t) ? "" : `${SV_DAYS[t.getDay()]} ${t.getDate()}/${t.getMonth()+1}`; };
   const nm = T.next_match;
   const next = nm ? `<div class="fbM">${logo(nm.opponent_logo)}<div><div class="o">${esc(nm.opponent)}</div><div class="w">${nm.is_home ? "Hemma" : "Borta"}</div></div>
       <div class="r"><b>${d(nm.date)}</b><small>${hhmm(new Date(nm.date))}</small></div></div>` : `<div class="fbMsg">Ingen kommande match.</div>`;
-  const rec = (T.recent_results || []).filter(Boolean).map(m => `<div class="fbM">${logo(m.opponent_logo)}<div><div class="o">${esc(m.opponent)}</div>
-      <div class="w">${m.is_home ? "Hemma" : "Borta"} · ${d(m.date)}</div></div><div class="r"><b>${esc(m.score || "?")}</b><small>${outcome(m)}</small></div></div>`).join("");
   const rows = (T.table || []).map(r => `<div class="row${r.id === T.team_id ? " me" : ""}"><span>${r.position}</span>${logo(r.logo)}<span class="t">${esc(r.id === T.team_id ? T.team_name : r.name)}</span><span>${r.points} p</span></div>`).join("");
-  return `<div class="kick"><span>Fotboll · ${esc(T.league)}</span><span>Uppdaterad ${hhmm(new Date(FOOT.at))}</span></div>
-    <div class="fbGrid"><div class="fbL">
-      <div class="fbHead">${st.team ? logo(st.team.logo) : ""}<div><div class="n">${esc(T.team_name)}</div>${st.position ? `<div class="s">${ordinal(st.position)} plats · ${st.points} poäng</div>` : ""}</div></div>
+  return `<div class="spCol">
+      <div class="fbHead">${st.team ? logo(st.team.logo) : ""}<div><div class="n">${esc(T.team_name)}</div><div class="s">${esc(T.league)}${st.position ? ` · ${ordinal(st.position)} plats · ${st.points} poäng` : ""}</div></div></div>
       <div class="fbCard"><div class="h">Nästa match</div>${next}</div>
-      <div class="fbCard"><div class="h">Senaste matcherna</div>${rec || '<div class="fbMsg">Inga spelade matcher.</div>'}</div>
-    </div><div class="fbT">${rows}</div></div>`;
+      <div class="fbT">${rows}</div></div>`;
+}
+function renderFbPage(){
+  const fb = FOOT.ok && FOOT.teams[0], hk = HOCKEY.ok && HOCKEY.teams[0];
+  if (!fb && !hk) return "";
+  const at = Math.max(FOOT.at || 0, HOCKEY.at || 0);
+  return `<div class="kick"><span>AIK · Fotboll &amp; Hockey</span><span>Uppdaterad ${hhmm(new Date(at))}</span></div>
+    <div class="spGrid">${renderSportCol(fb, "Fotboll")}${renderSportCol(hk, "Hockey")}</div>`;
 }
 
 // ---------- hemskärm: valbara rutor ----------
@@ -1990,12 +2011,11 @@ function homeTile(k){
   }
   if (k === "aik"){
     const T = FOOT.ok && FOOT.teams[0]; if (!T) return `<div class="tile"><div class="h">AIK</div><div class="sub">Ingen fotbollsdata.</div></div>`;
-    const st = T.standing || {}, nm = T.next_match, last = (T.recent_results || [])[0];
+    const st = T.standing || {}, nm = T.next_match;
     const d = x => { const t = new Date(x); return `${SV_DAYS[t.getDay()]} ${t.getDate()}/${t.getMonth()+1} ${hhmm(t)}`; };
     return `<div class="tile"><div class="h">Fotboll · ${esc(T.league)}</div>
       <div class="fbHead">${st.team ? logo(st.team.logo) : ""}<div><div class="n">${esc(T.team_name)}</div>${st.position ? `<div class="s">${ordinal(st.position)} plats · ${st.points} p</div>` : ""}</div></div>
-      ${nm ? `<div class="sub">Nästa: <span style="color:var(--ink)">${esc(nm.opponent)}</span> · ${nm.is_home ? "hemma" : "borta"} · ${d(nm.date)}</div>` : ""}
-      ${last ? `<div class="sub">Senast: ${esc(last.opponent)} ${esc(last.score || "")} · ${outcome(last).toLowerCase()}</div>` : ""}</div>`;
+      ${nm ? `<div class="sub">Nästa: <span style="color:var(--ink)">${esc(nm.opponent)}</span> · ${nm.is_home ? "hemma" : "borta"} · ${d(nm.date)}</div>` : ""}</div>`;
   }
   if (k === "photo"){
     if (!PHOTOS.urls.length) return `<div class="tile"><div class="h">Foto</div><div class="sub">Lägg in ett album under Foton.</div></div>`;
@@ -2927,7 +2947,7 @@ function buildControls(){
   $("#idWxFb").addEventListener("change", e => { S.idle.wxFb = e.target.checked; saveS(); loadFootball(); renderBoard(); });
   $("#fbSrc").addEventListener("change", e => { S.foot.src = e.target.value; saveS(); loadFootball(); });
   $("#fbMins").addEventListener("change", e => { S.foot.mins = Math.max(5, Math.min(1440, parseInt(e.target.value, 10) || 60)); e.target.value = S.foot.mins; saveS(); loadFootball(); });
-  $("#idFb").addEventListener("change", e => { S.idle.fb = e.target.checked; saveS(); BOARD.until = 0; loadFootball(); });
+  $("#idFb").addEventListener("change", e => { S.idle.fb = e.target.checked; saveS(); BOARD.until = 0; loadFootball(); loadHockey(); });
   $("#idBus").addEventListener("change", e => { S.bus.on = e.target.checked; saveS(); loadDeps(); renderBoard(); });
   $("#signOrig").addEventListener("change", e => { S.bus.signOrig = e.target.checked; saveS(); document.querySelectorAll("#board .pg").forEach(el => { el._h = ""; }); renderBoard(); });
   $("#busBtn").addEventListener("click", () => { const v = $("#busQ").value.trim(); if (v) findStops(v); });
@@ -3014,6 +3034,7 @@ document.addEventListener("mousemove", () => { document.body.classList.remove("h
   loadPhotos(); setInterval(loadPhotos, 60*60*1000);
   // Sidan frågar servern ofta; servern bestämmer själv när den verkligen hämtar nytt (se inställningen)
   loadFootball(); setInterval(loadFootball, 5*60*1000);
+  loadHockey(); setInterval(loadHockey, 5*60*1000);
   setInterval(renderBoard, 15*1000);
   loadDeps(); setInterval(() => { if (S.bus.on && S.bus.id && (BOARD.page === "wx" || Date.now() - DEP.at > 5*60e3)) loadDeps(); }, 60*1000);
   segOn("#vizSeg", String(S.viz)); segOn("#srcSeg", S.source); segOn("#vinSeg", S.vizInput); segOn("#genreSeg", S.genre);
