@@ -418,6 +418,12 @@ kbd{font:12px "Special Elite",monospace;border:1px solid var(--panel-ink);border
 #mpDisplay header{padding:16px 22px 10px;border-bottom:2px solid var(--panel-line);display:flex;align-items:baseline;justify-content:space-between;flex:none}
 #mpDisplay header h2{font-family:Limelight,serif;font-weight:400;font-size:26px;margin:0}
 #mpDisplay header button{all:unset;cursor:pointer;font-size:24px;padding:0 8px}
+.mpKnobs{display:flex;gap:22px;flex-wrap:wrap;padding:14px 22px;border-bottom:2px solid var(--panel-line);flex:none}
+.mpKnob{flex:1;min-width:200px;display:flex;flex-direction:column;gap:4px}
+.mpKnob .mpKnobLbl{font:13px "Special Elite",monospace;letter-spacing:.08em;display:flex;justify-content:space-between;gap:8px}
+.mpKnob .mpKnobLbl small{opacity:.65;font-size:11px;letter-spacing:.04em}
+.mpKnob input[type=range]{width:100%;height:30px;accent-color:var(--panel-hot)}
+.mpKnob input[type=range]:disabled{opacity:.35}
 .mpDisplayGrid{flex:1;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;padding:22px;align-content:start}
 .mpDisplayGrid button{font:18px "Special Elite",monospace;letter-spacing:.04em;padding:5vh 10px;border:2px solid var(--panel-ink);border-radius:8px;background:#f6efdc;color:var(--panel-ink);cursor:pointer;text-align:center;min-height:3em}
 .mpDisplayGrid button:active{background:var(--panel-ink);color:#f6efdc}
@@ -715,6 +721,11 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
 
 <div id="mpDisplay" aria-label="Macropad">
   <header><h2>Macropad</h2><button id="closeMpDisplay" aria-label="Stäng">&times;</button></header>
+  <div class="mpKnobs">
+    <div class="mpKnob"><span class="mpKnobLbl">Volym</span><input type="range" id="mpKnobVol" min="0" max="1" step="0.01"></div>
+    <div class="mpKnob"><span class="mpKnobLbl">Ljusstyrka<small id="mpKnobRoom"></small></span><input type="range" id="mpKnobDim" min="1" max="100" step="1" disabled></div>
+    <div class="mpKnob"><span class="mpKnobLbl">Färgtemp</span><input type="range" id="mpKnobTemp" min="0" max="100" step="1" disabled></div>
+  </div>
   <div id="mpDisplayGrid" class="mpDisplayGrid"><div class="note">Lägg till minst en knapp i inställningarna.</div></div>
 </div>
 
@@ -2737,12 +2748,46 @@ function renderMacropadGrid(){
   grid.innerHTML = S.macropad.map((b, i) => `<button type="button" data-i="${i}">${esc(b.label || mpDefaultLabel(b))}</button>`).join("");
   grid.querySelectorAll("button").forEach(btn => btn.addEventListener("click", () => {
     const b = S.macropad[+btn.dataset.i];
+    if (b.kind === "light" && b.v1) mpSetActiveRoom(b.v1);
     sendRaw(mpBuildCmd(b));
     osd(b.label || mpDefaultLabel(b));
     btn.style.transform = "scale(.94)"; setTimeout(() => { btn.style.transform = ""; }, 120);
   }));
 }
 $("#mpAddBtn").addEventListener("click", () => { S.macropad.push({ kind:"cmd", v1:"open" }); saveS(); renderMacropad(); });
+
+// ---------- macropad: reglage (volym direkt, ljusstyrka/fargtemp mot det rum
+// som senast valdes med en belysningsknapp i rutnatet ovan) ----------
+let mpActiveRoom = S.mpActiveRoom || "";
+const mpKnobVol = $("#mpKnobVol"), mpKnobDim = $("#mpKnobDim"), mpKnobTemp = $("#mpKnobTemp"), mpKnobRoomLbl = $("#mpKnobRoom");
+function mpUpdateKnobState(){
+  const has = !!mpActiveRoom;
+  mpKnobDim.disabled = mpKnobTemp.disabled = !has;
+  mpKnobRoomLbl.textContent = has ? ` - ${mpActiveRoom}` : " - inget rum valt än";
+}
+function mpSetActiveRoom(name){
+  mpActiveRoom = name || "";
+  S.mpActiveRoom = mpActiveRoom; saveS();
+  mpUpdateKnobState();
+}
+// Enkel "trailing" throttle - en DTLS-rundtur mot gatewayen ar for trog for
+// varje pixels rorelse pa reglaget, men kanns fortfarande direkt for ett
+// finger, och det SISTA vardet nar man slapper skickas alltid med.
+function mpThrottled(fn, ms){
+  let last = 0, pending = null;
+  return (...args) => {
+    const now = Date.now(), wait = ms - (now - last);
+    clearTimeout(pending);
+    if (wait <= 0){ last = now; fn(...args); }
+    else pending = setTimeout(() => { last = Date.now(); fn(...args); }, wait);
+  };
+}
+const mpSendDim = mpThrottled(v => { if (mpActiveRoom) lightCmd(mpActiveRoom, "dim", v); }, 150);
+const mpSendTemp = mpThrottled(v => { if (mpActiveRoom) lightCmd(mpActiveRoom, "temp", v); }, 150);
+mpKnobVol.addEventListener("input", e => { S.volume = +e.target.value; saveS(); if (outGain) outGain.gain.value = S.volume; $("#vol").value = S.volume; });
+mpKnobDim.addEventListener("input", e => mpSendDim(+e.target.value));
+mpKnobTemp.addEventListener("input", e => mpSendTemp(+e.target.value));
+mpUpdateKnobState();
 
 function refreshTradfriMoodList(){
   const name = $("#tradfriGroupInput").value || "";
@@ -3032,7 +3077,7 @@ function toggleMpPanel(open){
 function toggleMpDisplay(open){
   const willOpen = open ?? !mpDisplay.classList.contains("open");
   mpDisplay.classList.toggle("open", willOpen);
-  if (willOpen) renderMacropadGrid();
+  if (willOpen){ renderMacropadGrid(); mpKnobVol.value = S.volume; mpUpdateKnobState(); }
 }
 $("#macropadBtn").addEventListener("click", () => toggleMpDisplay(true));
 $("#closeMpDisplay").addEventListener("click", () => toggleMpDisplay(false));

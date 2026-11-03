@@ -153,21 +153,29 @@ En macropad kan alltså skicka exakt samma sak - t.ex.:
 curl "http://127.0.0.1:8888/api/send?c=$(python3 -c "import json,urllib.parse;print('light:'+urllib.parse.quote(json.dumps({'group':'Vardagsrum','action':'scene','value':'Kväll'})))")"
 ```
 
-**Kräver en motsvarande utbyggnad av `monitor.py` på kameradatorn** (eller vilket skript som
-nu pratar med gatewayen) som pollar `/api/cmd` separat (precis som den redan gör för
-`tradfri-refresh`), känner igen kommandon som börjar med `light:`, parsar ut JSON-delen och
-slår upp gruppen **på namn** (samma namn som redan rapporteras i `/api/tradfri-list`) via
-pytradfri, och utför:
-- `on`/`off` - sätt gruppens state
-- `dim` - sätt `light_control.set_dimmer()`, skala 1-100 → pytradfri 1-254
-- `temp` - sätt färgtemperatur om lamptypen stödjer det (varmvit/kallvit-spektrum)
-- `color` - sätt RGB-färg om lamptypen stödjer det (de flesta Trådfri-lampor är bara
-  vit-spektrum och saknar detta - ignoreras då tyst)
-- `scene` - kör samma mood/scen-logik som redan finns för väckning, men direkt istället
-  för vid ett bevakningstillfälle
+**Implementerat i `monitor.py` på kameradatorn** (inte i det här repot - det körs lokalt,
+med kontakt med gatewayen). Pollar `/api/cmd` separat (precis som den redan gör för
+`tradfri-refresh`, var 1:a sekund - sänkt från 4s för snabb respons på macropadens reglage),
+känner igen kommandon som börjar med `light:`, parsar ut JSON-delen och slår upp gruppen
+**på namn** (samma namn som redan rapporteras i `/api/tradfri-list`) via pytradfri direkt
+mot gruppens ID (ingen ny listning av gatewayen i vanliga fall), och utför:
+- `on`/`off` - sätt gruppens state (`ATTR_DEVICE_STATE`)
+- `dim` - `ATTR_LIGHT_DIMMER`, skala 1-100 → pytradfri 1-254
+- `temp` - `ATTR_LIGHT_MIREDS`, skala 0 (varmast) till 100 (kallast) → mired 454-250
+- `color` - `ATTR_LIGHT_COLOR_HEX`; lampor som inte stödjer RGB ignorerar det tyst
+- `scene` - samma mood/scen-logik som redan finns för väckning, men direkt istället för
+  vid ett bevakningstillfälle
 
-Detta tillägg finns inte i det här repot (det ska köras lokalt, med kontakt med gatewayen) -
-hör av dig så skriver jag ett konkret tillägg att klistra in i ditt befintliga skript.
+Alla `light:`-kommandon körs i ORDNING av en egen bakgrundstråd (`_light_cmd_worker`) via
+en kö, istället för en egen tråd per kommando - annars finns ingen garanti att t.ex. två
+snabba drag på ett reglage faktiskt appliceras i rätt ordning. Hinner flera kommandon samlas
+på kön innan tråden hunnit ta det föregående (ett snabbt reglage-drag), slås de ihop per
+grupp+action till bara det SENASTE värdet - de äldre mellanlägena är redan inaktuella.
+
+Macropadens körvy (se nästa avsnitt) har förutom knapparna tre reglage: volym (lokal,
+ingen nätverksfördröjning), ljusstyrka och färgtemp. De två sista styr **det rum som
+senast valdes med en belysningsknapp i rutnätet** - trycker du på en belysningsknapp
+"pekar" reglagen om mot den gruppen tills du trycker på en annan.
 
 ## På Raspberry Pi (senare)
 
