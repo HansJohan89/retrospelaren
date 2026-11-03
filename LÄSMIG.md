@@ -172,16 +172,23 @@ snabba drag på ett reglage faktiskt appliceras i rätt ordning. Hinner flera ko
 på kön innan tråden hunnit ta det föregående (ett snabbt reglage-drag), slås de ihop per
 grupp+action till bara det SENASTE värdet - de äldre mellanlägena är redan inaktuella.
 
-Macropadens körvy (se nästa avsnitt) har förutom knapparna tre riktiga vridratt - inte
-skjutreglage - för **volym, ljusstyrka och färgtemp**, allihop kopplade till ett valt
-**rum**: en egen rad med en knapp per Trådfri-grupp (Vardagsrum förvalt), eller genom att
-trycka en belysningsknapp i rutnätet (den "pekar om" rummet till sin egen grupp).
+Macropadens körvy (se nästa avsnitt) har förutom knapparna tre skjutreglage för **volym,
+ljusstyrka och färg**, allihop kopplade till ett valt **rum**: en egen rad med en knapp per
+Trådfri-grupp (Vardagsrum förvalt), eller genom att trycka en belysningsknapp i rutnätet
+(den "pekar om" rummet till sin egen grupp).
+
+**Färg**-reglaget är en enda kontroll som går igenom hela spektrumet: de första ~20% går
+från varmt till kallt vitt (skickas som `action:"temp"`), resten (~80%) går runt hela
+färghjulet (skickas som `action:"color"` med hex-värde, via HSL->hex med fast mättnad/
+ljushet). Tanken är att samma princip - EN ratt som går igenom temp och sen hela färg-
+spektrumet - ska användas på den riktiga fysiska vridratten också, inte bara i den
+simulerade macropaden.
 
 Volym styr **Sonos-högtalaren** i det valda rummet, inte webbsidans egen uppspelning -
 skickas som `sonos-vol:{"room":"Vardagsrum","value":62}` (0-100, samma skala SoCo använder
 direkt, ingen omräkning). Sonos har bara **ett** känt rum just nu (`SONOS_ROOM`/`SONOS_IP`
 i `monitor.py`) - väljer man ett rum utan Sonos-högtalare (t.ex. Kök/Sovrum om de bara har
-Trådfri) loggas en varning och inget händer; ljusstyrka/färgtemp fungerar däremot för alla
+Trådfri) loggas en varning och inget händer; ljusstyrka/färg fungerar däremot för alla
 Trådfri-grupper oavsett. `sonos-vol:`-kommandon körs genom samma seriella kö/sammanslagnings-
 mönster som `light:` (se `_sonos_vol_worker`), av samma skäl.
 

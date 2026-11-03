@@ -421,18 +421,18 @@ kbd{font:12px "Special Elite",monospace;border:1px solid var(--panel-ink);border
 .mpRoomBar{padding:12px 22px 10px;border-bottom:1px dashed var(--panel-line);flex:none;display:flex;flex-direction:column;gap:6px;align-items:center}
 .mpRoomBarLbl{font:13px "Special Elite",monospace;letter-spacing:.08em}
 .mpKnobs{display:flex;gap:30px;flex-wrap:wrap;padding:16px 22px;border-bottom:2px solid var(--panel-line);flex:none;justify-content:center}
-.mpKnob{display:flex;flex-direction:column;align-items:center;gap:4px;width:110px}
+.mpKnob{display:flex;flex-direction:column;align-items:center;gap:6px;width:190px}
 .mpKnob .mpKnobLbl{font:13px "Special Elite",monospace;letter-spacing:.08em;text-align:center}
 .mpKnob .mpKnobLbl small{display:block;opacity:.65;font-size:11px;letter-spacing:.04em;font-style:normal}
-.mpKnobDial{width:84px;height:84px;border-radius:50%;margin:4px 0;position:relative;touch-action:none;cursor:grab;
-  background:radial-gradient(circle at 34% 28%,#5a4a2e,#1c140a 72%);border:3px solid var(--panel-ink);
-  box-shadow:0 2px 5px rgba(0,0,0,.5) inset,0 2px 4px rgba(0,0,0,.5)}
-.mpKnobDial::before{content:"";position:absolute;inset:-3px;border-radius:50%;border:1px dashed color-mix(in srgb,var(--panel-ink) 35%,transparent)}
-.mpKnobDial:active{cursor:grabbing}
-.mpKnobDial.disabled{opacity:.35;cursor:not-allowed}
-.mpKnobNeedle{position:absolute;left:50%;top:50%;width:4px;height:36%;background:var(--panel-hot);border-radius:2px;
-  transform-origin:50% 100%;transform:translate(-50%,-100%) rotate(-135deg);pointer-events:none}
-.mpKnobVal{font:12px "Special Elite",monospace;color:#8a7756}
+.mpSlider{-webkit-appearance:none;appearance:none;width:100%;height:34px;background:transparent;cursor:pointer;touch-action:none;margin:2px 0}
+.mpSlider::-webkit-slider-runnable-track{height:16px;border-radius:8px;border:1.5px solid var(--panel-ink);background:var(--trackGrad,#2b2013)}
+.mpSlider::-moz-range-track{height:16px;border-radius:8px;border:1.5px solid var(--panel-ink);background:var(--trackGrad,#2b2013)}
+.mpSlider::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;margin-top:-6px;
+  background:#f6efdc;border:2.5px solid var(--panel-ink);box-shadow:0 1px 3px rgba(0,0,0,.5)}
+.mpSlider::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#f6efdc;border:2.5px solid var(--panel-ink)}
+.mpSlider:disabled{opacity:.35;cursor:not-allowed}
+.mpKnobVal{font:12px "Special Elite",monospace;color:#8a7756;display:flex;align-items:center;gap:6px}
+.mpColorSwatch{display:inline-block;width:14px;height:14px;border-radius:50%;border:1.5px solid var(--panel-ink);background:#2b2013}
 .mpDisplayGrid{flex:1;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;padding:22px;align-content:start}
 .mpDisplayGrid button{font:18px "Special Elite",monospace;letter-spacing:.04em;padding:5vh 10px;border:2px solid var(--panel-ink);border-radius:8px;background:#f6efdc;color:var(--panel-ink);cursor:pointer;text-align:center;min-height:3em}
 .mpDisplayGrid button:active{background:var(--panel-ink);color:#f6efdc}
@@ -737,18 +737,18 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
   <div class="mpKnobs">
     <div class="mpKnob">
       <span class="mpKnobLbl">Volym</span>
-      <div class="mpKnobDial disabled" id="mpKnobVol" tabindex="0" role="slider" aria-label="Volym"><div class="mpKnobNeedle"></div></div>
+      <input type="range" class="mpSlider" id="mpKnobVol" min="0" max="100" step="1" value="50" style="--trackGrad:linear-gradient(90deg,#2b2013,#e8b354)" disabled>
       <output class="mpKnobVal" id="mpKnobVolVal"></output>
     </div>
     <div class="mpKnob">
       <span class="mpKnobLbl">Ljusstyrka</span>
-      <div class="mpKnobDial disabled" id="mpKnobDim" tabindex="0" role="slider" aria-label="Ljusstyrka"><div class="mpKnobNeedle"></div></div>
+      <input type="range" class="mpSlider" id="mpKnobDim" min="1" max="100" step="1" value="100" style="--trackGrad:linear-gradient(90deg,#1c140a,#f6efdc)" disabled>
       <output class="mpKnobVal" id="mpKnobDimVal"></output>
     </div>
     <div class="mpKnob">
-      <span class="mpKnobLbl">Färgtemp</span>
-      <div class="mpKnobDial disabled" id="mpKnobTemp" tabindex="0" role="slider" aria-label="Färgtemp"><div class="mpKnobNeedle"></div></div>
-      <output class="mpKnobVal" id="mpKnobTempVal"></output>
+      <span class="mpKnobLbl">Färg</span>
+      <input type="range" class="mpSlider" id="mpKnobColor" min="0" max="100" step="1" value="10" disabled>
+      <output class="mpKnobVal" id="mpKnobColorVal"><span class="mpColorSwatch" id="mpColorSwatch"></span><span id="mpColorText"></span></output>
     </div>
   </div>
   <div id="mpDisplayGrid" class="mpDisplayGrid"><div class="note">Lägg till minst en knapp i inställningarna.</div></div>
@@ -2782,56 +2782,43 @@ function renderMacropadGrid(){
 }
 $("#mpAddBtn").addEventListener("click", () => { S.macropad.push({ kind:"cmd", v1:"open" }); saveS(); renderMacropad(); });
 
-// ---------- macropad: riktiga vridratt (dras runt med finger/mus, som en
-// fysisk potentiometer - inte ett skjutreglage) for volym, ljusstyrka och
-// fargtemp. De tva sista styr det rum som senast valdes med en
-// belysningsknapp i rutnatet ovan. ----------
-const MP_KNOB_SWEEP = 270, MP_KNOB_START = -135;  // grader - samma svep som en vanlig analog ratt
-function makeKnob(el, { min, max, value, onChange, onRender }){
-  const needle = el.querySelector(".mpKnobNeedle");
-  let val = value;
-  function angleFor(v){ return MP_KNOB_START + (v - min) / (max - min) * MP_KNOB_SWEEP; }
-  function render(){ needle.style.transform = `translate(-50%,-100%) rotate(${angleFor(val)}deg)`; if (onRender) onRender(val); }
-  function setVal(v, fire){
-    val = Math.min(max, Math.max(min, v));
-    render();
-    if (fire && onChange) onChange(val);
+// ---------- macropad: skjutreglage for volym, ljusstyrka och farg. Farg-
+// reglaget ar EN enda kontinuerlig skala (inte bara varmt/kallt) - de
+// forsta 20% ar fargtemperatur (varmvit -> kallvit), resten (20-100%) ar
+// hela RGB-fargspektrumet runt - "scrolla igenom alla farger" fran en
+// och samma kontroll, precis som den fysiska macropadens ratt sen ska
+// gora. Alla tre styr det rum som senast valdes via en rumsknapp
+// (mpRoomRow) eller en belysningsknapp i rutnatet. ----------
+const MP_COLOR_SPLIT = 20;  // % av regeln som ar fargtemp - resten ar fargspektrum
+function hslToHex(h, s, l){
+  h = ((h % 360) + 360) % 360;
+  const c = (1 - Math.abs(2*l - 1)) * s, x = c * (1 - Math.abs((h/60) % 2 - 1)), m = l - c/2;
+  let r=0, g=0, b=0;
+  if (h < 60){ r=c; g=x; } else if (h < 120){ r=x; g=c; } else if (h < 180){ g=c; b=x; }
+  else if (h < 240){ g=x; b=c; } else if (h < 300){ r=x; b=c; } else { r=c; b=x; }
+  const toHex = v => Math.round((v+m)*255).toString(16).padStart(2, "0");
+  return toHex(r) + toHex(g) + toHex(b);
+}
+// Vad reglaget faktiskt ska SKICKA (action+varde) for ett givet 0-100-lage.
+function mpColorCmd(v){
+  if (v < MP_COLOR_SPLIT) return { action: "temp", value: Math.round(v / MP_COLOR_SPLIT * 100) };
+  return { action: "color", value: hslToHex((v - MP_COLOR_SPLIT) / (100 - MP_COLOR_SPLIT) * 360, 1, 0.5) };
+}
+// Vad reglaget ska SE UT som (fargad punkt) for samma lage - egen, enklare
+// interpolering i fargtemp-delen (en ren varm-orange -> blavit overgang,
+// bara for att ge ett visuellt intryck - ljusans faktiska fargtemp-stod
+// avgor hur det verkligen blir).
+function mpColorSwatch(v){
+  if (v < MP_COLOR_SPLIT){
+    const t = v / MP_COLOR_SPLIT, lerp = (a,b) => Math.round(a + (b-a)*t);
+    return `rgb(${lerp(255,214)},${lerp(170,227)},${lerp(90,255)})`;
   }
-  function pointerAngle(e){
-    const r = el.getBoundingClientRect();
-    return Math.atan2(e.clientY - (r.top + r.height/2), e.clientX - (r.left + r.width/2)) * 180/Math.PI;
-  }
-  let dragging = false, startAngle = 0, startVal = 0;
-  el.addEventListener("pointerdown", e => {
-    if (el.classList.contains("disabled")) return;
-    dragging = true; el.setPointerCapture(e.pointerId);
-    startAngle = pointerAngle(e); startVal = val;
-    el.classList.add("dragging"); e.preventDefault();
-  });
-  el.addEventListener("pointermove", e => {
-    if (!dragging) return;
-    // RELATIV rotation fran gripstunden - inte var pekaren rakt pekar -
-    // annars hoppar vardet till var man rakar greppa ratten i stallet for
-    // att faktiskt "vrida" den fran dar den stod, precis som en riktig ratt.
-    let delta = pointerAngle(e) - startAngle;
-    if (delta > 180) delta -= 360; else if (delta < -180) delta += 360;
-    setVal(startVal + delta / MP_KNOB_SWEEP * (max - min), true);
-  });
-  function endDrag(){ dragging = false; el.classList.remove("dragging"); }
-  el.addEventListener("pointerup", endDrag);
-  el.addEventListener("pointercancel", endDrag);
-  el.addEventListener("keydown", e => {
-    if (el.classList.contains("disabled")) return;
-    const step = (max - min) / 100;
-    if (e.key === "ArrowUp" || e.key === "ArrowRight"){ setVal(val + step, true); e.preventDefault(); }
-    else if (e.key === "ArrowDown" || e.key === "ArrowLeft"){ setVal(val - step, true); e.preventDefault(); }
-  });
-  render();
-  return { set: v => setVal(v, false), get: () => val, setDisabled: d => el.classList.toggle("disabled", d) };
+  return `hsl(${Math.round((v - MP_COLOR_SPLIT) / (100 - MP_COLOR_SPLIT) * 360)},100%,50%)`;
 }
 // Enkel "trailing" throttle - en DTLS-rundtur mot gatewayen ar for trog for
-// varje litet vridsteg, men kanns fortfarande direkt, och det SISTA vardet
-// nar man slapper skickas alltid med.
+// varje pixels drag pa reglaget, men UI:t uppdateras alltid direkt (se
+// input-lyssnarna nedan) - bara sjalva nataverksanropet begransas, och det
+// SISTA vardet nar man slapper skickas alltid med.
 function mpThrottled(fn, ms){
   let last = 0, pending = null;
   return (...args) => {
@@ -2843,25 +2830,34 @@ function mpThrottled(fn, ms){
 }
 // Rum valt antingen via en egen rumsknapp (mpRoomRow, bara valjer - gor
 // ingenting annat) eller genom att trycka en belysningsknapp i rutnatet.
-// Vardagsrum ar forvalt sa rattarna fungerar direkt, utan att man maste
+// Vardagsrum ar forvalt sa reglagen fungerar direkt, utan att man maste
 // valja nagot forst (bade Sonos-hogtalaren och Tradfri-gruppen heter sa).
 let mpActiveRoom = S.mpActiveRoom || "Vardagsrum";
 const mpKnobRoomLbl = $("#mpKnobRoom");
 const mpSendVol = mpThrottled(v => { if (mpActiveRoom) sendRaw("sonos-vol:" + JSON.stringify({ room: mpActiveRoom, value: v })); }, 150);
 const mpSendDim = mpThrottled(v => { if (mpActiveRoom) lightCmd(mpActiveRoom, "dim", v); }, 150);
-const mpSendTemp = mpThrottled(v => { if (mpActiveRoom) lightCmd(mpActiveRoom, "temp", v); }, 150);
-const mpVolVal = $("#mpKnobVolVal"), mpDimVal = $("#mpKnobDimVal"), mpTempVal = $("#mpKnobTempVal");
-// Ingen av rattarna har nagon aterkoppling fran den verkliga hogtalaren/
+const mpSendColor = mpThrottled(v => { if (mpActiveRoom){ const c = mpColorCmd(v); lightCmd(mpActiveRoom, c.action, c.value); } }, 150);
+const mpVolSlider = $("#mpKnobVol"), mpDimSlider = $("#mpKnobDim"), mpColorSlider = $("#mpKnobColor");
+const mpVolVal = $("#mpKnobVolVal"), mpDimVal = $("#mpKnobDimVal"), mpColorSwatchEl = $("#mpColorSwatch"), mpColorText = $("#mpColorText");
+// Inget av reglagen har nagon aterkoppling fran den verkliga hogtalaren/
 // lampan (ingen las-API for det) - de minns bara var de senast stod.
-const mpKnobVol = makeKnob($("#mpKnobVol"), { min:0, max:100, value:50,
-  onRender: v => mpVolVal.textContent = Math.round(v) + "%",
-  onChange: v => mpSendVol(Math.round(v)) });
-const mpKnobDim = makeKnob($("#mpKnobDim"), { min:1, max:100, value:100,
-  onRender: v => mpDimVal.textContent = Math.round(v) + "%",
-  onChange: v => mpSendDim(Math.round(v)) });
-const mpKnobTemp = makeKnob($("#mpKnobTemp"), { min:0, max:100, value:50,
-  onRender: v => mpTempVal.textContent = tempLabel(v),
-  onChange: v => mpSendTemp(Math.round(v)) });
+mpVolSlider.addEventListener("input", e => { const v = +e.target.value; mpVolVal.textContent = v + "%"; mpSendVol(v); });
+mpDimSlider.addEventListener("input", e => { const v = +e.target.value; mpDimVal.textContent = v + "%"; mpSendDim(v); });
+mpColorSlider.addEventListener("input", e => {
+  const v = +e.target.value, cmd = mpColorCmd(v);
+  mpColorSwatchEl.style.background = mpColorSwatch(v);
+  mpColorText.textContent = cmd.action === "temp" ? tempLabel(cmd.value) : ("#" + cmd.value);
+  mpSendColor(v);
+});
+mpColorSlider.dispatchEvent(new Event("input"));  // initiera swatch/text till startvardet
+// Fargreglagets bana far en gradient som speglar exakt vad mpColorSwatch()
+// raknar ut - garanterat samma farger som den faktiskt visar/skickar,
+// istallet for att handgissa en liknande gradient separat.
+(function(){
+  const stops = [];
+  for (let i = 0; i <= 100; i += 4) stops.push(`${mpColorSwatch(i)} ${i}%`);
+  mpColorSlider.style.setProperty("--trackGrad", `linear-gradient(90deg, ${stops.join(",")})`);
+})();
 function renderMpRoomButtons(){
   const host = $("#mpRoomRow"); if (!host) return;
   const names = Object.keys(TRADFRI_GROUPS);
@@ -2871,7 +2867,7 @@ function renderMpRoomButtons(){
 }
 function mpUpdateKnobState(){
   const has = !!mpActiveRoom;
-  mpKnobVol.setDisabled(!has); mpKnobDim.setDisabled(!has); mpKnobTemp.setDisabled(!has);
+  mpVolSlider.disabled = mpDimSlider.disabled = mpColorSlider.disabled = !has;
   mpKnobRoomLbl.textContent = has ? mpActiveRoom : "inget valt";
   renderMpRoomButtons();
 }
