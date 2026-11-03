@@ -406,6 +406,15 @@ kbd{font:12px "Special Elite",monospace;border:1px solid var(--panel-ink);border
 .lgBtns{display:flex;gap:6px;margin-bottom:4px}
 .lgRow .sl{grid-template-columns:84px 1fr 56px}
 .lgRow select{width:100%;margin-top:6px}
+.mpRow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;border:1.5px solid var(--panel-ink);border-radius:4px;padding:6px 8px;margin-top:6px;background:#f6efdc}
+.mpRow input[type=text]{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--panel-ink);background:#fff;color:var(--panel-ink);border-radius:3px;width:9em}
+.mpRow select{flex:none;width:auto;min-width:9em}
+.mpRow input[type=number]{width:4.5em;font:inherit;font-size:14px;padding:6px 4px;border:1.5px solid var(--panel-ink);background:#fff;color:var(--panel-ink);border-radius:3px}
+.mpRow input[type=color]{width:2.4em;height:2.4em;padding:0;border:1.5px solid var(--panel-ink);border-radius:3px}
+.mpRow .mpDel{margin-left:auto}
+.mpGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-top:8px}
+.mpGrid button{font:13px "Special Elite",monospace;letter-spacing:.04em;padding:16px 8px;border:1.5px solid var(--panel-ink);border-radius:5px;background:#f6efdc;color:var(--panel-ink);cursor:pointer;text-align:center;min-height:3.4em}
+.mpGrid button:active{background:var(--panel-ink);color:#f6efdc}
 select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--panel-ink);background:#f6efdc;color:var(--panel-ink);border-radius:3px;flex:1;min-width:0}
 .lbl{min-width:128px;font-size:13.5px}
 #panel h4{font:12px "Special Elite",monospace;letter-spacing:.2em;text-transform:uppercase;margin:14px 0 2px;color:#8a7756}
@@ -519,6 +528,15 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <h4 style="margin-top:14px">Styr belysningen nu</h4>
       <div class="note">Tänd/släck, ljusstyrka, färgton och scener - direkt, oavsett vad som spelas. Samma kommandon kan skickas utifrån (macropad, se LÄSMIG.md) via <code>/api/send?c=light:...</code>.</div>
       <div id="lightCtl"><div class="note">Inga grupper hämtade än - tryck Uppdatera ovan.</div></div>
+    </section>
+
+    <section>
+      <h3>Virtuell macropad (test)</h3>
+      <div class="note">Testa macropad-upplägget innan den fysiska finns: lägg till knappar nedan, välj vad var och en ska göra (musik/skärm, kanal, palett eller belysning), och tryck sedan på dem i rutnätet längst ner - det skickar exakt samma kommandon (<code>/api/send</code>) som en riktig macropad skulle göra.</div>
+      <div id="mpConfig"></div>
+      <div class="row"><button class="btn" id="mpAddBtn">+ Lägg till knapp</button></div>
+      <h4 style="margin-top:14px">Kör</h4>
+      <div id="mpGrid" class="mpGrid"><div class="note">Lägg till minst en knapp ovan.</div></div>
     </section>
 
     <section>
@@ -2568,6 +2586,7 @@ async function loadTradfriLists(){
     _tradfriFillSelect($("#tradfriGroupInput"), groups.map(g => g.name), "(ingen)", S.tradfriGroupName || "");
     refreshTradfriMoodList();
     renderLightCtl();
+    renderMacropad();
     const ageS = d && d.at ? Math.round((Date.now()/1000) - d.at) : null;
     note.textContent = groups.length
       ? `Hämtat direkt från gatewayen via kameradatorn.${ageS != null ? " (uppdaterad för " + ageS + "s sedan)" : ""}`
@@ -2580,9 +2599,11 @@ async function loadTradfriLists(){
 // Kommandot kodas som "light:" + JSON {group, action, value} - sidan själv gör ingenting med det
 // (runCmd() känner inte igen "light:"-prefixet), det är kameradatorns Trådfri-skript som pollar
 // /api/cmd separat och utför det mot gatewayen. Samma kommandorad kan skickas från en macropad.
+async function sendRaw(cmd){
+  try { await fetch("/api/send?c=" + encodeURIComponent(cmd)); } catch(e){}
+}
 async function lightCmd(group, action, value){
-  const payload = JSON.stringify({ group, action, value: value === undefined ? null : value });
-  try { await fetch("/api/send?c=" + encodeURIComponent("light:" + payload)); } catch(e){}
+  sendRaw("light:" + JSON.stringify({ group, action, value: value === undefined ? null : value }));
 }
 function tempLabel(v){ return v < 34 ? "Varm" : v > 66 ? "Kall" : "Neutral"; }
 function renderLightCtl(){
@@ -2610,6 +2631,96 @@ function renderLightCtl(){
     sel.value = "";
   }));
 }
+
+// ---------- virtuell macropad (test) ----------
+// Varje knapp sparas som {label, kind, v1, v2, v3} i S.macropad - samma byggstenar som
+// skickas som färdigt /api/send-kommando (sendRaw()) när man trycker i rutnätet. Exakt
+// samma mekanism en riktig macropad ska använda, se LÄSMIG.md.
+if (!Array.isArray(S.macropad)) S.macropad = [];
+const MP_CMD_OPTS = [["open","Öppna/spela"],["close","Stäng/pausa"],["next","Nästa"],["prev","Föregående"],["playpause","Play/paus"],["wake","Väckning (animation)"]];
+const MP_PALETTE_NAMES = { svartvit:"Svartvit", sepia:"Sepia", fosfor:"Fosfor", farg:"Färg" };
+const MP_LIGHT_ACTIONS = [["on","Tänd"],["off","Släck"],["dim","Ljusstyrka"],["temp","Färgton"],["color","Färg"],["scene","Scen"]];
+function mpBuildCmd(b){
+  if (b.kind === "cmd") return b.v1 || "open";
+  if (b.kind === "viz") return "viz:" + (b.v1 || "1");
+  if (b.kind === "palette") return "palette:" + (b.v1 || "svartvit");
+  if (b.kind === "light"){
+    const action = b.v2 || "on";
+    const value = (action === "dim" || action === "temp") ? (+b.v3 || 0) : (action === "color" ? String(b.v3 || "ffcc88").replace("#", "") : (b.v3 || ""));
+    return "light:" + JSON.stringify({ group: b.v1 || "", action, value });
+  }
+  return "";
+}
+function mpDefaultLabel(b){
+  if (b.kind === "cmd") return (MP_CMD_OPTS.find(x => x[0] === b.v1) || [,"?"])[1];
+  if (b.kind === "viz") return VIZ_NAMES[b.v1] || "Kanal";
+  if (b.kind === "palette") return MP_PALETTE_NAMES[b.v1] || b.v1 || "Palett";
+  if (b.kind === "light"){
+    const act = (MP_LIGHT_ACTIONS.find(x => x[0] === b.v2) || [,"?"])[1];
+    return `${b.v1 || "?"}: ${act}`;
+  }
+  return "Knapp";
+}
+function mpSubHtml(b){
+  if (b.kind === "viz"){
+    return `<select class="mpV1">${Object.entries(VIZ_NAMES).map(([v,l]) => `<option value="${v}"${b.v1===v?" selected":""}>${esc(l)}</option>`).join("")}</select>`;
+  }
+  if (b.kind === "palette"){
+    return `<select class="mpV1">${Object.keys(PALETTES).map(v => `<option value="${v}"${b.v1===v?" selected":""}>${esc(MP_PALETTE_NAMES[v]||v)}</option>`).join("")}</select>`;
+  }
+  if (b.kind === "light"){
+    const groups = Object.keys(TRADFRI_GROUPS);
+    const g = groups.includes(b.v1) ? b.v1 : (groups[0] || "");
+    const a = b.v2 || "on";
+    let val = "";
+    if (a === "dim" || a === "temp") val = `<input type="number" class="mpV3" min="0" max="100" value="${b.v3 ?? (a === "dim" ? 100 : 50)}">`;
+    else if (a === "color") val = `<input type="color" class="mpV3" value="#${String(b.v3 || "ffcc88").replace("#", "")}">`;
+    else if (a === "scene") val = `<select class="mpV3">${(TRADFRI_GROUPS[g] || []).map(m => `<option value="${esc(m)}"${b.v3===m?" selected":""}>${esc(m)}</option>`).join("")}</select>`;
+    return `<select class="mpV1">${groups.length ? groups.map(n => `<option value="${esc(n)}"${n===g?" selected":""}>${esc(n)}</option>`).join("") : '<option value="">(inga grupper hämtade)</option>'}</select>
+      <select class="mpV2">${MP_LIGHT_ACTIONS.map(([v,l]) => `<option value="${v}"${a===v?" selected":""}>${esc(l)}</option>`).join("")}</select>${val}`;
+  }
+  // kind === "cmd" (standard)
+  return `<select class="mpV1">${MP_CMD_OPTS.map(([v,l]) => `<option value="${v}"${(b.v1||"open")===v?" selected":""}>${esc(l)}</option>`).join("")}</select>`;
+}
+function renderMacropad(){
+  const cfg = $("#mpConfig"), grid = $("#mpGrid");
+  if (!cfg || !grid) return;
+  cfg.innerHTML = S.macropad.map((b, i) => `<div class="mpRow" data-i="${i}">
+      <input type="text" class="mpLabel" placeholder="${esc(mpDefaultLabel(b))}" value="${esc(b.label || "")}">
+      <select class="mpKind">
+        <option value="cmd"${b.kind==="cmd"?" selected":""}>Musik/skärm</option>
+        <option value="viz"${b.kind==="viz"?" selected":""}>Kanal</option>
+        <option value="palette"${b.kind==="palette"?" selected":""}>Palett</option>
+        <option value="light"${b.kind==="light"?" selected":""}>Belysning</option>
+      </select>
+      <span class="mpSub">${mpSubHtml(b)}</span>
+      <button type="button" class="btn mpDel">Ta bort</button>
+    </div>`).join("");
+  cfg.querySelectorAll(".mpRow").forEach(row => {
+    const i = +row.dataset.i, b = S.macropad[i];
+    row.querySelector(".mpLabel").addEventListener("input", e => { b.label = e.target.value; saveS(); renderMacropadGrid(); });
+    row.querySelector(".mpKind").addEventListener("change", e => { b.kind = e.target.value; b.v1 = b.v2 = b.v3 = undefined; saveS(); renderMacropad(); });
+    row.querySelector(".mpDel").addEventListener("click", () => { S.macropad.splice(i, 1); saveS(); renderMacropad(); renderMacropadGrid(); });
+    const v1 = row.querySelector(".mpV1"), v2 = row.querySelector(".mpV2"), v3 = row.querySelector(".mpV3");
+    if (v1) v1.addEventListener("change", e => { b.v1 = e.target.value; saveS(); if (b.kind === "light") renderMacropad(); else renderMacropadGrid(); });
+    if (v2) v2.addEventListener("change", e => { b.v2 = e.target.value; saveS(); renderMacropad(); });
+    if (v3) v3.addEventListener(v3.type === "number" || v3.type === "color" ? "change" : "change", e => { b.v3 = e.target.value; saveS(); renderMacropadGrid(); });
+  });
+  renderMacropadGrid();
+}
+function renderMacropadGrid(){
+  const grid = $("#mpGrid"); if (!grid) return;
+  if (!S.macropad.length){ grid.innerHTML = '<div class="note">Lägg till minst en knapp ovan.</div>'; return; }
+  grid.innerHTML = S.macropad.map((b, i) => `<button type="button" data-i="${i}">${esc(b.label || mpDefaultLabel(b))}</button>`).join("");
+  grid.querySelectorAll("button").forEach(btn => btn.addEventListener("click", () => {
+    const b = S.macropad[+btn.dataset.i];
+    sendRaw(mpBuildCmd(b));
+    osd(b.label || mpDefaultLabel(b));
+    btn.style.transform = "scale(.94)"; setTimeout(() => { btn.style.transform = ""; }, 120);
+  }));
+}
+$("#mpAddBtn").addEventListener("click", () => { S.macropad.push({ kind:"cmd", v1:"open" }); saveS(); renderMacropad(); });
+
 function refreshTradfriMoodList(){
   const name = $("#tradfriGroupInput").value || "";
   const moods = TRADFRI_GROUPS[name] || [];
@@ -3082,6 +3193,7 @@ document.addEventListener("mousemove", () => { document.body.classList.remove("h
   $("#autoCh").checked = S.autoChannel;
   $("#vizRotSeg").querySelectorAll("input[type=checkbox]").forEach(cb => { cb.checked = S.vizRot[cb.dataset.v] !== false; });
   buildControls(); syncAll();
+  renderMacropad();
   loadFonts(); applyLook();
   applyInfoVis();
   setPalette(S.palette);
