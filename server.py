@@ -195,42 +195,41 @@ def match_window(data):
     return t - 300 <= time.time() <= t + 9000
 
 
-# Vissa klubbar saknar emblem hos Highlightly (en riktig 404 på bildens egen CDN,
-# inte bara ett tomt fält i svaret). Fallback: slå upp klubbens egen logga (property
-# P154, "logo image") på Wikidata och länka till originalfilen på Wikimedia Commons.
+# Vissa klubbar saknar emblem hos Highlightly (en riktig 404 på bildens egen CDN, inte bara
+# ett tomt fält i svaret - t.ex. Leksand och Södertälje SK i Hockeyallsvenskan). Wikidata/
+# Wikimedia Commons visade sig opålitligt (saknar ofta en riktig logga-egenskap för mindre
+# klubbar, och fritextsökning på Commons kan träffa helt fel, overifierad bild). TheSportsDB
+# har en gratis, strukturerad lag-databas med riktiga klubbmärken på en stabil CDN - filtrerat
+# på sport så fel klubb med samma namn i en annan sport inte väljs av misstag.
 # Cachas i minnet per processlivstid - varje klubb slås bara upp en gång.
-_WIKI_LOGO_CACHE = {}
+_LOGO_CACHE = {}
 
 
-def wiki_logo(name):
+def sportsdb_logo(name, sport_kw):
     if not name:
         return None
-    if name in _WIKI_LOGO_CACHE:
-        return _WIKI_LOGO_CACHE[name]
+    key = f"{sport_kw}:{name}"
+    if key in _LOGO_CACHE:
+        return _LOGO_CACHE[key]
     url = None
     try:
-        s = _get_json("https://www.wikidata.org/w/api.php?" + urllib.parse.urlencode(
-            {"action": "wbsearchentities", "search": name, "language": "sv", "format": "json", "limit": 1, "type": "item"}))
-        hits = s.get("search") or []
-        if hits:
-            qid = hits[0]["id"]
-            e = _get_json(f"https://www.wikidata.org/wiki/Special:EntityData/{qid}.json")
-            claims = (e.get("entities", {}).get(qid, {}) or {}).get("claims", {})
-            logo = claims.get("P154") or []
-            if logo:
-                fname = logo[0]["mainsnak"]["datavalue"]["value"]
-                url = "https://commons.wikimedia.org/wiki/Special:FilePath/" + urllib.parse.quote(fname)
+        d = _get_json("https://www.thesportsdb.com/api/v1/json/123/searchteams.php?" + urllib.parse.urlencode({"t": name}))
+        for t in d.get("teams") or []:
+            if sport_kw.lower() in (t.get("strSport") or "").lower():
+                url = t.get("strBadge") or t.get("strLogo") or None
+                if url:
+                    break
     except Exception:
         url = None
-    _WIKI_LOGO_CACHE[name] = url
+    _LOGO_CACHE[key] = url
     return url
 
 
-def fill_missing_logos(team):
-    """Fyller i saknade klubbemblem (tabellrader, egen standing, nästa motståndare) via wiki_logo()."""
+def fill_missing_logos(team, sport_kw):
+    """Fyller i saknade klubbemblem (tabellrader, egen standing, nästa motståndare) via sportsdb_logo()."""
     def ensure(obj, name_key, logo_key):
         if obj and not obj.get(logo_key):
-            obj[logo_key] = wiki_logo(obj.get(name_key))
+            obj[logo_key] = sportsdb_logo(obj.get(name_key), sport_kw)
     for r in team.get("table") or []:
         ensure(r, "name", "logo")
     st = (team.get("standing") or {}).get("team")
@@ -330,7 +329,7 @@ def football_highlightly(key):
                         for s in table],
               "next_match": summary(min(up, key=lambda m: m["date"]) if up else None),
               "recent_results": [summary(m) for m in done]}
-    fill_missing_logos(result)
+    fill_missing_logos(result, "Soccer")
     return result
 
 
@@ -383,7 +382,7 @@ def hockey_highlightly(key):
               "standing": standing, "table": table,
               "next_match": summary(min(up, key=lambda m: m["date"]) if up else None),
               "recent_results": []}
-    fill_missing_logos(result)
+    fill_missing_logos(result, "Hockey")
     return result
 
 
@@ -1046,9 +1045,9 @@ class Handler(SimpleHTTPRequestHandler):
         except ValueError:
             mins = 60
         c = HOCKEY_CACHE
-        # v2: standing fick fel form (saknade nästlat team-objekt) i den allra första versionen av den
-        # här filen - nytt filnamn så den gamla, felaktigt cachade datan på volymen inte används vidare.
-        fp = os.path.join(DATA_DIR, "hockey-highlightly-v2.json")
+        # v3: bytt loggokälla (Wikidata -> TheSportsDB) - nytt filnamn så gammal cachad data
+        # (med saknade loggor för t.ex. Leksand/Södertälje) inte används vidare upp till en timme.
+        fp = os.path.join(DATA_DIR, "hockey-highlightly-v3.json")
         if not c["data"]:
             try:
                 with open(fp, encoding="utf-8") as f:
