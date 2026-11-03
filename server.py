@@ -1046,7 +1046,9 @@ class Handler(SimpleHTTPRequestHandler):
         except ValueError:
             mins = 60
         c = HOCKEY_CACHE
-        fp = os.path.join(DATA_DIR, "hockey-highlightly.json")
+        # v2: standing fick fel form (saknade nästlat team-objekt) i den allra första versionen av den
+        # här filen - nytt filnamn så den gamla, felaktigt cachade datan på volymen inte används vidare.
+        fp = os.path.join(DATA_DIR, "hockey-highlightly-v2.json")
         if not c["data"]:
             try:
                 with open(fp, encoding="utf-8") as f:
