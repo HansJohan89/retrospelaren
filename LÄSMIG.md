@@ -172,10 +172,18 @@ snabba drag på ett reglage faktiskt appliceras i rätt ordning. Hinner flera ko
 på kön innan tråden hunnit ta det föregående (ett snabbt reglage-drag), slås de ihop per
 grupp+action till bara det SENASTE värdet - de äldre mellanlägena är redan inaktuella.
 
-Macropadens körvy (se nästa avsnitt) har förutom knapparna tre reglage: volym (lokal,
-ingen nätverksfördröjning), ljusstyrka och färgtemp. De två sista styr **det rum som
-senast valdes med en belysningsknapp i rutnätet** - trycker du på en belysningsknapp
-"pekar" reglagen om mot den gruppen tills du trycker på en annan.
+Macropadens körvy (se nästa avsnitt) har förutom knapparna tre riktiga vridratt - inte
+skjutreglage - för **volym, ljusstyrka och färgtemp**, allihop kopplade till ett valt
+**rum**: en egen rad med en knapp per Trådfri-grupp (Vardagsrum förvalt), eller genom att
+trycka en belysningsknapp i rutnätet (den "pekar om" rummet till sin egen grupp).
+
+Volym styr **Sonos-högtalaren** i det valda rummet, inte webbsidans egen uppspelning -
+skickas som `sonos-vol:{"room":"Vardagsrum","value":62}` (0-100, samma skala SoCo använder
+direkt, ingen omräkning). Sonos har bara **ett** känt rum just nu (`SONOS_ROOM`/`SONOS_IP`
+i `monitor.py`) - väljer man ett rum utan Sonos-högtalare (t.ex. Kök/Sovrum om de bara har
+Trådfri) loggas en varning och inget händer; ljusstyrka/färgtemp fungerar däremot för alla
+Trådfri-grupper oavsett. `sonos-vol:`-kommandon körs genom samma seriella kö/sammanslagnings-
+mönster som `light:` (se `_sonos_vol_worker`), av samma skäl.
 
 ## På Raspberry Pi (senare)
 

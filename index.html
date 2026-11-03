@@ -418,6 +418,8 @@ kbd{font:12px "Special Elite",monospace;border:1px solid var(--panel-ink);border
 #mpDisplay header{padding:16px 22px 10px;border-bottom:2px solid var(--panel-line);display:flex;align-items:baseline;justify-content:space-between;flex:none}
 #mpDisplay header h2{font-family:Limelight,serif;font-weight:400;font-size:26px;margin:0}
 #mpDisplay header button{all:unset;cursor:pointer;font-size:24px;padding:0 8px}
+.mpRoomBar{padding:12px 22px 10px;border-bottom:1px dashed var(--panel-line);flex:none;display:flex;flex-direction:column;gap:6px;align-items:center}
+.mpRoomBarLbl{font:13px "Special Elite",monospace;letter-spacing:.08em}
 .mpKnobs{display:flex;gap:30px;flex-wrap:wrap;padding:16px 22px;border-bottom:2px solid var(--panel-line);flex:none;justify-content:center}
 .mpKnob{display:flex;flex-direction:column;align-items:center;gap:4px;width:110px}
 .mpKnob .mpKnobLbl{font:13px "Special Elite",monospace;letter-spacing:.08em;text-align:center}
@@ -728,14 +730,18 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
 
 <div id="mpDisplay" aria-label="Macropad">
   <header><h2>Macropad</h2><button id="closeMpDisplay" aria-label="Stäng">&times;</button></header>
+  <div class="mpRoomBar">
+    <div class="mpRoomBarLbl">Rum: <b id="mpKnobRoom">&mdash;</b></div>
+    <div class="seg" id="mpRoomRow"></div>
+  </div>
   <div class="mpKnobs">
     <div class="mpKnob">
       <span class="mpKnobLbl">Volym</span>
-      <div class="mpKnobDial" id="mpKnobVol" tabindex="0" role="slider" aria-label="Volym"><div class="mpKnobNeedle"></div></div>
+      <div class="mpKnobDial disabled" id="mpKnobVol" tabindex="0" role="slider" aria-label="Volym"><div class="mpKnobNeedle"></div></div>
       <output class="mpKnobVal" id="mpKnobVolVal"></output>
     </div>
     <div class="mpKnob">
-      <span class="mpKnobLbl">Ljusstyrka<small id="mpKnobRoom"></small></span>
+      <span class="mpKnobLbl">Ljusstyrka</span>
       <div class="mpKnobDial disabled" id="mpKnobDim" tabindex="0" role="slider" aria-label="Ljusstyrka"><div class="mpKnobNeedle"></div></div>
       <output class="mpKnobVal" id="mpKnobDimVal"></output>
     </div>
@@ -2640,6 +2646,7 @@ async function loadTradfriLists(){
     refreshTradfriMoodList();
     renderLightCtl();
     renderMacropad();
+    renderMpRoomButtons();
     const ageS = d && d.at ? Math.round((Date.now()/1000) - d.at) : null;
     note.textContent = groups.length
       ? `Hämtat direkt från gatewayen via kameradatorn.${ageS != null ? " (uppdaterad för " + ageS + "s sedan)" : ""}`
@@ -2834,24 +2841,39 @@ function mpThrottled(fn, ms){
     else pending = setTimeout(() => { last = Date.now(); fn(...args); }, wait);
   };
 }
-let mpActiveRoom = S.mpActiveRoom || "";
+// Rum valt antingen via en egen rumsknapp (mpRoomRow, bara valjer - gor
+// ingenting annat) eller genom att trycka en belysningsknapp i rutnatet.
+// Vardagsrum ar forvalt sa rattarna fungerar direkt, utan att man maste
+// valja nagot forst (bade Sonos-hogtalaren och Tradfri-gruppen heter sa).
+let mpActiveRoom = S.mpActiveRoom || "Vardagsrum";
 const mpKnobRoomLbl = $("#mpKnobRoom");
+const mpSendVol = mpThrottled(v => { if (mpActiveRoom) sendRaw("sonos-vol:" + JSON.stringify({ room: mpActiveRoom, value: v })); }, 150);
 const mpSendDim = mpThrottled(v => { if (mpActiveRoom) lightCmd(mpActiveRoom, "dim", v); }, 150);
 const mpSendTemp = mpThrottled(v => { if (mpActiveRoom) lightCmd(mpActiveRoom, "temp", v); }, 150);
 const mpVolVal = $("#mpKnobVolVal"), mpDimVal = $("#mpKnobDimVal"), mpTempVal = $("#mpKnobTempVal");
-const mpKnobVol = makeKnob($("#mpKnobVol"), { min:0, max:1, value:S.volume,
-  onRender: v => mpVolVal.textContent = Math.round(v*100) + "%",
-  onChange: v => { S.volume = v; saveS(); if (outGain) outGain.gain.value = v; $("#vol").value = v; } });
+// Ingen av rattarna har nagon aterkoppling fran den verkliga hogtalaren/
+// lampan (ingen las-API for det) - de minns bara var de senast stod.
+const mpKnobVol = makeKnob($("#mpKnobVol"), { min:0, max:100, value:50,
+  onRender: v => mpVolVal.textContent = Math.round(v) + "%",
+  onChange: v => mpSendVol(Math.round(v)) });
 const mpKnobDim = makeKnob($("#mpKnobDim"), { min:1, max:100, value:100,
   onRender: v => mpDimVal.textContent = Math.round(v) + "%",
   onChange: v => mpSendDim(Math.round(v)) });
 const mpKnobTemp = makeKnob($("#mpKnobTemp"), { min:0, max:100, value:50,
   onRender: v => mpTempVal.textContent = tempLabel(v),
   onChange: v => mpSendTemp(Math.round(v)) });
+function renderMpRoomButtons(){
+  const host = $("#mpRoomRow"); if (!host) return;
+  const names = Object.keys(TRADFRI_GROUPS);
+  if (!names.length){ host.innerHTML = '<span class="note" style="margin:0">Inga rum hämtade än.</span>'; return; }
+  host.innerHTML = names.map(n => `<button type="button" class="${n === mpActiveRoom ? "on" : ""}" data-room="${esc(n)}">${esc(n)}</button>`).join("");
+  host.querySelectorAll("button[data-room]").forEach(b => b.addEventListener("click", () => mpSetActiveRoom(b.dataset.room)));
+}
 function mpUpdateKnobState(){
   const has = !!mpActiveRoom;
-  mpKnobDim.setDisabled(!has); mpKnobTemp.setDisabled(!has);
-  mpKnobRoomLbl.textContent = has ? ` - ${mpActiveRoom}` : " - inget rum valt än";
+  mpKnobVol.setDisabled(!has); mpKnobDim.setDisabled(!has); mpKnobTemp.setDisabled(!has);
+  mpKnobRoomLbl.textContent = has ? mpActiveRoom : "inget valt";
+  renderMpRoomButtons();
 }
 function mpSetActiveRoom(name){
   mpActiveRoom = name || "";
@@ -3148,7 +3170,7 @@ function toggleMpPanel(open){
 function toggleMpDisplay(open){
   const willOpen = open ?? !mpDisplay.classList.contains("open");
   mpDisplay.classList.toggle("open", willOpen);
-  if (willOpen){ renderMacropadGrid(); mpKnobVol.set(S.volume); mpUpdateKnobState(); }
+  if (willOpen){ renderMacropadGrid(); mpUpdateKnobState(); }
 }
 $("#macropadBtn").addEventListener("click", () => toggleMpDisplay(true));
 $("#closeMpDisplay").addEventListener("click", () => toggleMpDisplay(false));
