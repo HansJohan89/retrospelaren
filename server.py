@@ -195,6 +195,53 @@ def match_window(data):
     return t - 300 <= time.time() <= t + 9000
 
 
+# Vissa klubbar saknar emblem hos Highlightly (en riktig 404 på bildens egen CDN,
+# inte bara ett tomt fält i svaret). Fallback: slå upp klubbens egen logga (property
+# P154, "logo image") på Wikidata och länka till originalfilen på Wikimedia Commons.
+# Cachas i minnet per processlivstid - varje klubb slås bara upp en gång.
+_WIKI_LOGO_CACHE = {}
+
+
+def wiki_logo(name):
+    if not name:
+        return None
+    if name in _WIKI_LOGO_CACHE:
+        return _WIKI_LOGO_CACHE[name]
+    url = None
+    try:
+        s = _get_json("https://www.wikidata.org/w/api.php?" + urllib.parse.urlencode(
+            {"action": "wbsearchentities", "search": name, "language": "sv", "format": "json", "limit": 1, "type": "item"}))
+        hits = s.get("search") or []
+        if hits:
+            qid = hits[0]["id"]
+            e = _get_json(f"https://www.wikidata.org/wiki/Special:EntityData/{qid}.json")
+            claims = (e.get("entities", {}).get(qid, {}) or {}).get("claims", {})
+            logo = claims.get("P154") or []
+            if logo:
+                fname = logo[0]["mainsnak"]["datavalue"]["value"]
+                url = "https://commons.wikimedia.org/wiki/Special:FilePath/" + urllib.parse.quote(fname)
+    except Exception:
+        url = None
+    _WIKI_LOGO_CACHE[name] = url
+    return url
+
+
+def fill_missing_logos(team):
+    """Fyller i saknade klubbemblem (tabellrader, egen standing, nästa motståndare) via wiki_logo()."""
+    def ensure(obj, name_key, logo_key):
+        if obj and not obj.get(logo_key):
+            obj[logo_key] = wiki_logo(obj.get(name_key))
+    for r in team.get("table") or []:
+        ensure(r, "name", "logo")
+    st = (team.get("standing") or {}).get("team")
+    if st:
+        ensure(st, "name", "logo")
+    nm = team.get("next_match")
+    if nm:
+        ensure(nm, "opponent", "opponent_logo")
+    return team
+
+
 ESPN_LEAGUE = "swe.1"
 ESPN_AIK = "994"
 
@@ -275,14 +322,16 @@ def football_highlightly(key):
         return {"opponent": opp.get("name"), "opponent_logo": opp.get("logo"), "is_home": home,
                 "date": m.get("date"), "score": ((m.get("state") or {}).get("score") or {}).get("current")}
     tot = lambda s, k: (s.get("total") or {}).get(k)
-    return {"team_name": "AIK", "team_id": team, "league": "Allsvenskan",
-            "standing": next((s for s in table if s["team"]["id"] == team), None),
-            "table": [{"position": s.get("position"), "points": s.get("points"), "name": s["team"].get("name"),
-                       "id": s["team"].get("id"), "logo": s["team"].get("logo"), "g": tot(s, "games"), "w": tot(s, "wins"),
-                       "d": tot(s, "draws"), "l": tot(s, "loses"), "gf": tot(s, "scoredGoals"), "ga": tot(s, "receivedGoals")}
-                      for s in table],
-            "next_match": summary(min(up, key=lambda m: m["date"]) if up else None),
-            "recent_results": [summary(m) for m in done]}
+    result = {"team_name": "AIK", "team_id": team, "league": "Allsvenskan",
+              "standing": next((s for s in table if s["team"]["id"] == team), None),
+              "table": [{"position": s.get("position"), "points": s.get("points"), "name": s["team"].get("name"),
+                         "id": s["team"].get("id"), "logo": s["team"].get("logo"), "g": tot(s, "games"), "w": tot(s, "wins"),
+                         "d": tot(s, "draws"), "l": tot(s, "loses"), "gf": tot(s, "scoredGoals"), "ga": tot(s, "receivedGoals")}
+                        for s in table],
+              "next_match": summary(min(up, key=lambda m: m["date"]) if up else None),
+              "recent_results": [summary(m) for m in done]}
+    fill_missing_logos(result)
+    return result
 
 
 HOCKEY_LEAGUE = 42483    # Hockeyallsvenskan
@@ -325,11 +374,17 @@ def hockey_highlightly(key):
         home = m["homeTeam"]["id"] == team
         opp = m["awayTeam"] if home else m["homeTeam"]
         return {"opponent": opp.get("name"), "opponent_logo": opp.get("logo"), "is_home": home, "date": m.get("date")}
-    return {"team_name": "AIK", "team_id": team, "league": "Hockeyallsvenskan",
-            "standing": next((r for r in table if r["id"] == team), None),
-            "table": table,
-            "next_match": summary(min(up, key=lambda m: m["date"]) if up else None),
-            "recent_results": []}
+    # OBS: "standing" ska (som i football_highlightly) ha ett nästlat team-objekt - inte
+    # plockas ur den redan utplattade "table" (som saknar "team" helt). Annars försvinner
+    # AIK:s eget emblem i "nästa match", eftersom frontend läser standing.team.logo.
+    own = next((s for s in raw if s["team"].get("id") == team), None)
+    standing = {"position": own.get("position"), "points": pts(own), "team": own.get("team")} if own else None
+    result = {"team_name": "AIK", "team_id": team, "league": "Hockeyallsvenskan",
+              "standing": standing, "table": table,
+              "next_match": summary(min(up, key=lambda m: m["date"]) if up else None),
+              "recent_results": []}
+    fill_missing_logos(result)
+    return result
 
 
 def secret(name):
