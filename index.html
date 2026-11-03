@@ -148,13 +148,15 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #pgWx .wxB.solo{grid-template-columns:1fr}
 /* Med fotboll: vänster spalt = timprognos (4 tider) ovanför en mer fyrkantig skylt, höger spalt = tabellen från timprognosens topp till skyltens botten */
 #pgWx .wxB.duo{grid-template-columns:minmax(0,.78fr) minmax(0,1.22fr)}
+/* Med fotboll OCH hockey: samma vänsterspalt, men höger delas i två smalare tabeller sida vid sida */
+#pgWx .wxB.trio{grid-template-columns:minmax(0,.62fr) minmax(0,.72fr) minmax(0,.72fr)}
 #pgWx .wxC{display:flex;flex-direction:column;gap:2.4vh;min-height:0;min-width:0;container-type:inline-size}
 /* Skyltens text följer spaltens bredd, så att hållplatsnamn och avgångar inte kapas på smala skärmar */
 #pgWx .wxC .sign{font-size:min(.86em,4.2cqi)}
 .wxDays{container-type:inline-size}
 @container (max-width:620px){ .wxDays .u{display:none} }
 #pgWx .wxC .wxHours{flex:none}
-#pgWx .wxB.duo .sign{flex:1 1 auto;min-height:0;max-height:none;align-self:stretch}
+#pgWx .wxB.duo .sign,#pgWx .wxB.trio .sign{flex:1 1 auto;min-height:0;max-height:none;align-self:stretch}
 #pgWx .wxRow,#pgWx .kick{flex:none}
 #pgWx.tight .wxHours{display:none}
 /* Hållplatsskylt i Dalatrafiks stil: rött namnfält, vita rader med röda linjer, rött fält med webb och telefon */
@@ -616,7 +618,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <label class="chk"><input type="checkbox" id="photoOrig"> Foton i originalfärg (annars bildrörets färgläge)</label>
       <div class="note" id="photoStatus"></div>
       <label class="chk"><input type="checkbox" id="idFb"> Fotboll &amp; hockey (AIK)</label>
-      <label class="chk"><input type="checkbox" id="idWxFb"> AIK-tabell bredvid bussarna på vädersidan</label>
+      <label class="chk"><input type="checkbox" id="idWxFb"> AIK-tabellerna (fotboll &amp; hockey) bredvid bussarna på vädersidan</label>
       <div class="row"><span class="lbl">Fotbollskälla</span><select id="fbSrc"><option value="espn">ESPN (ingen nyckel, ingen kvot)</option><option value="highlightly">Highlightly (100 anrop/dygn)</option></select></div>
       <div class="row"><span class="lbl">Hämta var</span><input type="number" id="fbMins" min="5" max="1440" step="5" style="width:6em"> <span class="lbl">minut</span></div>
       <div class="note">Under en AIK-match hämtar ESPN var 5:e minut. Highlightly hämtar högst en gång i timmen. Hockeyn (Hockeyallsvenskan) kommer alltid från Highlightly, högst en gång i timmen.</div>
@@ -1839,8 +1841,10 @@ function renderWxPage(){
       `<span class="p">${(D2.precipitation_sum[i] ?? 0).toFixed(1).replace(".", ",")}<span class="u"> mm</span></span></div>`);
   }
   const sr = D2.sunrise?.[0] ? hhmm(new Date(D2.sunrise[0])) : "–", ss = D2.sunset?.[0] ? hhmm(new Date(D2.sunset[0])) : "–";
-  // Fotbollen behåller sin plats även när datan saknas för stunden, så att sidan inte byter utseende
-  const bus = S.bus.on, fb = S.idle.wxFb && FOOT.ok && FOOT.teams[0], fbWant = S.idle.wxFb;
+  // Fotbollen/hockeyn behåller sin plats även när datan saknas för stunden, så att sidan inte byter utseende
+  const bus = S.bus.on, fbWant = S.idle.wxFb;
+  const fb = fbWant && FOOT.ok && FOOT.teams[0], hk = fbWant && HOCKEY.ok && HOCKEY.teams[0];
+  const sportBox = (T, label) => T ? renderFbBox(T) : `<div class="fbBox"><div class="fbWait">${esc(label)}<small>Tabellen hämtas igen om en stund.</small></div></div>`;
   return `<div class="wxA"><div class="wxL">
       <div class="wxNow">${wxIcon(W2.c, W2.day)}<span class="tmp">${Math.round(W2.t)}°</span>
         <div class="txt"><span class="big">${WX_TEXT(W2.c)}</span><span class="sub">Känns som ${Math.round(W2.feel)}°</span><span class="sub">Idag ${Math.round(W2.hi)}° / ${Math.round(W2.lo)}°</span></div></div>
@@ -1848,7 +1852,7 @@ function renderWxPage(){
         <span>Fukt <b>${Math.round(W2.hum)}%</b></span><span>Tryck <b>${Math.round(W2.pres)} hPa</b></span></div>
         <div><span>Sol <b>${sr}</b> – <b>${ss}</b></span></div></div>
     </div><div class="wxRow wxDays" style="grid-template-columns:repeat(${days.length},1fr)">${days.join("")}</div></div>
-    ${fbWant ? `<div class="wxB duo"><div class="wxC">${hoursRow(hours.slice(0, 4))}${bus ? renderBus() : ""}</div>${fb ? renderFbBox(fb) : `<div class="fbBox"><div class="fbWait">Allsvenskan<small>Tabellen hämtas igen om en stund.</small></div></div>`}</div>`
+    ${fbWant ? `<div class="wxB trio"><div class="wxC">${hoursRow(hours.slice(0, 4))}${bus ? renderBus() : ""}</div>${sportBox(fb, "Allsvenskan")}${sportBox(hk, "Hockeyallsvenskan")}</div>`
       : hoursRow(hours) + (bus ? `<div class="wxB solo">${renderBus()}</div>` : "")}`;
 }
 function hoursRow(hours){ return `<div class="wxRow wxHours" style="grid-template-columns:repeat(${hours.length},1fr)">${hours.join("")}</div>`; }
@@ -1872,7 +1876,7 @@ function renderFbBox(T){
     `<span class="n">${v(r.g)}</span><span class="n">${v(r.w)}</span><span class="n">${v(r.d)}</span><span class="n">${v(r.l)}</span><span class="n">${diff(r)}</span>` +
     `<span class="n gm">${r.gf == null ? "" : r.gf + "–" + r.ga}</span><span class="pt">${r.points}</span></div>`).join("");
   const head = `<div class="mh"><span></span><span></span><span></span><span>S</span><span>V</span><span>O</span><span>F</span><span>+/−</span><span class="gm">Mål</span><span>P</span></div>`;
-  return `<div class="fbBox">${next}${head}<div class="mt">${rows}</div></div>`;
+  return `<div class="fbBox"><div class="bh">${esc(T.league)}</div>${next}${head}<div class="mt">${rows}</div></div>`;
 }
 function newsHost(link){ try{ return new URL(link).hostname.replace(/^www\./, ""); }catch(e){ return ""; } }
 async function ensureImg(x){
@@ -2010,12 +2014,16 @@ function homeTile(k){
       <div class="nw">${a.img ? `<img src="/api/img?url=${encodeURIComponent(a.img)}" alt="" onerror="this.remove()">` : ""}<div class="t2">${esc(a.title)}</div></div></div>`;
   }
   if (k === "aik"){
-    const T = FOOT.ok && FOOT.teams[0]; if (!T) return `<div class="tile"><div class="h">AIK</div><div class="sub">Ingen fotbollsdata.</div></div>`;
-    const st = T.standing || {}, nm = T.next_match;
+    const T = FOOT.ok && FOOT.teams[0], H = HOCKEY.ok && HOCKEY.teams[0];
+    if (!T && !H) return `<div class="tile"><div class="h">AIK</div><div class="sub">Ingen fotbolls- eller hockeydata.</div></div>`;
     const d = x => { const t = new Date(x); return `${SV_DAYS[t.getDay()]} ${t.getDate()}/${t.getMonth()+1} ${hhmm(t)}`; };
-    return `<div class="tile"><div class="h">Fotboll · ${esc(T.league)}</div>
-      <div class="fbHead">${st.team ? logo(st.team.logo) : ""}<div><div class="n">${esc(T.team_name)}</div>${st.position ? `<div class="s">${ordinal(st.position)} plats · ${st.points} p</div>` : ""}</div></div>
-      ${nm ? `<div class="sub">Nästa: <span style="color:var(--ink)">${esc(nm.opponent)}</span> · ${nm.is_home ? "hemma" : "borta"} · ${d(nm.date)}</div>` : ""}</div>`;
+    const line = (X, label) => {
+      if (!X) return "";
+      const st = X.standing || {}, nm = X.next_match;
+      return `<div class="fbHead">${st.team ? logo(st.team.logo) : ""}<div><div class="n">${esc(label)}</div>${st.position ? `<div class="s">${ordinal(st.position)} plats · ${st.points} p</div>` : ""}</div></div>
+        ${nm ? `<div class="sub">Nästa: <span style="color:var(--ink)">${esc(nm.opponent)}</span> · ${nm.is_home ? "hemma" : "borta"} · ${d(nm.date)}</div>` : ""}`;
+    };
+    return `<div class="tile"><div class="h">AIK · Fotboll &amp; Hockey</div>${line(T, "Fotboll")}${line(H, "Hockey")}</div>`;
   }
   if (k === "photo"){
     if (!PHOTOS.urls.length) return `<div class="tile"><div class="h">Foto</div><div class="sub">Lägg in ett album under Foton.</div></div>`;
