@@ -426,6 +426,25 @@ kbd{font:12px "Special Elite",monospace;border:1px solid var(--panel-ink);border
 .mpDelayLbl{display:flex;align-items:center;gap:6px;font-size:13px;margin-left:auto}
 .mpEditCrumb{display:flex;align-items:center;gap:8px;margin-top:6px}
 .mpEditCrumb:empty{margin:0}
+/* Drag-och-slapp-redigeraren - atgardsbibliotek + rutnat, atervander .mpKey/.mpKeyEmpty
+   (definierade for den morka korvyn ovan - de ar globala klasser, inte scopade till
+   #mpDisplay) sa en knapp ser likadan ut har som i korvyn man sedan trycker i. */
+.mpEditor{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.mpLibrary{display:flex;flex-wrap:wrap;gap:8px}
+.mpLibItem{all:unset;box-sizing:border-box;width:62px;aspect-ratio:1/1;border-radius:10px;
+  background:linear-gradient(155deg,#1d1d21,#131316);border:1px solid #000;box-shadow:inset 0 0 0 1.5px #2c2c32;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#eee;cursor:grab;padding:4px;text-align:center}
+.mpLibItem:active{cursor:grabbing}
+.mpLibItem .mpKeyIcon{font-size:19px}
+.mpLibItem .mpKeyLabel{font-size:8.5px}
+.mpEditGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;max-width:340px}
+.mpEditGrid .mpKey,.mpEditGrid .mpKeyEmpty{position:relative}
+.mpEditGrid .mpKey.selected,.mpEditGrid .mpKeyEmpty.selected{box-shadow:inset 0 0 0 2px #2563eb,0 3px 8px rgba(0,0,0,.55)}
+.mpEditGrid .mpKey.dragover,.mpEditGrid .mpKeyEmpty.dragover{box-shadow:inset 0 0 0 2px #22c55e,0 3px 8px rgba(0,0,0,.55)}
+.mpKeyDel{position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;background:#b5442c;color:#fff;
+  font-size:11px;line-height:16px;text-align:center;cursor:pointer}
+.mpInspector{margin-top:4px}
+.mpInspector .note{margin-top:6px}
 /* ---- #mpDisplay: simulerad Elgato Stream Deck+ - eget morkt tema, medvetet
    fristaende fran BLAUPUNKT:s retro-utseende (resten av panelerna anvander
    fortfarande --panel/--panel-ink osv). Formen ska matcha riktig hardvara:
@@ -755,10 +774,14 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
   <div class="scroll">
     <section>
       <h3>Knappar</h3>
-      <div class="note">Lägg till knappar och välj vad var och en ska göra (musik/skärm, kanal, palett, belysning, mapp eller flera åtgärder). Max 8 per sida - som på en riktig Stream Deck+ (4x2 rutnät).</div>
+      <div class="note">Dra en åtgärd från biblioteket ner på en ruta - eller klicka en tom ruta för en standardknapp. Klicka en ifylld ruta för att redigera den, dra den till en annan ruta för att flytta. Max 8 per sida - som på en riktig Stream Deck+ (4x2 rutnät).</div>
       <div id="mpEditCrumb" class="mpEditCrumb"></div>
-      <div id="mpConfig"></div>
-      <div class="row"><button class="btn" id="mpAddBtn">+ Lägg till knapp</button><span class="note" id="mpAddCount" style="margin:0 0 0 10px"></span></div>
+      <div class="mpEditor">
+        <div id="mpLibrary" class="mpLibrary"></div>
+        <div id="mpEditGrid" class="mpEditGrid"></div>
+      </div>
+      <div class="row"><button class="btn" id="mpAddBtn">+ Lägg till i första lediga ruta</button><span class="note" id="mpAddCount" style="margin:0 0 0 10px"></span></div>
+      <div id="mpInspector" class="mpInspector"></div>
       <div class="row"><button class="btn primary" id="mpOpenDisplayBtn">Visa macropad &rarr;</button></div>
     </section>
   </div>
@@ -2931,10 +2954,10 @@ function mpWireRows(cfg, page){
       b.kind = nk;
       saveS(); renderMacropad();
     });
-    row.querySelector(".mpDel").addEventListener("click", () => { page[i] = null; saveS(); renderMacropad(); });
+    row.querySelector(".mpDel").addEventListener("click", () => { page[i] = null; mpSelectedSlot = null; saveS(); renderMacropad(); });
 
     const openFolder = row.querySelector(".mpOpenFolder");
-    if (openFolder) openFolder.addEventListener("click", () => { mpFolderPage(b.folderId); mpEditStack.push(b.folderId); renderMacropad(); });
+    if (openFolder) openFolder.addEventListener("click", () => { mpFolderPage(b.folderId); mpEditStack.push(b.folderId); mpSelectedSlot = null; renderMacropad(); });
 
     const statesChk = row.querySelector(".mpStatesChk");
     if (statesChk) statesChk.addEventListener("change", e => {
@@ -2980,32 +3003,126 @@ function mpWireRows(cfg, page){
     }
   });
 }
+// Atgardsbiblioteket man drar ifran - samma 6 knapptyper som fanns i den gamla
+// dropdown-listan, nu som dragbara brickor (motsvarar Stream Deck-appens Actions-panel).
+const MP_LIBRARY = [
+  ["cmd","Musik/skärm","▶"], ["viz","Kanal","📊"], ["palette","Palett","🎨"],
+  ["light","Belysning","💡"], ["folder","Mapp","📁"], ["multi","Flera åtgärder","🧩"]
+];
+function renderMpLibrary(){
+  const host = $("#mpLibrary"); if (!host) return;
+  if (host.dataset.built) return;   // biblioteket ar alltid detsamma - bygg bara en gang
+  host.dataset.built = "1";
+  host.innerHTML = MP_LIBRARY.map(([kind,label,icon]) =>
+    `<div class="mpLibItem" draggable="true" data-kind="${kind}"><span class="mpKeyIcon">${icon}</span><span class="mpKeyLabel">${esc(label)}</span></div>`
+  ).join("");
+  host.querySelectorAll(".mpLibItem").forEach(el => {
+    el.addEventListener("dragstart", e => {
+      e.dataTransfer.setData("text/mpkind", el.dataset.kind);
+      e.dataTransfer.effectAllowed = "copy";
+    });
+  });
+}
+function mpMakeSlot(kind){
+  const b = { kind, v1: kind === "cmd" ? "open" : undefined };
+  if (kind === "folder") b.folderId = mpUid();
+  if (kind === "multi") b.steps = [];
+  return b;
+}
+// Rutnatet man bygger pa - samma 4x2-form och samma .mpKey/.mpKeyEmpty-utseende som
+// korvyn, fast dragbart/droppbart och klickbart for att valja vilken ruta som visas
+// i redigeraren under. Precis som riktiga Stream Deck-appen, dar man drar atgarder
+// rakt ner pa samma knappar man sedan trycker pa.
+let mpSelectedSlot = null;
+function renderMpEditGrid(){
+  const grid = $("#mpEditGrid"); if (!grid) return;
+  const page = mpEditPage(), max = mpEditMax();
+  if (mpSelectedSlot !== null && (mpSelectedSlot >= max || !page[mpSelectedSlot])) mpSelectedSlot = null;
+  const cells = [];
+  for (let i = 0; i < max; i++){
+    const b = page[i], sel = mpSelectedSlot === i ? " selected" : "";
+    if (b) cells.push(`<button type="button" class="mpKey${sel}" draggable="true" data-i="${i}"><span class="mpKeyIcon">${mpIcon(b)}</span><span class="mpKeyLabel">${esc(mpLabel(b))}</span><span class="mpKeyDel" data-del="${i}" title="Ta bort">&times;</span></button>`);
+    else cells.push(`<button type="button" class="mpKeyEmpty${sel}" data-i="${i}"><span class="mpKeyPlus">+</span></button>`);
+  }
+  grid.innerHTML = cells.join("");
+  grid.querySelectorAll(".mpKey,.mpKeyEmpty").forEach(cell => {
+    const i = +cell.dataset.i;
+    cell.addEventListener("click", e => {
+      if (e.target.closest(".mpKeyDel")) return;
+      if (!page[i]) page[i] = mpMakeSlot("cmd");
+      mpSelectedSlot = i;
+      saveS(); renderMacropad();
+    });
+    cell.addEventListener("dragover", e => { e.preventDefault(); cell.classList.add("dragover"); });
+    cell.addEventListener("dragleave", () => cell.classList.remove("dragover"));
+    cell.addEventListener("drop", e => {
+      e.preventDefault(); cell.classList.remove("dragover");
+      const moveFrom = e.dataTransfer.getData("text/mpmove");
+      const newKind = e.dataTransfer.getData("text/mpkind");
+      if (moveFrom !== ""){
+        const from = +moveFrom;
+        if (from === i) return;
+        if (page[i] && !confirm("Rutan är redan upptagen - byta plats ändå?")) return;
+        const tmp = page[i]; page[i] = page[from]; page[from] = tmp;
+      } else if (newKind){
+        if (page[i] && !confirm("Rutan är redan upptagen - skriva över den?")) return;
+        page[i] = mpMakeSlot(newKind);
+      } else return;
+      mpSelectedSlot = i; saveS(); renderMacropad();
+    });
+  });
+  grid.querySelectorAll(".mpKey").forEach(cell => {
+    cell.addEventListener("dragstart", e => {
+      e.dataTransfer.setData("text/mpmove", cell.dataset.i);
+      e.dataTransfer.effectAllowed = "move";
+    });
+  });
+  grid.querySelectorAll(".mpKeyDel").forEach(x => x.addEventListener("click", e => {
+    e.stopPropagation();
+    const i = +x.dataset.del;
+    page[i] = null;
+    if (mpSelectedSlot === i) mpSelectedSlot = null;
+    saveS(); renderMacropad();
+  }));
+}
+// Inspector - visar hela redigeraren (samma mpRowHtml/mpWireRows som forut) for EN
+// vald ruta i taget, istallet for alla staplade i en lista.
+function renderMpInspector(){
+  const host = $("#mpInspector"); if (!host) return;
+  const page = mpEditPage();
+  if (mpSelectedSlot === null || !page[mpSelectedSlot]){
+    host.innerHTML = '<div class="note">Klicka en ruta ovan för att redigera den.</div>';
+    return;
+  }
+  host.innerHTML = mpRowHtml(page[mpSelectedSlot], mpSelectedSlot);
+  mpWireRows(host, page);
+}
 function renderMacropad(){
-  const cfg = $("#mpConfig");
-  if (!cfg) return;
   const page = mpEditPage(), inFolder = mpEditStack.length > 0;
   const crumb = $("#mpEditCrumb");
   if (crumb){
     if (inFolder){
       const id = mpEditStack[mpEditStack.length - 1], slot = mpFindSlotByFolderId(id);
       crumb.innerHTML = `<button type="button" class="btn" id="mpEditUp">&larr; Huvudsida</button> <b>${esc((slot && mpLabel(slot)) || "Mapp")}</b>`;
-      $("#mpEditUp").addEventListener("click", () => { mpEditStack.pop(); renderMacropad(); });
+      $("#mpEditUp").addEventListener("click", () => { mpEditStack.pop(); mpSelectedSlot = null; renderMacropad(); });
     } else {
       crumb.innerHTML = "";
     }
   }
-  const entries = page.map((b, i) => ({ b, i })).filter(e => e.b);
-  cfg.innerHTML = entries.length ? entries.map(({ b, i }) => mpRowHtml(b, i)).join("") : '<div class="note">Inga knappar på den här sidan än.</div>';
-  mpWireRows(cfg, page);
+  renderMpLibrary();
+  renderMpEditGrid();
+  renderMpInspector();
+  const entries = page.filter(Boolean).length;
   const addBtn = $("#mpAddBtn"), count = $("#mpAddCount"), free = mpEditFirstFree();
   if (addBtn) addBtn.disabled = free < 0;
-  if (count) count.textContent = `${entries.length}/${mpEditMax()}`;
+  if (count) count.textContent = `${entries}/${mpEditMax()}`;
   renderMacropadGrid();
 }
 $("#mpAddBtn").addEventListener("click", () => {
   const free = mpEditFirstFree();
   if (free < 0) return;
-  mpEditPage()[free] = { kind: "cmd", v1: "open" };
+  mpEditPage()[free] = mpMakeSlot("cmd");
+  mpSelectedSlot = free;
   saveS(); renderMacropad();
 });
 
@@ -3486,7 +3603,7 @@ const mpPanel = $("#mpPanel"), mpDisplay = $("#mpDisplay");
 function toggleMpPanel(open){
   const willOpen = open ?? !mpPanel.classList.contains("open");
   mpPanel.classList.toggle("open", willOpen);
-  if (willOpen){ mpEditStack = []; renderMacropad(); }
+  if (willOpen){ mpEditStack = []; mpSelectedSlot = null; renderMacropad(); }
 }
 function toggleMpDisplay(open){
   const willOpen = open ?? !mpDisplay.classList.contains("open");
