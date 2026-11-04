@@ -407,12 +407,25 @@ kbd{font:12px "Special Elite",monospace;border:1px solid var(--panel-ink);border
 .lgBtns{display:flex;gap:6px;margin-bottom:4px}
 .lgRow .sl{grid-template-columns:84px 1fr 56px}
 .lgRow select{width:100%;margin-top:6px}
-.mpRow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;border:1.5px solid var(--panel-ink);border-radius:4px;padding:6px 8px;margin-top:6px;background:#f6efdc}
+.mpRow{display:flex;flex-direction:column;gap:6px;border:1.5px solid var(--panel-ink);border-radius:4px;padding:6px 8px;margin-top:6px;background:#f6efdc}
+.mpRowHead{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.mpRowBody{display:flex;flex-direction:column;gap:6px}
 .mpRow input[type=text]{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--panel-ink);background:#fff;color:var(--panel-ink);border-radius:3px;width:9em}
 .mpRow select{flex:none;width:auto;min-width:9em}
 .mpRow input[type=number]{width:4.5em;font:inherit;font-size:14px;padding:6px 4px;border:1.5px solid var(--panel-ink);background:#fff;color:var(--panel-ink);border-radius:3px}
 .mpRow input[type=color]{width:2.4em;height:2.4em;padding:0;border:1.5px solid var(--panel-ink);border-radius:3px}
-.mpRow .mpDel{margin-left:auto}
+.mpRowHead .mpDel{margin-left:auto}
+.mpRowBody .mpSub{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.mpStatesToggle{display:flex;align-items:center;gap:6px;font-size:13px}
+.mpStateBlock{display:flex;gap:6px;flex-wrap:wrap;align-items:center;border-top:1px dashed var(--panel-line);padding-top:6px}
+.mpStateBlock b{flex:none;width:100%;font-size:12px;opacity:.75;font-weight:normal;font-style:italic}
+.mpMulti{display:flex;flex-direction:column;gap:6px}
+.mpStep{display:flex;gap:6px;flex-wrap:wrap;align-items:center;border-top:1px dashed var(--panel-line);padding-top:6px}
+.mpStepNum{flex:none;width:1.4em;opacity:.7}
+.mpStepDel{margin-left:auto}
+.mpDelayLbl{display:flex;align-items:center;gap:6px;font-size:13px;margin-left:auto}
+.mpEditCrumb{display:flex;align-items:center;gap:8px;margin-top:6px}
+.mpEditCrumb:empty{margin:0}
 /* ---- #mpDisplay: simulerad Elgato Stream Deck+ - eget morkt tema, medvetet
    fristaende fran BLAUPUNKT:s retro-utseende (resten av panelerna anvander
    fortfarande --panel/--panel-ink osv). Formen ska matcha riktig hardvara:
@@ -440,6 +453,8 @@ kbd{font:12px "Special Elite",monospace;border:1px solid var(--panel-ink);border
 .mpKeyEmpty{all:unset;box-sizing:border-box;aspect-ratio:1/1;border-radius:13px;border:1.5px dashed #2a2a30;background:#0d0d0f;color:#3c3c42;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .mpKeyEmpty:hover{border-color:#444;color:#666}
 .mpKeyEmpty .mpKeyPlus{font-size:22px;line-height:1}
+.mpKeyBack{background:linear-gradient(155deg,#1d2430,#111720);box-shadow:inset 0 0 0 1.5px #2563eb55,0 3px 8px rgba(0,0,0,.55)}
+.mpKeyBack .mpKeyIcon{color:#5b9dff}
 .mpKnobs{display:flex;gap:22px;flex-wrap:wrap;padding:16px 22px;border-top:1px solid #1e1e22;flex:none;justify-content:center;background:#101012}
 .mpKnob{display:flex;flex-direction:column;align-items:center;gap:6px;width:190px}
 .mpKnob .mpKnobLbl{font:11px/1 Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#9a9aa2;text-align:center}
@@ -740,7 +755,8 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
   <div class="scroll">
     <section>
       <h3>Knappar</h3>
-      <div class="note">Lägg till knappar och välj vad var och en ska göra (musik/skärm, kanal, palett eller belysning). Max 8 - som på en riktig Stream Deck+ (4x2 rutnät).</div>
+      <div class="note">Lägg till knappar och välj vad var och en ska göra (musik/skärm, kanal, palett, belysning, mapp eller flera åtgärder). Max 8 per sida - som på en riktig Stream Deck+ (4x2 rutnät).</div>
+      <div id="mpEditCrumb" class="mpEditCrumb"></div>
       <div id="mpConfig"></div>
       <div class="row"><button class="btn" id="mpAddBtn">+ Lägg till knapp</button><span class="note" id="mpAddCount" style="margin:0 0 0 10px"></span></div>
       <div class="row"><button class="btn primary" id="mpOpenDisplayBtn">Visa macropad &rarr;</button></div>
@@ -2724,16 +2740,58 @@ function renderLightCtl(){
   }));
 }
 
-// ---------- virtuell macropad (test) ----------
-// Varje knapp sparas som {label, kind, v1, v2, v3} i S.macropad - samma byggstenar som
-// skickas som färdigt /api/send-kommando (sendRaw()) när man trycker i rutnätet. Exakt
-// samma mekanism en riktig macropad ska använda, se LÄSMIG.md.
+// ---------- virtuell macropad ----------
+// Varje ruta sparas som ett "slot"-objekt (eller null for en tom ruta) i S.macropad -
+// en GLES array med fast langd MP_MAX_BTNS, sa en knapp alltid hamnar kvar i sin egen
+// ruta aven om grannrutor ar tomma. Undermappar (Stream Deck-"folders") lagras separat
+// i S.mpFolders[id] med samma slot-format men MP_FOLDER_BTNS platser - en mindre an
+// huvudsidan, eftersom ruta 0 i en mapp alltid ar den fasta Tillbaka-knappen (precis
+// som pa en riktig Stream Deck: kort tryck gar en niva upp, hall in gar direkt till
+// toppen - se LÄSMIG.md).
+//
+// Ett slot: { kind, label, v1, v2, v3, folderId, steps, delayMs, states, curState }
+//   kind cmd/viz/palette/light - v1/v2/v3 ar byggstenarna for mpBuildCmd, som forut.
+//   kind folder  - folderId pekar in i S.mpFolders. Tryck navigerar in, bygger inget
+//                  eget kommando.
+//   kind multi   - steps ar en lista av mini-slots (egna v1/v2/v3), delayMs ar pausen
+//                  i ms mellan varje steg. Kors i ordning vid tryck, motsvarar Stream
+//                  Decks "Multi Action".
+//   states       - valfri, ej for folder/multi: en lista med EXAKT tva mini-slots.
+//                  Tryck kor den som curState pekar pa och vaxlar sedan curState -
+//                  motsvarar Stream Decks inbyggda tva-lages-knappar (t.ex. Tand/Slack).
 if (!Array.isArray(S.macropad)) S.macropad = [];
-const MP_MAX_BTNS = 8;   // last till 4x2 - sa manga LCD-knappar en riktig Stream Deck+ har
+const MP_MAX_BTNS = 8;              // 4x2 - som en riktig Stream Deck+
+const MP_FOLDER_BTNS = MP_MAX_BTNS - 1;  // ruta 0 i en mapp ar alltid Tillbaka-knappen
+(function mpMigrate(){
+  // Gammalt format var en tat array (push/splice). Packa om EN gang till en gles
+  // array med fast langd sa befintliga knappar hamnar kvar i sina rutor.
+  if (S.macropad.length === MP_MAX_BTNS && S.macropad.every(x => x !== undefined)) return;
+  const old = S.macropad.filter(Boolean);
+  const migrated = Array(MP_MAX_BTNS).fill(null);
+  old.slice(0, MP_MAX_BTNS).forEach((b, i) => { migrated[i] = b; });
+  S.macropad = migrated;
+  saveS();
+})();
+if (!S.mpFolders || typeof S.mpFolders !== "object") S.mpFolders = {};
+function mpFolderPage(id){
+  if (!Array.isArray(S.mpFolders[id])) S.mpFolders[id] = Array(MP_FOLDER_BTNS).fill(null);
+  return S.mpFolders[id];
+}
+function mpUid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function mpFindSlotByFolderId(id){
+  const scan = arr => arr && arr.find(s => s && s.kind === "folder" && s.folderId === id);
+  let found = scan(S.macropad);
+  if (found) return found;
+  for (const k in S.mpFolders){ found = scan(S.mpFolders[k]); if (found) return found; }
+  return null;
+}
 const MP_CMD_OPTS = [["open","Öppna/spela"],["close","Stäng/pausa"],["next","Nästa"],["prev","Föregående"],["playpause","Play/paus"],["wake","Väckning (animation)"]];
 const MP_PALETTE_NAMES = { svartvit:"Svartvit", sepia:"Sepia", fosfor:"Fosfor", farg:"Färg" };
 const MP_LIGHT_ACTIONS = [["on","Tänd"],["off","Släck"],["dim","Ljusstyrka"],["temp","Färgton"],["color","Färg"],["scene","Scen"]];
+const MP_KIND_OPTS_FULL = [["cmd","Musik/skärm"],["viz","Kanal"],["palette","Palett"],["light","Belysning"],["folder","Mapp"],["multi","Flera åtgärder"]];
+const MP_KIND_OPTS_SIMPLE = [["cmd","Musik/skärm"],["viz","Kanal"],["palette","Palett"],["light","Belysning"]];
 function mpBuildCmd(b){
+  if (!b) return "";
   if (b.kind === "cmd") return b.v1 || "open";
   if (b.kind === "viz") return "viz:" + (b.v1 || "1");
   if (b.kind === "palette") return "palette:" + (b.v1 || "svartvit");
@@ -2742,9 +2800,10 @@ function mpBuildCmd(b){
     const value = (action === "dim" || action === "temp") ? (+b.v3 || 0) : (action === "color" ? String(b.v3 || "ffcc88").replace("#", "") : (b.v3 || ""));
     return "light:" + JSON.stringify({ group: b.v1 || "", action, value });
   }
-  return "";
+  return "";   // folder/multi bygger inget enda kommando - hanteras sarskilt av mpActivateSlot
 }
 function mpDefaultLabel(b){
+  if (!b) return "";
   if (b.kind === "cmd") return (MP_CMD_OPTS.find(x => x[0] === b.v1) || [,"?"])[1];
   if (b.kind === "viz") return VIZ_NAMES[b.v1] || "Kanal";
   if (b.kind === "palette") return MP_PALETTE_NAMES[b.v1] || b.v1 || "Palett";
@@ -2752,16 +2811,30 @@ function mpDefaultLabel(b){
     const act = (MP_LIGHT_ACTIONS.find(x => x[0] === b.v2) || [,"?"])[1];
     return `${b.v1 || "?"}: ${act}`;
   }
+  if (b.kind === "folder") return "Mapp";
+  if (b.kind === "multi") return "Flera åtgärder";
   return "Knapp";
 }
 const MP_CMD_ICONS = { open:"▶", close:"⏸", next:"⏭", prev:"⏮", playpause:"⏯", wake:"✨" };
 const MP_LIGHT_ICONS = { on:"💡", off:"🌑", dim:"🔆", temp:"🌡", color:"🎨", scene:"✨" };
 function mpIcon(b){
+  if (!b) return "●";
+  if (Array.isArray(b.states) && b.states.length === 2) return mpIcon(b.states[b.curState ? 1 : 0]);
   if (b.kind === "cmd") return MP_CMD_ICONS[b.v1] || "▶";
   if (b.kind === "viz") return "📊";
   if (b.kind === "palette") return "🎨";
   if (b.kind === "light") return MP_LIGHT_ICONS[b.v2] || "💡";
+  if (b.kind === "folder") return "📁";
+  if (b.kind === "multi") return "🧩";
   return "●";
+}
+function mpLabel(b){
+  if (!b) return "";
+  if (Array.isArray(b.states) && b.states.length === 2){
+    const variant = b.states[b.curState ? 1 : 0];
+    return b.label || variant.label || mpDefaultLabel(variant);
+  }
+  return b.label || mpDefaultLabel(b);
 }
 function mpSubHtml(b){
   if (b.kind === "viz"){
@@ -2784,65 +2857,239 @@ function mpSubHtml(b){
   // kind === "cmd" (standard)
   return `<select class="mpV1">${MP_CMD_OPTS.map(([v,l]) => `<option value="${v}"${(b.v1||"open")===v?" selected":""}>${esc(l)}</option>`).join("")}</select>`;
 }
+// ---------- installningspanelen (redigering) ----------
+// Separat navigeringsstack fran korvyns (mpFolderStack) - man kan redigera en mapp
+// har utan att det paverkar vilken sida korvyn visar, och tvartom.
+let mpEditStack = [];
+function mpEditPage(){ return mpEditStack.length ? mpFolderPage(mpEditStack[mpEditStack.length - 1]) : S.macropad; }
+function mpEditMax(){ return mpEditStack.length ? MP_FOLDER_BTNS : MP_MAX_BTNS; }
+function mpEditFirstFree(){
+  const page = mpEditPage(), max = mpEditMax();
+  for (let i = 0; i < max; i++) if (!page[i]) return i;
+  return -1;
+}
+function mpKindSelectHtml(cls, cur, opts){
+  return `<select class="${cls}">${opts.map(([v,l]) => `<option value="${v}"${cur===v?" selected":""}>${esc(l)}</option>`).join("")}</select>`;
+}
+function mpMultiEditorHtml(b){
+  if (!Array.isArray(b.steps)) b.steps = [];
+  const stepsHtml = b.steps.map((st, si) => `
+    <div class="mpStep" data-step="${si}">
+      <span class="mpStepNum">${si + 1}.</span>
+      ${mpKindSelectHtml("mpStepKind", st.kind, MP_KIND_OPTS_SIMPLE)}
+      <span class="mpSub">${mpSubHtml(st)}</span>
+      <button type="button" class="btn mpStepDel">&times;</button>
+    </div>`).join("");
+  return `<div class="mpMulti">
+      ${stepsHtml || '<div class="note">Inga steg än - lägg till minst ett.</div>'}
+      <div class="row">
+        <button type="button" class="btn mpStepAdd">+ Lägg till steg</button>
+        <label class="mpDelayLbl">Paus mellan steg (ms) <input type="number" class="mpDelay" min="0" max="5000" step="50" value="${b.delayMs ?? 150}"></label>
+      </div>
+    </div>`;
+}
+function mpRowHtml(b, i){
+  const hasStates = Array.isArray(b.states) && b.states.length === 2;
+  let body;
+  if (b.kind === "folder"){
+    body = `<button type="button" class="btn mpOpenFolder">Öppna mapp &rarr;</button>`;
+  } else if (b.kind === "multi"){
+    body = mpMultiEditorHtml(b);
+  } else {
+    body = `<label class="mpStatesToggle"><input type="checkbox" class="mpStatesChk"${hasStates ? " checked" : ""}> Två lägen (t.ex. Tänd/Släck) - växlar vid varje tryck</label>`;
+    if (hasStates){
+      body += [0, 1].map(si => `
+        <div class="mpStateBlock" data-state="${si}">
+          <b>Läge ${si + 1}${b.curState === si ? " (nu aktivt)" : ""}</b>
+          ${mpKindSelectHtml("mpStKind", b.states[si].kind, MP_KIND_OPTS_SIMPLE)}
+          <span class="mpSub">${mpSubHtml(b.states[si])}</span>
+          <input type="text" class="mpStLabel" placeholder="${esc(mpDefaultLabel(b.states[si]))}" value="${esc(b.states[si].label || "")}">
+        </div>`).join("");
+    } else {
+      body += `<span class="mpSub mpSimple">${mpSubHtml(b)}</span>`;
+    }
+  }
+  return `<div class="mpRow" data-i="${i}">
+      <div class="mpRowHead">
+        <input type="text" class="mpLabel" placeholder="${esc(mpDefaultLabel(b))}" value="${esc(b.label || "")}">
+        ${mpKindSelectHtml("mpKind", b.kind, MP_KIND_OPTS_FULL)}
+        <button type="button" class="btn mpDel">Ta bort</button>
+      </div>
+      <div class="mpRowBody">${body}</div>
+    </div>`;
+}
+function mpWireRows(cfg, page){
+  cfg.querySelectorAll(".mpRow").forEach(row => {
+    const i = +row.dataset.i, b = page[i];
+    row.querySelector(".mpLabel").addEventListener("input", e => { b.label = e.target.value; saveS(); renderMacropadGrid(); });
+    row.querySelector(".mpKind").addEventListener("change", e => {
+      const nk = e.target.value;
+      if (nk === "folder") b.folderId = b.folderId || mpUid();
+      if (nk === "multi" && !Array.isArray(b.steps)) b.steps = [];
+      if (nk === "folder" || nk === "multi"){ delete b.states; delete b.curState; }
+      if (b.kind !== nk){ b.v1 = b.v2 = b.v3 = undefined; }
+      b.kind = nk;
+      saveS(); renderMacropad();
+    });
+    row.querySelector(".mpDel").addEventListener("click", () => { page[i] = null; saveS(); renderMacropad(); });
+
+    const openFolder = row.querySelector(".mpOpenFolder");
+    if (openFolder) openFolder.addEventListener("click", () => { mpFolderPage(b.folderId); mpEditStack.push(b.folderId); renderMacropad(); });
+
+    const statesChk = row.querySelector(".mpStatesChk");
+    if (statesChk) statesChk.addEventListener("change", e => {
+      if (e.target.checked){
+        b.states = [
+          { kind: b.kind, label: "", v1: b.v1, v2: b.v2, v3: b.v3 },
+          { kind: b.kind, label: "", v1: b.v1, v2: b.v2, v3: b.v3 }
+        ];
+        b.curState = 0;
+      } else { delete b.states; delete b.curState; }
+      saveS(); renderMacropad();
+    });
+    row.querySelectorAll(".mpStateBlock").forEach(block => {
+      const st = b.states[+block.dataset.state];
+      block.querySelector(".mpStKind").addEventListener("change", e => { st.kind = e.target.value; st.v1 = st.v2 = st.v3 = undefined; saveS(); renderMacropad(); });
+      block.querySelector(".mpStLabel").addEventListener("input", e => { st.label = e.target.value; saveS(); renderMacropadGrid(); });
+      const v1 = block.querySelector(".mpV1"), v2 = block.querySelector(".mpV2"), v3 = block.querySelector(".mpV3");
+      if (v1) v1.addEventListener("change", e => { st.v1 = e.target.value; saveS(); if (st.kind === "light") renderMacropad(); else renderMacropadGrid(); });
+      if (v2) v2.addEventListener("change", e => { st.v2 = e.target.value; saveS(); renderMacropad(); });
+      if (v3) v3.addEventListener("change", e => { st.v3 = e.target.value; saveS(); renderMacropadGrid(); });
+    });
+
+    const stepAdd = row.querySelector(".mpStepAdd");
+    if (stepAdd) stepAdd.addEventListener("click", () => { b.steps.push({ kind: "cmd", v1: "open" }); saveS(); renderMacropad(); });
+    const delayInp = row.querySelector(".mpDelay");
+    if (delayInp) delayInp.addEventListener("change", e => { b.delayMs = Math.max(0, +e.target.value || 0); saveS(); });
+    row.querySelectorAll(".mpStep").forEach(stepEl => {
+      const si = +stepEl.dataset.step, st = b.steps[si];
+      stepEl.querySelector(".mpStepKind").addEventListener("change", e => { st.kind = e.target.value; st.v1 = st.v2 = st.v3 = undefined; saveS(); renderMacropad(); });
+      stepEl.querySelector(".mpStepDel").addEventListener("click", () => { b.steps.splice(si, 1); saveS(); renderMacropad(); });
+      const v1 = stepEl.querySelector(".mpV1"), v2 = stepEl.querySelector(".mpV2"), v3 = stepEl.querySelector(".mpV3");
+      if (v1) v1.addEventListener("change", e => { st.v1 = e.target.value; saveS(); if (st.kind === "light") renderMacropad(); else renderMacropadGrid(); });
+      if (v2) v2.addEventListener("change", e => { st.v2 = e.target.value; saveS(); renderMacropad(); });
+      if (v3) v3.addEventListener("change", e => { st.v3 = e.target.value; saveS(); renderMacropadGrid(); });
+    });
+
+    const simple = row.querySelector(".mpSimple");
+    if (simple){
+      const v1 = simple.querySelector(".mpV1"), v2 = simple.querySelector(".mpV2"), v3 = simple.querySelector(".mpV3");
+      if (v1) v1.addEventListener("change", e => { b.v1 = e.target.value; saveS(); if (b.kind === "light") renderMacropad(); else renderMacropadGrid(); });
+      if (v2) v2.addEventListener("change", e => { b.v2 = e.target.value; saveS(); renderMacropad(); });
+      if (v3) v3.addEventListener("change", e => { b.v3 = e.target.value; saveS(); renderMacropadGrid(); });
+    }
+  });
+}
 function renderMacropad(){
   const cfg = $("#mpConfig");
   if (!cfg) return;
-  cfg.innerHTML = S.macropad.map((b, i) => `<div class="mpRow" data-i="${i}">
-      <input type="text" class="mpLabel" placeholder="${esc(mpDefaultLabel(b))}" value="${esc(b.label || "")}">
-      <select class="mpKind">
-        <option value="cmd"${b.kind==="cmd"?" selected":""}>Musik/skärm</option>
-        <option value="viz"${b.kind==="viz"?" selected":""}>Kanal</option>
-        <option value="palette"${b.kind==="palette"?" selected":""}>Palett</option>
-        <option value="light"${b.kind==="light"?" selected":""}>Belysning</option>
-      </select>
-      <span class="mpSub">${mpSubHtml(b)}</span>
-      <button type="button" class="btn mpDel">Ta bort</button>
-    </div>`).join("");
-  cfg.querySelectorAll(".mpRow").forEach(row => {
-    const i = +row.dataset.i, b = S.macropad[i];
-    row.querySelector(".mpLabel").addEventListener("input", e => { b.label = e.target.value; saveS(); renderMacropadGrid(); });
-    row.querySelector(".mpKind").addEventListener("change", e => { b.kind = e.target.value; b.v1 = b.v2 = b.v3 = undefined; saveS(); renderMacropad(); });
-    row.querySelector(".mpDel").addEventListener("click", () => { S.macropad.splice(i, 1); saveS(); renderMacropad(); renderMacropadGrid(); });
-    const v1 = row.querySelector(".mpV1"), v2 = row.querySelector(".mpV2"), v3 = row.querySelector(".mpV3");
-    if (v1) v1.addEventListener("change", e => { b.v1 = e.target.value; saveS(); if (b.kind === "light") renderMacropad(); else renderMacropadGrid(); });
-    if (v2) v2.addEventListener("change", e => { b.v2 = e.target.value; saveS(); renderMacropad(); });
-    if (v3) v3.addEventListener(v3.type === "number" || v3.type === "color" ? "change" : "change", e => { b.v3 = e.target.value; saveS(); renderMacropadGrid(); });
-  });
-  const addBtn = $("#mpAddBtn"), count = $("#mpAddCount"), atMax = S.macropad.length >= MP_MAX_BTNS;
-  if (addBtn) addBtn.disabled = atMax;
-  if (count) count.textContent = `${S.macropad.length}/${MP_MAX_BTNS}`;
-  renderMacropadGrid();
-}
-// Rutnatet ar last till 4x2 (8 platser) - som en riktig Stream Deck+. Konfigurerade
-// knappar fyller platserna i ordning; resten blir tomma "las till"-rutor man kan
-// klicka for att hoppa till installningarna, precis som en oprogrammerad hardvaruknapp.
-function renderMacropadGrid(){
-  const grid = $("#mpDisplayGrid"); if (!grid) return;
-  const cells = [];
-  for (let i = 0; i < MP_MAX_BTNS; i++){
-    const b = S.macropad[i];
-    if (b){
-      cells.push(`<button type="button" class="mpKey" data-i="${i}"><span class="mpKeyIcon">${mpIcon(b)}</span><span class="mpKeyLabel">${esc(b.label || mpDefaultLabel(b))}</span></button>`);
+  const page = mpEditPage(), inFolder = mpEditStack.length > 0;
+  const crumb = $("#mpEditCrumb");
+  if (crumb){
+    if (inFolder){
+      const id = mpEditStack[mpEditStack.length - 1], slot = mpFindSlotByFolderId(id);
+      crumb.innerHTML = `<button type="button" class="btn" id="mpEditUp">&larr; Huvudsida</button> <b>${esc((slot && mpLabel(slot)) || "Mapp")}</b>`;
+      $("#mpEditUp").addEventListener("click", () => { mpEditStack.pop(); renderMacropad(); });
     } else {
-      cells.push(`<button type="button" class="mpKeyEmpty" data-empty="1" aria-label="Lägg till knapp"><span class="mpKeyPlus">+</span></button>`);
+      crumb.innerHTML = "";
     }
   }
+  const entries = page.map((b, i) => ({ b, i })).filter(e => e.b);
+  cfg.innerHTML = entries.length ? entries.map(({ b, i }) => mpRowHtml(b, i)).join("") : '<div class="note">Inga knappar på den här sidan än.</div>';
+  mpWireRows(cfg, page);
+  const addBtn = $("#mpAddBtn"), count = $("#mpAddCount"), free = mpEditFirstFree();
+  if (addBtn) addBtn.disabled = free < 0;
+  if (count) count.textContent = `${entries.length}/${mpEditMax()}`;
+  renderMacropadGrid();
+}
+$("#mpAddBtn").addEventListener("click", () => {
+  const free = mpEditFirstFree();
+  if (free < 0) return;
+  mpEditPage()[free] = { kind: "cmd", v1: "open" };
+  saveS(); renderMacropad();
+});
+
+// ---------- korvyn (#mpDisplay) ----------
+// Egen navigeringsstack - nollstalls varje gang korvyn oppnas (se toggleMpDisplay).
+let mpFolderStack = [];
+function mpCurrentRunPage(){ return mpFolderStack.length ? mpFolderPage(mpFolderStack[mpFolderStack.length - 1]) : S.macropad; }
+// Rutnatet ar last till 4x2 (8 platser) - som en riktig Stream Deck+. Ar man inne i en
+// mapp tar en fast Tillbaka-knapp ruta 0, resten (7 platser) ar mappens egna knappar -
+// exakt som ruta-antalet pa riktig hardvara nar en mapp ar oppen.
+function renderMacropadGrid(){
+  const grid = $("#mpDisplayGrid"); if (!grid) return;
+  const inFolder = mpFolderStack.length > 0;
+  const page = mpCurrentRunPage(), max = inFolder ? MP_FOLDER_BTNS : MP_MAX_BTNS;
+  const cells = [];
+  if (inFolder) cells.push(`<button type="button" class="mpKey mpKeyBack" data-back="1" aria-label="Tillbaka" title="Håll in för att gå direkt till toppen"><span class="mpKeyIcon">⬅</span><span class="mpKeyLabel">Tillbaka</span></button>`);
+  for (let i = 0; i < max; i++){
+    const b = page[i];
+    if (b) cells.push(`<button type="button" class="mpKey" data-i="${i}"><span class="mpKeyIcon">${mpIcon(b)}</span><span class="mpKeyLabel">${esc(mpLabel(b))}</span></button>`);
+    else cells.push(`<button type="button" class="mpKeyEmpty" data-empty="1" aria-label="Lägg till knapp"><span class="mpKeyPlus">+</span></button>`);
+  }
   grid.innerHTML = cells.join("");
-  grid.querySelectorAll(".mpKey").forEach(btn => btn.addEventListener("click", () => {
-    const b = S.macropad[+btn.dataset.i];
-    if (b.kind === "light" && b.v1) mpSetActiveRoom(b.v1);
-    sendRaw(mpBuildCmd(b));
-    osd(b.label || mpDefaultLabel(b));
+  const h2 = document.querySelector("#mpDisplay header h2");
+  if (h2){
+    if (inFolder){
+      const slot = mpFindSlotByFolderId(mpFolderStack[mpFolderStack.length - 1]);
+      h2.textContent = (slot && mpLabel(slot)) || "Mapp";
+    } else h2.textContent = "Macropad";
+  }
+  grid.querySelectorAll(".mpKey:not(.mpKeyBack)").forEach(btn => btn.addEventListener("click", () => {
+    mpActivateSlot(page[+btn.dataset.i]);
     btn.classList.add("pressed"); setTimeout(() => btn.classList.remove("pressed"), 120);
   }));
   grid.querySelectorAll(".mpKeyEmpty").forEach(btn => btn.addEventListener("click", () => {
     toggleMpDisplay(false); togglePanel(false); toggleMpPanel(true);
   }));
+  const backBtn = grid.querySelector(".mpKeyBack");
+  if (backBtn) mpWireBackKey(backBtn);
 }
-$("#mpAddBtn").addEventListener("click", () => {
-  if (S.macropad.length >= MP_MAX_BTNS) return;
-  S.macropad.push({ kind:"cmd", v1:"open" }); saveS(); renderMacropad();
-});
+// Kort tryck pa Tillbaka-knappen gar en niva upp, hall in (~550ms) gar direkt till
+// toppen - samma tva-niva-beteende som "Exit"-knappen i en riktig Stream Deck-mapp.
+function mpWireBackKey(btn){
+  let timer = null, didLong = false;
+  const start = () => { didLong = false; timer = setTimeout(() => { didLong = true; mpFolderStack = []; renderMacropadGrid(); }, 550); };
+  const cancel = () => { if (timer){ clearTimeout(timer); timer = null; } };
+  btn.addEventListener("pointerdown", start);
+  btn.addEventListener("pointerup", () => { cancel(); if (!didLong){ mpFolderStack.pop(); renderMacropadGrid(); } });
+  btn.addEventListener("pointerleave", cancel);
+  btn.addEventListener("pointercancel", cancel);
+}
+function mpActivateSlot(b){
+  if (!b) return;
+  if (b.kind === "folder"){
+    mpFolderPage(b.folderId);
+    mpFolderStack.push(b.folderId);
+    renderMacropadGrid();
+    return;
+  }
+  if (b.kind === "multi"){ mpRunMulti(b); return; }
+  let eff = b;
+  if (Array.isArray(b.states) && b.states.length === 2){
+    const idx = b.curState ? 1 : 0;
+    eff = b.states[idx];
+    b.curState = idx === 0 ? 1 : 0;
+    saveS();
+  }
+  if (eff.kind === "light" && eff.v1) mpSetActiveRoom(eff.v1);
+  const cmd = mpBuildCmd(eff);
+  if (cmd) sendRaw(cmd);
+  osd(eff.label || mpDefaultLabel(eff));
+  if (Array.isArray(b.states)) renderMacropadGrid();   // sa ikon/etikett speglar det nya laget direkt
+}
+function mpRunMulti(b){
+  const steps = Array.isArray(b.steps) ? b.steps : [];
+  const delay = Math.max(0, +b.delayMs || 150);
+  osd(b.label || mpDefaultLabel(b));
+  steps.forEach((st, i) => {
+    setTimeout(() => {
+      if (st.kind === "light" && st.v1) mpSetActiveRoom(st.v1);
+      const cmd = mpBuildCmd(st);
+      if (cmd) sendRaw(cmd);
+    }, i * delay);
+  });
+}
 
 // ---------- macropad: skjutreglage for volym, ljusstyrka och farg. Farg-
 // reglaget ar EN enda kontinuerlig skala (inte bara varmt/kallt) - de
@@ -3239,12 +3486,12 @@ const mpPanel = $("#mpPanel"), mpDisplay = $("#mpDisplay");
 function toggleMpPanel(open){
   const willOpen = open ?? !mpPanel.classList.contains("open");
   mpPanel.classList.toggle("open", willOpen);
-  if (willOpen) renderMacropad();
+  if (willOpen){ mpEditStack = []; renderMacropad(); }
 }
 function toggleMpDisplay(open){
   const willOpen = open ?? !mpDisplay.classList.contains("open");
   mpDisplay.classList.toggle("open", willOpen);
-  if (willOpen){ renderMacropadGrid(); mpUpdateKnobState(); }
+  if (willOpen){ mpFolderStack = []; renderMacropadGrid(); mpUpdateKnobState(); }
 }
 $("#macropadBtn").addEventListener("click", () => toggleMpDisplay(true));
 $("#closeMpDisplay").addEventListener("click", () => toggleMpDisplay(false));
