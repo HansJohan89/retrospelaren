@@ -172,10 +172,19 @@ snabba drag på ett reglage faktiskt appliceras i rätt ordning. Hinner flera ko
 på kön innan tråden hunnit ta det föregående (ett snabbt reglage-drag), slås de ihop per
 grupp+action till bara det SENASTE värdet - de äldre mellanlägena är redan inaktuella.
 
-Macropadens körvy (se nästa avsnitt) har förutom knapparna tre skjutreglage för **volym,
-ljusstyrka och färg**, allihop kopplade till ett valt **rum**: en egen rad med en knapp per
-Trådfri-grupp (Vardagsrum förvalt), eller genom att trycka en belysningsknapp i rutnätet
-(den "pekar om" rummet till sin egen grupp).
+Macropadens körvy (se nästa avsnitt) är designad som en riktig **Elgato Stream Deck+**
+(eget mörkt hårdvarutema, fristående från BLAUPUNKT:s retro-utseende) - det är den typen
+av fysisk enhet som ska styra detta på riktigt. Knapprutnätet är därför **låst till 4x2
+(8 platser)**, precis som de 8 LCD-knapparna på en riktig Stream Deck+; outnyttjade platser
+visas som tomma rutor man kan klicka för att öppna inställningarna. Varje konfigurerad
+knapp får en ikon automatiskt utifrån vad den gör.
+
+Utöver knapparna finns tre skjutreglage för **volym, ljusstyrka och färg** (ej vridratt -
+enklare att klicka/testa med mus, trots att riktiga Stream Deck+ har fysiska vred), allihop
+kopplade till ett valt **rum**: en egen rad med en knapp per Trådfri-grupp (Vardagsrum
+förvalt), eller genom att trycka en belysningsknapp i rutnätet (den "pekar om" rummet till
+sin egen grupp). Varje reglage har även +/- knappar bredvid sig för att stega ett steg i
+taget och testa svarstid.
 
 **Färg**-reglaget är en enda kontroll som går igenom hela spektrumet: de första ~20% går
 från varmt till kallt vitt (skickas som `action:"temp"`), resten (~80%) går runt hela
