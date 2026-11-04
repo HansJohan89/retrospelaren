@@ -179,6 +179,34 @@ av fysisk enhet som ska styra detta på riktigt. Knapprutnätet är därför **l
 visas som tomma rutor man kan klicka för att öppna inställningarna. Varje konfigurerad
 knapp får en ikon automatiskt utifrån vad den gör.
 
+Den beter sig också som riktiga Stream Deck-appen, inte bara ser ut som en - efter att ha
+kollat Elgatos egen dokumentation:
+
+- **Mappar** - en knapp (`kind:"folder"`) öppnar en undersida med 7 egna platser (ruta 0
+  blir alltid en fast Tillbaka-knapp när man är inne i en mapp). Mappar kan nästlas.
+  Kort tryck på Tillbaka går en nivå upp, håller man in den (~550ms) hoppar man direkt
+  till toppen - exakt det Exit-knappen gör på riktig hårdvara.
+- **Flera åtgärder (multi-action)** - en knapp (`kind:"multi"`) kör en lista steg i
+  ordning med en inställbar paus (ms) emellan, samma princip som Stream Decks "Multi
+  Action" (förenklat till en gemensam paus istället för separata tider per steg).
+- **Två lägen (states)** - en knapp kan få en `states`-lista med exakt två varianter som
+  växlar automatiskt vid varje tryck (t.ex. Tänd/Släck), med egen ikon/etikett/kommando
+  per läge.
+- Medvetet INTE byggt: "håll in för annan funktion" på vanliga knappar - det är bara en
+  tredjepartsplugin, inte hur riktiga Stream Deck-appen eller hårdvaran fungerar.
+
+Datan (`S.macropad`) är en gles array med fast längd 8 (`null` = tom ruta) istället för en
+tät push/splice-lista, så en knapp alltid ligger kvar i sin egen ruta. `S.mpFolders[id]`
+lagrar varje mapps 7 platser på samma format.
+
+Inställningspanelen är byggd som Stream Deck-appens egen redigeringsyta: ett
+**åtgärdsbibliotek** (Musik/skärm, Kanal, Palett, Belysning, Mapp, Flera åtgärder) man drar
+ifrån, rakt ner på SAMMA 4x2-rutnät som sedan trycks i körläget. Dra till en tom ruta skapar
+en knapp där, dra till en upptagen ruta frågar om överskrivning, dra en befintlig knapp till
+en annan ruta flyttar den. Klick på en tom ruta skapar en standardknapp direkt (snabbväg utan
+drag). Klick på en ifylld ruta väljer den och visar hela redigeraren för just den rutan i en
+inspector-panel under rutnätet.
+
 Utöver knapparna finns tre skjutreglage för **volym, ljusstyrka och färg** (ej vridratt -
 enklare att klicka/testa med mus, trots att riktiga Stream Deck+ har fysiska vred), allihop
 kopplade till ett valt **rum**: en egen rad med en knapp per Trådfri-grupp (Vardagsrum
