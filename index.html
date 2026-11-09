@@ -135,30 +135,27 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .wxRow .lo{color:var(--mid);margin-top:-.3vh}
 .wxRow .p{font-size:.75em;color:var(--mid)}
 .wxTop{display:grid;grid-template-columns:1.05fr 1fr;gap:5vh;align-items:start}
-#pgWx{gap:3.4vh}
-/* Skylten på vädersidan: bara så hög som fyra avgångar kräver, mindre text och dämpad vit yta */
-#pgWx .wxB .sign{height:auto;max-height:100%;align-self:start;font-size:.86em}
-#pgWx .wxB .sign .sh{font-size:1.6em}
+/* Reducerat mellanrum + extra säkerhetsmarginal i botten, så att sidan aldrig kapas av på den riktiga skärmen */
+#pgWx{gap:2.2vh;padding-bottom:1.6vh}
 .sign{--sign-dim:brightness(.86) contrast(.95)}
 /* Vädret idag tar den bredd det behöver (högst 58 %), dagsprognosen fyller resten */
 #pgWx .wxA{flex:none;display:grid;grid-template-columns:fit-content(58%) minmax(0,1fr);gap:5vh;align-items:center}
 #pgWx .wxA .wxNow svg{width:12vh;height:12vh}
 #pgWx .wxA .wxDays{font-size:.85em}
-#pgWx .wxB{flex:1 1 auto;min-height:0;overflow:hidden;display:grid;grid-template-columns:1fr 1fr;gap:6vh;grid-template-rows:minmax(0,1fr)}
-#pgWx .wxB.solo{grid-template-columns:1fr}
-/* Med fotboll: vänster spalt = timprognos (4 tider) ovanför en mer fyrkantig skylt, höger spalt = tabellen från timprognosens topp till skyltens botten */
-#pgWx .wxB.duo{grid-template-columns:minmax(0,.78fr) minmax(0,1.22fr)}
-/* Med fotboll OCH hockey: samma vänsterspalt, men höger delas i två smalare tabeller sida vid sida */
-#pgWx .wxB.trio{grid-template-columns:minmax(0,.62fr) minmax(0,.72fr) minmax(0,.72fr)}
-#pgWx .wxC{display:flex;flex-direction:column;gap:2.4vh;min-height:0;min-width:0;container-type:inline-size}
-/* Skyltens text följer spaltens bredd, så att hållplatsnamn och avgångar inte kapas på smala skärmar */
-#pgWx .wxC .sign{font-size:min(.86em,4.2cqi)}
 .wxDays{container-type:inline-size}
 @container (max-width:620px){ .wxDays .u{display:none} }
-#pgWx .wxC .wxHours{flex:none}
-#pgWx .wxB.duo .sign,#pgWx .wxB.trio .sign{flex:1 1 auto;min-height:0;max-height:none;align-self:stretch}
+/* Timprognosen i full sidbredd, mellan vädret och den nedre raden */
+#pgWx .wxHoursFull{flex:none;font-size:.82em;margin-top:-.4vh}
+#pgWx .wxHoursFull .c{padding:.4vh 0}
+/* Nedre raden: nyhet (bred) + hållplatsskylt, exakt samma högerkant som klockan och dagsprognosen ovanför */
+#pgWx .wxB{flex:1 1 auto;min-height:0;overflow:hidden}
+#pgWx .wxB.wxBN{display:grid;grid-template-columns:minmax(0,1fr) 24.454vw;gap:4vh;align-items:stretch}
+#pgWx .wxB.wxBN.noSign{grid-template-columns:1fr}
+/* Skylten: exakt samma mått varhelst den visas (469.515625×484.734375px / 19.7197px vid 1920×1080) */
+#pgWx .wxB.wxBN .sign{height:44.883vh;max-height:44.883vh;font-size:1.8259vh;flex:none;align-self:start}
+#pgWx .wxB.wxBN .artWide{height:100%;min-height:0;display:flex}
+#pgWx .wxB.wxBN .artWide .art{grid-template-columns:.62fr 1fr}
 #pgWx .wxRow,#pgWx .kick{flex:none}
-#pgWx.tight .wxHours{display:none}
 /* Hållplatsskylt i Dalatrafiks stil: rött namnfält, vita rader med röda linjer, rött fält med webb och telefon */
 .sign{--dt:#e00034;background:#f4f1ea;color:#161616;border:max(2px,.3vh) solid var(--dt);border-radius:1.4vh;overflow:hidden;text-shadow:var(--sign-ts,none);letter-spacing:0;
   filter:var(--sign-dim) var(--sign-fx,drop-shadow(0 0 0 transparent));
@@ -282,28 +279,31 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 @keyframes kb{from{transform:scale(1)}to{transform:scale(1.07)}}
 .fbGrid{display:grid;grid-template-columns:1fr 1.05fr;gap:4.5vh;flex:1;min-height:0}
 .fbL{display:flex;flex-direction:column;gap:2.4vh;min-width:0}
-.spGrid{display:grid;grid-template-columns:1fr 1fr;gap:5vh;flex:1;min-height:0}
-.spCol{display:flex;flex-direction:column;gap:1.8vh;min-width:0;min-height:0}
-.spCol .fbT{flex:1;min-height:0}
 .fbHead{display:flex;align-items:center;gap:2.4vh}
 .fbHead img,.fbHead .tb{width:9vh;height:9vh;object-fit:contain;filter:var(--cover-filter)}
 .fbHead .n{font-family:var(--fT),serif;font-size:2.2em;line-height:1}
 .fbHead .s{color:var(--mid);margin-top:.8vh}
-.fbCard .h{font-size:.75em;letter-spacing:.3em;text-transform:uppercase;color:var(--mid);border-bottom:max(1px,.15vh) solid var(--dim);padding-bottom:.6vh;margin-bottom:1vh}
-.fbM{display:grid;grid-template-columns:4.4vh 1fr auto;gap:1.6vh;align-items:center;padding:.5vh 0}
-.fbM img,.fbT img,.fbM .tb,.fbT .tb{width:100%;height:4.4vh;object-fit:contain;filter:var(--cover-filter)}
-.fbM .o{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fbM .w{font-size:.75em;color:var(--mid)}
-.fbM .r{text-align:right;white-space:nowrap}
-.fbM .r b{font-weight:400;font-size:1.3em}
-.fbM .r small{display:block;font-size:.7em;color:var(--mid);letter-spacing:.15em}
-.fbT{display:flex;flex-direction:column;min-height:0;font-size:.82em}
-.fbT .row{display:grid;grid-template-columns:3ch 3vh 1fr auto;gap:1.2vh;align-items:center;padding:.25vh .8vh;flex:1;max-height:4.4vh}
-.fbT .row img,.fbT .row .tb{width:2.8vh;height:2.8vh}
-.fbT .row .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fbT .row.me{background:var(--ink);color:var(--bg)}
-.fbT .row.me img{filter:none}
-.fbMsg{color:var(--mid);line-height:1.5}
+/* ---- fotboll/hockey: tabell + smal högerkolumn (avgångar + stor nyhet) ---- */
+.spRow{display:flex;flex:1;min-height:0;gap:3.4vh}
+.fbBoxWrap{flex:1;min-width:0;min-height:0;display:flex;container-type:inline-size}
+.fbBoxWrap .fbBox{flex:1;min-height:0;min-width:0}
+.spRight{flex:0 0 29vw;width:29vw;display:flex;flex-direction:column;min-height:0;gap:2.4vh}
+.depMini{flex:none;display:flex;flex-direction:column;gap:.9vh}
+.depMini .r{display:flex;align-items:center;gap:1.4vh;font-size:1.05em}
+.depMini .ln{background:var(--dt,#e00034);color:#fff;border-radius:.5vh;padding:.3vh 1vh;font-weight:700;min-width:2.6ch;text-align:center;flex:none;font-size:.9em;box-shadow:0 .2vh .6vh rgba(224,0,52,.35)}
+.depMini .ds{text-transform:uppercase;letter-spacing:.02em;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.depMini .tm{white-space:nowrap;color:var(--mid)}
+.depMini .r.soon .tm{color:var(--dt,#e00034)}
+.depMini .r.x{opacity:.45}
+.depMini .msg{color:var(--mid)}
+.artBig{flex:1;min-height:0;overflow:hidden;display:flex}
+.artBig .art{display:flex;flex-direction:column;gap:1.4vh;align-items:stretch;width:100%}
+.artBig .art .im{height:auto;flex:1 1 auto;min-height:0;max-height:56%}
+.artBig .art .tx{flex:0 0 auto}
+.artBig .art .t{font-size:1.4em;line-height:1.22;max-height:3.65em}
+.artBig .art .d{margin-top:0;-webkit-line-clamp:3;max-height:none!important}
+.artBig .art.noimg .t{font-size:1.9em;max-height:5.5em}
+.artBig .art.noimg .d{-webkit-line-clamp:4}
 .hg{flex:1;min-height:0;display:grid;gap:2.4vh;grid-auto-flow:row dense}
 .tile{border:max(1px,.18vh) solid var(--dim);padding:1.8vh 2.2vh;display:flex;flex-direction:column;gap:1vh;min-height:0;min-width:0;overflow:hidden;
   container-type:size;justify-content:center}
@@ -522,7 +522,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <div id="queue"></div>
       <div id="dial"><canvas id="dialC"></canvas></div>
       <div id="photo"></div>
-      <div id="board"><div class="pg" id="pgWx"></div><div class="pg" id="pgNews"></div><div class="pg" id="pgFb"></div><div class="pg" id="pgHome"></div></div>
+      <div id="board"><div class="pg" id="pgWx"></div><div class="pg" id="pgNews"></div><div class="pg" id="pgFb"></div><div class="pg" id="pgHk"></div><div class="pg" id="pgHome"></div></div>
       <div id="osd"></div>
     </div></div>
     <div id="hum"></div>
@@ -717,8 +717,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <textarea id="albums" rows="3" placeholder="Delningslänkar till album, en per rad (photos.app.goo.gl/...)" style="width:100%;font:inherit;font-size:13px;padding:7px 9px;border:1.5px solid var(--panel-ink);background:#f6efdc;color:var(--panel-ink);border-radius:3px;margin-top:8px"></textarea>
       <label class="chk"><input type="checkbox" id="photoOrig"> Foton i originalfärg (annars bildrörets färgläge)</label>
       <div class="note" id="photoStatus"></div>
-      <label class="chk"><input type="checkbox" id="idFb"> Fotboll &amp; hockey (AIK)</label>
-      <label class="chk"><input type="checkbox" id="idWxFb"> AIK-tabellerna (fotboll &amp; hockey) bredvid bussarna på vädersidan</label>
+      <label class="chk"><input type="checkbox" id="idFb"> Fotboll &amp; hockey (AIK) – egna sidor</label>
       <div class="row"><span class="lbl">Fotbollskälla</span><select id="fbSrc"><option value="espn">ESPN (ingen nyckel, ingen kvot)</option><option value="highlightly">Highlightly (100 anrop/dygn)</option></select></div>
       <div class="row"><span class="lbl">Hämta var</span><input type="number" id="fbMins" min="5" max="1440" step="5" style="width:6em"> <span class="lbl">minut</span></div>
       <div class="note">Under en AIK-match hämtar ESPN var 5:e minut. Highlightly hämtar högst en gång i timmen. Hockeyn (Hockeyallsvenskan) kommer alltid från Highlightly, högst en gång i timmen.</div>
@@ -896,7 +895,6 @@ S.bus = Object.assign({}, BUS_DEF, S.bus || {});
 S.photo = Object.assign({}, PHOTO_DEF, S.photo || {});
 S.home = Object.assign({}, HOME_DEF, S.home || {});
 if (S.idle.fb === undefined) S.idle.fb = true;
-if (S.idle.wxFb === undefined) S.idle.wxFb = true;
 S.foot = Object.assign({ src:"espn", mins:60 }, S.foot || {});
 const FEEDS = {
   svt:     { name:"SVT Nyheter",  url:"https://www.svt.se/nyheter/rss.xml" },
@@ -1892,7 +1890,7 @@ function fitEdges(){
 }
 
 // ---------- tavla när inget spelar: väder, nyheter, testbild ----------
-const BOARD = { page:"", idx:-1, until:0, newsIdx:0, newsUntil:0, fbIdx:-1, photoUntil:0 };
+const BOARD = { page:"", idx:-1, until:0, newsIdx:0, newsUntil:0, fbNewsIdx:0, hkNewsIdx:0, fbIdx:-1, photoUntil:0 };
 let NEWS = { items:[], at:0, src:"" };
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" })[c]);
 const hhmm = d => String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
@@ -1905,6 +1903,7 @@ function idlePages(){
   if (S.idle.news && NEWS.items.length) p.push("news");
   if (S.photo.on && PHOTOS.urls.length) p.push("foto");
   if (S.idle.fb && FOOT.ok) p.push("fotboll");
+  if (S.idle.fb && HOCKEY.ok) p.push("hockey");
   if (S.idle.test || !p.length) p.push("test");
   return p;
 }
@@ -1998,19 +1997,29 @@ function renderWxPage(){
       `<span class="p">${(D2.precipitation_sum[i] ?? 0).toFixed(1).replace(".", ",")}<span class="u"> mm</span></span></div>`);
   }
   const sr = D2.sunrise?.[0] ? hhmm(new Date(D2.sunrise[0])) : "–", ss = D2.sunset?.[0] ? hhmm(new Date(D2.sunset[0])) : "–";
-  // Fotbollen/hockeyn behåller sin plats även när datan saknas för stunden, så att sidan inte byter utseende
-  const bus = S.bus.on, fbWant = S.idle.wxFb;
-  const fb = fbWant && FOOT.ok && FOOT.teams[0], hk = fbWant && HOCKEY.ok && HOCKEY.teams[0];
-  const sportBox = (T, label) => T ? renderFbBox(T) : `<div class="fbBox"><div class="fbWait">${esc(label)}<small>Tabellen hämtas igen om en stund.</small></div></div>`;
+  const bus = S.bus.on;
+  const art = renderWxNews();
+  const bottom = bus ? `<div class="wxB wxBN">${art}${renderBus()}</div>` : `<div class="wxB wxBN noSign">${art}</div>`;
   return `<div class="wxA"><div class="wxL">
       <div class="wxNow">${wxIcon(W2.c, W2.day)}<span class="tmp">${Math.round(W2.t)}°</span>
         <div class="txt"><span class="big">${WX_TEXT(W2.c)}</span><span class="sub">Känns som ${Math.round(W2.feel)}°</span><span class="sub">Idag ${Math.round(W2.hi)}° / ${Math.round(W2.lo)}°</span></div></div>
       <div class="wxFacts"><div><span>Vind <b>${Math.round(W2.wind)} m/s ${COMPASS[Math.round((W2.dir || 0)/45) % 8]}</b>${W2.gust ? ` (byar ${Math.round(W2.gust)})` : ""}</span>
-        <span>Fukt <b>${Math.round(W2.hum)}%</b></span><span>Tryck <b>${Math.round(W2.pres)} hPa</b></span></div>
-        <div><span>Sol <b>${sr}</b> – <b>${ss}</b></span></div></div>
+        <span>Fukt <b>${Math.round(W2.hum)}%</b></span></div>
+        <div><span>Sol <b>${sr}</b> – <b>${ss}</b></span><span>Tryck <b>${Math.round(W2.pres)} hPa</b></span></div></div>
     </div><div class="wxRow wxDays" style="grid-template-columns:repeat(${days.length},1fr)">${days.join("")}</div></div>
-    ${fbWant ? `<div class="wxB trio"><div class="wxC">${hoursRow(hours.slice(0, 4))}${bus ? renderBus() : ""}</div>${sportBox(fb, "Allsvenskan")}${sportBox(hk, "Hockeyallsvenskan")}</div>`
-      : hoursRow(hours) + (bus ? `<div class="wxB solo">${renderBus()}</div>` : "")}`;
+    <div class="wxRow wxHours wxHoursFull" style="grid-template-columns:repeat(${hours.length},1fr)">${hours.join("")}</div>
+    ${bottom}`;
+}
+// Vädersidans nyhet bredvid hållplatsskylten: samma allmänna nyhetsflöde som nyhetssidan, byts var S.idle.artSecs sekund
+function renderWxNews(){
+  const it = NEWS.items; if (!it.length) return `<div class="artWide"></div>`;
+  const cur = BOARD.newsIdx % it.length, a = it[cur];
+  ensureImg(a);
+  const when = a.date ? hhmm(new Date(a.date)) : "";
+  const img = a.img ? `<div class="im"><img src="/api/img?url=${encodeURIComponent(a.img)}" alt="" onerror="this.closest('.art').classList.add('noimg')"></div>` : "";
+  return `<div class="artWide"><div class="art${a.img ? "" : " noimg"}">${img}<div class="tx"><div class="t">${esc(a.title)}</div>
+    ${a.desc ? `<div class="d">${esc(a.desc)}</div>` : ""}
+    <div class="m">${[when, newsHost(a.link)].filter(Boolean).join(" · ")}</div></div></div></div>`;
 }
 function hoursRow(hours){ return `<div class="wxRow wxHours" style="grid-template-columns:repeat(${hours.length},1fr)">${hours.join("")}</div>`; }
 // AIK-tabellen bredvid bussarna: alla lag renderas, fitLists visar sedan så många som får plats med AIK i mitten
@@ -2091,7 +2100,7 @@ function showPhoto(){
 // ---------- fotboll (ESPN eller Highlightly via servern) ----------
 let FOOT = { ok:false, teams:[], at:0 };
 async function loadFootball(){
-  if (!S.idle.fb && !S.idle.wxFb && !S.home.aik){ $("#fbStatus").textContent = ""; return; }
+  if (!S.idle.fb && !S.home.aik){ $("#fbStatus").textContent = ""; return; }
   try{
     const j = await (await fetch(`/api/football?src=${S.foot.src}&mins=${S.foot.mins}`)).json();
     if (j.ok){
@@ -2117,6 +2126,46 @@ async function loadHockey(){
     else $("#hkStatus").textContent = j.nokey ? "Servern saknar HIGHLIGHTLY_API_KEY." : (j.error || "Kunde inte hämta hockey.");
   }catch(e){ $("#hkStatus").textContent = "Hockeyn svarar inte."; }
 }
+
+// ---------- AIK-nyheter (fotboll/hockey) via Bing News RSS genom den befintliga /api/rss-proxyn ----------
+// Google News-flödets "beskrivning" är bara en konkatenering av andra rubriker, ingen riktig ingress,
+// så vi söker i stället via Bing News (riktiga artikellänkar) och hämtar bild+ingress via /api/ogimage.
+let SPNEWS = { fb:{ items:[], at:0 }, hk:{ items:[], at:0 } };
+function decodeBingUrl(link){
+  try{ const u = new URL(link), real = u.searchParams.get("url"); return real ? decodeURIComponent(real) : link; }
+  catch(e){ return link; }
+}
+function isSwedishRelevant(a, exclude){
+  const t = (a.title + " " + (a.desc || "")).toLowerCase();
+  if (exclude.some(x => t.includes(x))) return false;
+  if (!/[åäö]/.test(t)) return false;
+  if (a.date){ const age = Date.now() - new Date(a.date).getTime(); if (age > 90*24*3600e3 || age < -3600e3) return false; }
+  return true;
+}
+async function loadSportNews(key, query, exclude){
+  if (!S.idle.fb) return;
+  try{
+    const r = await fetch("/api/rss?url=" + encodeURIComponent("https://www.bing.com/news/search?q=" + encodeURIComponent(query) + "&format=RSS"));
+    const j = await r.json();
+    const arr = Array.isArray(j) ? j : (j.items || []);
+    const filtered = arr.filter(a => isSwedishRelevant(a, exclude)).slice(0, 6);
+    const out = [];
+    for (const a of filtered){
+      const real = decodeBingUrl(a.link);
+      let img = "", desc = a.desc || "";
+      try{
+        const jj = await (await fetch("/api/ogimage?url=" + encodeURIComponent(real))).json();
+        if (jj.img) img = jj.img;
+        if (jj.desc) desc = jj.desc;
+      }catch(e){}
+      out.push({ title:a.title, desc, img, link:real, date:a.date || null });
+    }
+    if (out.length) SPNEWS[key] = { items:out, at:Date.now() };
+  }catch(e){}
+  renderBoard();
+}
+function loadAikNews(){ loadSportNews("fb", "AIK fotboll Solna", ["chile","assadi"]); loadSportNews("hk", "AIK hockey", ["skellefteå"]); }
+
 const SV_DAYS = ["sön","mån","tis","ons","tor","fre","lör"];
 const ordinal = n => `${n}:${n % 10 in {1:1,2:1} && !(n % 100 in {11:1,12:1}) ? "a" : "e"}`;
 // En del klubbar saknar emblem hos Highlightly (404 - inte bara ett tomt fält), så en initialbadge
@@ -2132,28 +2181,43 @@ function outcome(m){
   const own = m.is_home ? p[0] : p[1], opp = m.is_home ? p[1] : p[0];
   return own > opp ? "Vinst" : own < opp ? "Förlust" : "Oavgjort";
 }
-// En spalt (fotboll eller hockey): emblem+namn+placering, nästa match, hela tabellen.
-// Bygger på samma dataform för båda sporterna (server.py normaliserar hockeyn till fotbollens form).
-function renderSportCol(T, label){
-  if (!T) return `<div class="spCol"><div class="fbHead"><div><div class="n">${esc(label)}</div></div></div><div class="fbMsg">Tabellen hämtas igen om en stund.</div></div>`;
-  const st = T.standing || {};
-  const d = x => { const t = new Date(x); return isNaN(t) ? "" : `${SV_DAYS[t.getDay()]} ${t.getDate()}/${t.getMonth()+1}`; };
-  const nm = T.next_match;
-  const next = nm ? `<div class="fbM">${logo(nm.opponent_logo, nm.opponent)}<div><div class="o">${esc(nm.opponent)}</div><div class="w">${nm.is_home ? "Hemma" : "Borta"}</div></div>
-      <div class="r"><b>${d(nm.date)}</b><small>${hhmm(new Date(nm.date))}</small></div></div>` : `<div class="fbMsg">Ingen kommande match.</div>`;
-  const rows = (T.table || []).map(r => `<div class="row${r.id === T.team_id ? " me" : ""}"><span>${r.position}</span>${logo(r.logo, r.id === T.team_id ? T.team_name : r.name)}<span class="t">${esc(r.id === T.team_id ? T.team_name : r.name)}</span><span>${r.points} p</span></div>`).join("");
-  return `<div class="spCol">
-      <div class="fbHead">${st.team ? logo(st.team.logo, T.team_name) : ""}<div><div class="n">${esc(T.team_name)}</div><div class="s">${esc(T.league)}${st.position ? ` · ${ordinal(st.position)} plats · ${st.points} poäng` : ""}</div></div></div>
-      <div class="fbCard"><div class="h">Nästa match</div>${next}</div>
-      <div class="fbT">${rows}</div></div>`;
+// Kompakt avgångslista bredvid tabellen (inte hela hållplatsskylten): tydligt Dalatrafik-kodad
+// via samma röda --dt-färg som skylten, men utan det stora formatet.
+function renderDepMini(max = 3){
+  const b = S.bus;
+  if (!b.on || !b.id) return `<div class="depMini"></div>`;
+  if (DEP.err) return `<div class="depMini"><div class="msg">${DEP.nokey ? "RESROBOT_API_KEY saknas." : esc(DEP.err)}</div></div>`;
+  const now = Date.now();
+  const rows = DEP.items.filter(d => depTime(d).getTime() > now - 30e3).slice(0, max).map(d => {
+    const t = depTime(d), min = Math.round((t.getTime() - now)/60e3);
+    const other = t.toDateString() !== new Date().toDateString();
+    const when = d.canceled ? "Inställd" : min <= 0 ? "Nu" : min <= 15 ? `${min} min` : (other ? DAYS_SHORT[t.getDay()].toLowerCase() + " " : "") + hhmm(t);
+    const ds = b.to ? esc(stopName(b.toName)) : esc(stopName(d.dest));
+    return `<div class="r${d.canceled ? " x" : min <= 3 ? " soon" : ""}"><span class="ln">${esc(d.line)}</span><span class="ds">${ds}</span><span class="tm">${when}</span></div>`;
+  });
+  return `<div class="depMini">${rows.length ? rows.join("") : `<div class="msg">${DEP.at ? "Inga avgångar just nu." : "Hämtar avgångar..."}</div>`}</div>`;
 }
-function renderFbPage(){
-  const fb = FOOT.ok && FOOT.teams[0], hk = HOCKEY.ok && HOCKEY.teams[0];
-  if (!fb && !hk) return "";
-  const at = Math.max(FOOT.at || 0, HOCKEY.at || 0);
-  return `<div class="kick"><span>AIK · Fotboll &amp; Hockey</span><span>Uppdaterad ${hhmm(new Date(at))}</span></div>
-    <div class="spGrid">${renderSportCol(fb, "Fotboll")}${renderSportCol(hk, "Hockey")}</div>`;
+// Stor nyhet längst ned i högerkolumnen på sport-sidorna, i stället för skylten. Byts var S.idle.artSecs sekund.
+function renderSportNews(key){
+  const feed = SPNEWS[key] || { items:[] }, it = feed.items;
+  if (!it.length) return `<div class="artBig"></div>`;
+  const idxKey = key === "fb" ? "fbNewsIdx" : "hkNewsIdx";
+  const cur = (BOARD[idxKey] || 0) % it.length, a = it[cur];
+  const when = a.date ? hhmm(new Date(a.date)) : "";
+  const img = a.img ? `<div class="im"><img src="/api/img?url=${encodeURIComponent(a.img)}" alt="" onerror="this.closest('.art').classList.add('noimg')"></div>` : "";
+  return `<div class="artBig"><div class="art${a.img ? "" : " noimg"}">${img}<div class="tx"><div class="t">${esc(a.title)}</div>
+    ${a.desc ? `<div class="d">${esc(a.desc)}</div>` : ""}
+    <div class="m">${[when, newsHost(a.link)].filter(Boolean).join(" · ")}</div></div></div></div>`;
 }
+// Gemensam sida för fotboll/hockey: tabellen tar resten av bredden, en smal högerkolumn har
+// avgångarna överst och en roterande AIK-nyhet längst ned, där skylten tidigare satt.
+function renderSportPage(T, label, newsKey){
+  const box = T ? renderFbBox(T) : `<div class="fbBox"><div class="fbWait">${esc(label)}<small>Tabellen hämtas igen om en stund.</small></div></div>`;
+  return `<div class="kick"><span>AIK</span></div>
+    <div class="spRow"><div class="fbBoxWrap">${box}</div><div class="spRight">${renderDepMini(3)}${renderSportNews(newsKey)}</div></div>`;
+}
+function renderFbPage(){ return renderSportPage(FOOT.ok && FOOT.teams[0], "Fotboll", "fb"); }
+function renderHkPage(){ return renderSportPage(HOCKEY.ok && HOCKEY.teams[0], "Hockey", "hk"); }
 
 // ---------- hemskärm: valbara rutor ----------
 const HOME_TILES = ["clock", "wx", "bus", "news", "aik", "photo"];
@@ -2274,22 +2338,40 @@ function fitLists(el){
     // Fördela höjden jämnt så att sista raden slutar precis vid skyltens nederkant
     if (sign && space > 0) rows.forEach((r, i) => { if (i >= lo && i < lo + n) r.style.height = (space / n).toFixed(2) + "px"; });
   });
+  alignNxm(el);
+}
+// "Nästa"-raden: strecket mellan klubbloggorna ska hamna exakt ovanför +/- -kolumnen i tabellhuvudet,
+// inte flytande fritt eller centrerat på sidan.
+function alignNxm(el){
+  el.querySelectorAll(".fbBox").forEach(box => {
+    const mh = box.querySelector(".mh"), nxm = box.querySelector(".nxm");
+    if (!mh || !nxm) return;
+    const vs = nxm.querySelector(".vs"), dash = vs && vs.querySelector("i");
+    const pmCol = mh.children[7];
+    if (!vs || !dash || !pmCol) return;
+    vs.style.marginLeft = "0px";
+    const pmRect = pmCol.getBoundingClientRect(), dashRect = dash.getBoundingClientRect();
+    const delta = (pmRect.left + pmRect.right)/2 - (dashRect.left + dashRect.right)/2;
+    vs.style.marginLeft = Math.max(0, delta) + "px";
+  });
 }
 window.addEventListener("resize", () => document.querySelectorAll("#board .pg").forEach(el => { el._h = ""; }));
 function renderBoard(){
   const wx = $("#pgWx"), nw = $("#pgNews");
   if (BOARD.page === "wx") setPage(wx, renderWxPage());
   if (BOARD.page === "news") setPage(nw, renderNewsPage());
-  const fb = $("#pgFb");
+  const fb = $("#pgFb"), hk = $("#pgHk");
   if (BOARD.page === "fotboll") setPage(fb, renderFbPage());
+  if (BOARD.page === "hockey") setPage(hk, renderHkPage());
   const hm = $("#pgHome");
   if (BOARD.page === "hem") setPage(hm, renderHomePage());
   hm.classList.toggle("on", BOARD.page === "hem");
   fb.classList.toggle("on", BOARD.page === "fotboll");
+  hk.classList.toggle("on", BOARD.page === "hockey");
   $("#photo").classList.toggle("on", BOARD.page === "foto");
   $("#photo").classList.toggle("orig", !!S.photo.orig);
   wx.classList.toggle("on", BOARD.page === "wx"); nw.classList.toggle("on", BOARD.page === "news");
-  $("#board").classList.toggle("on", ["wx", "news", "fotboll", "hem"].includes(BOARD.page));
+  $("#board").classList.toggle("on", ["wx", "news", "fotboll", "hockey", "hem"].includes(BOARD.page));
 }
 // körs varje bildruta; returnerar vilken sida som ska visas just nu ("" när musik spelar)
 function boardStep(idle, now){
@@ -2310,7 +2392,9 @@ function boardStep(idle, now){
   if (BOARD.page === "foto" && now > BOARD.photoUntil){ showPhoto(); BOARD.photoUntil = now + S.photo.secs*1000; }
   if (BOARD.page === "hem" && now > BOARD.newsUntil){ BOARD.newsIdx++; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
   if (BOARD.page === "hem" && S.home.photo && now > BOARD.photoUntil){ BOARD.homePhoto = (BOARD.homePhoto || 0) + 1; BOARD.photoUntil = now + S.photo.secs*1000; renderBoard(); }
-  if (BOARD.page === "news" && now > BOARD.newsUntil){ BOARD.newsIdx++; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
+  if ((BOARD.page === "news" || BOARD.page === "wx") && now > BOARD.newsUntil){ BOARD.newsIdx++; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
+  if (BOARD.page === "fotboll" && now > BOARD.newsUntil){ BOARD.fbNewsIdx = (BOARD.fbNewsIdx || 0) + 1; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
+  if (BOARD.page === "hockey" && now > BOARD.newsUntil){ BOARD.hkNewsIdx = (BOARD.hkNewsIdx || 0) + 1; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
   return BOARD.page;
 }
 function drawBoardBg(t){
@@ -3732,7 +3816,6 @@ function buildControls(){
   $("#idHome").addEventListener("change", e => { S.home.on = e.target.checked; saveS(); BOARD.until = 0; });
   $("#homeSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return;
     S.home[b.dataset.v] = !S.home[b.dataset.v]; saveS(); b.classList.toggle("on", S.home[b.dataset.v]); renderBoard(); renderEdges(); });
-  $("#idWxFb").addEventListener("change", e => { S.idle.wxFb = e.target.checked; saveS(); loadFootball(); renderBoard(); });
   $("#fbSrc").addEventListener("change", e => { S.foot.src = e.target.value; saveS(); loadFootball(); });
   $("#fbMins").addEventListener("change", e => { S.foot.mins = Math.max(5, Math.min(1440, parseInt(e.target.value, 10) || 60)); e.target.value = S.foot.mins; saveS(); loadFootball(); });
   $("#idFb").addEventListener("change", e => { S.idle.fb = e.target.checked; saveS(); BOARD.until = 0; loadFootball(); loadHockey(); });
@@ -3776,7 +3859,7 @@ function syncAll(){
   $("#wxPlace").value = S.edge.place;
   $("#idBus").checked = S.bus.on; $("#signOrig").checked = S.bus.signOrig !== false;
   $("#idHome").checked = S.home.on; document.querySelectorAll("#homeSeg button").forEach(b => b.classList.toggle("on", !!S.home[b.dataset.v]));
-  $("#idPhoto").checked = S.photo.on; $("#albums").value = S.photo.albums; $("#photoOrig").checked = !!S.photo.orig; $("#idFb").checked = S.idle.fb; $("#idWxFb").checked = S.idle.wxFb; $("#fbSrc").value = S.foot.src; $("#fbMins").value = S.foot.mins;
+  $("#idPhoto").checked = S.photo.on; $("#albums").value = S.photo.albums; $("#photoOrig").checked = !!S.photo.orig; $("#idFb").checked = S.idle.fb; $("#fbSrc").value = S.foot.src; $("#fbMins").value = S.foot.mins;
   if (S.bus.id) $("#busSel").innerHTML = `<option value="${esc(S.bus.id)}">${esc(S.bus.name)}</option>`;
   if (S.bus.to) $("#busToSel").innerHTML = `<option value="">Ingen – visa vart bussen går</option><option value="${esc(S.bus.to)}" selected>${esc(S.bus.toName)}</option>`;
   $("#idWx").checked = S.idle.wx; $("#idNews").checked = S.idle.news; $("#idTest").checked = S.idle.test;
@@ -3825,6 +3908,7 @@ document.addEventListener("mousemove", () => { document.body.classList.remove("h
   // Sidan frågar servern ofta; servern bestämmer själv när den verkligen hämtar nytt (se inställningen)
   loadFootball(); setInterval(loadFootball, 5*60*1000);
   loadHockey(); setInterval(loadHockey, 5*60*1000);
+  loadAikNews(); setInterval(loadAikNews, 10*60*1000);
   setInterval(renderBoard, 15*1000);
   loadDeps(); setInterval(() => { if (S.bus.on && S.bus.id && (BOARD.page === "wx" || Date.now() - DEP.at > 5*60e3)) loadDeps(); }, 60*1000);
   segOn("#vizSeg", String(S.viz)); segOn("#srcSeg", S.source); segOn("#vinSeg", S.vizInput); segOn("#genreSeg", S.genre);
