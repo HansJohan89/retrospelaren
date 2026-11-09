@@ -149,10 +149,12 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #pgWx .wxHoursFull .c{padding:.4vh 0}
 /* Nedre raden: nyhet (bred) + hållplatsskylt, exakt samma högerkant som klockan och dagsprognosen ovanför */
 #pgWx .wxB{flex:1 1 auto;min-height:0;overflow:hidden}
-#pgWx .wxB.wxBN{display:grid;grid-template-columns:minmax(0,1fr) 24.454vw;gap:4vh;align-items:stretch}
+/* grid-template-rows:minmax(0,1fr) gör att raden (och skylten i den) krymps till det utrymme som
+   verkligen finns kvar i stället för att tvinga sidan längre än sin egen box */
+#pgWx .wxB.wxBN{display:grid;grid-template-columns:minmax(0,1fr) 29vw;grid-template-rows:minmax(0,1fr);gap:4vh;align-items:stretch}
 #pgWx .wxB.wxBN.noSign{grid-template-columns:1fr}
-/* Skylten: exakt samma mått varhelst den visas (469.515625×484.734375px / 19.7197px vid 1920×1080) */
-#pgWx .wxB.wxBN .sign{height:44.883vh;max-height:44.883vh;font-size:1.8259vh;flex:none;align-self:start}
+/* Skylten fyller hela den nedre radens höjd (bredare och större än förut), aldrig mer än vad som får plats */
+#pgWx .wxB.wxBN .sign{height:100%;max-height:100%;font-size:2vh;flex:none;align-self:stretch}
 #pgWx .wxB.wxBN .artWide{height:100%;min-height:0;display:flex}
 #pgWx .wxB.wxBN .artWide .art{grid-template-columns:.62fr 1fr}
 #pgWx .wxRow,#pgWx .kick{flex:none}
@@ -1909,8 +1911,11 @@ function idlePages(){
 }
 function feedInfo(){ const f = FEEDS[S.idle.feed] || FEEDS.svt; return { name:f.name, url: S.idle.feed === "own" ? S.idle.own : f.url }; }
 async function loadNews(){
+  // Vädersidan visar en nyhet från samma flöde, så det hämtas även när bara "Väder i detalj" är på
+  // och "Nyheter" som egen sida är avstängd.
+  const want = S.idle.news || S.idle.wx;
   const f = feedInfo();
-  if (!S.idle.news || !f.url){ NEWS = { items:[], at:0, src:"" }; $("#newsStatus").textContent = S.idle.news && !f.url ? "Ange en RSS-adress." : ""; return; }
+  if (!want || !f.url){ NEWS = { items:[], at:0, src:"" }; $("#newsStatus").textContent = S.idle.news && !f.url ? "Ange en RSS-adress." : ""; return; }
   try{
     const r = await fetch("/api/rss?url=" + encodeURIComponent(f.url));
     const j = await r.json();
@@ -2340,19 +2345,19 @@ function fitLists(el){
   });
   alignNxm(el);
 }
-// "Nästa"-raden: strecket mellan klubbloggorna ska hamna exakt ovanför +/- -kolumnen i tabellhuvudet,
-// inte flytande fritt eller centrerat på sidan.
+// "Nästa"-raden: strecket mellan klubbloggorna ska hamna exakt ovanför S-kolumnen i tabellhuvudet
+// (längre åt vänster, inte flytande fritt eller centrerat på sidan).
 function alignNxm(el){
   el.querySelectorAll(".fbBox").forEach(box => {
     const mh = box.querySelector(".mh"), nxm = box.querySelector(".nxm");
     if (!mh || !nxm) return;
     const vs = nxm.querySelector(".vs"), dash = vs && vs.querySelector("i");
-    const pmCol = mh.children[7];
-    if (!vs || !dash || !pmCol) return;
+    const sCol = mh.children[3];
+    if (!vs || !dash || !sCol) return;
     vs.style.marginLeft = "0px";
-    const pmRect = pmCol.getBoundingClientRect(), dashRect = dash.getBoundingClientRect();
-    const delta = (pmRect.left + pmRect.right)/2 - (dashRect.left + dashRect.right)/2;
-    vs.style.marginLeft = Math.max(0, delta) + "px";
+    const sRect = sCol.getBoundingClientRect(), dashRect = dash.getBoundingClientRect();
+    const delta = (sRect.left + sRect.right)/2 - (dashRect.left + dashRect.right)/2;
+    vs.style.marginLeft = delta + "px";
   });
 }
 window.addEventListener("resize", () => document.querySelectorAll("#board .pg").forEach(el => { el._h = ""; }));
@@ -3831,7 +3836,7 @@ function buildControls(){
     S.bus.id = o.value; S.bus.name = o.textContent; saveS(); DEP = { items:[], at:0, err:"", nokey:false }; loadDeps(); });
   for (const [id, key] of [["#idWx","wx"],["#idNews","news"],["#idTest","test"]])
     $(id).addEventListener("change", e => { S.idle[key] = e.target.checked; saveS(); BOARD.until = 0;
-      if (key === "wx") loadWeather(); if (key === "news") loadNews(); });
+      if (key === "wx") loadWeather(); if (key === "news" || key === "wx") loadNews(); });
   $("#feedSel").innerHTML = Object.entries(FEEDS).map(([k, f]) => `<option value="${k}">${f.name}</option>`).join("");
   $("#feedSel").addEventListener("change", e => { S.idle.feed = e.target.value; saveS(); $("#feedOwnRow").style.display = S.idle.feed === "own" ? "" : "none"; NEWS.items = []; loadNews(); });
   $("#feedOwn").addEventListener("change", e => { S.idle.own = e.target.value.trim(); saveS(); loadNews(); });
