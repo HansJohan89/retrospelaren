@@ -767,14 +767,18 @@ class Handler(SimpleHTTPRequestHandler):
         return self._json(out)
 
     def ogimage(self, url):
-        """Artikelns delningsbild (og:image), för flöden som saknar bild."""
+        """Artikelns delningsbild (og:image) och ingress (og:description), för flöden som saknar det."""
         import re
         import html
         if not url.startswith(("http://", "https://")):
             return self._json({"error": "ogiltig url"}, 400)
         if url in OG_CACHE:
-            return self._json({"img": OG_CACHE[url]})
+            cached = OG_CACHE[url]
+            if isinstance(cached, dict):
+                return self._json(cached)
+            return self._json({"img": cached, "desc": ""})
         img = ""
+        desc = ""
         try:
             with open_url(url, timeout=8) as r:
                 page = r.read(600 * 1024).decode("utf-8", "ignore")
@@ -785,12 +789,20 @@ class Handler(SimpleHTTPRequestHandler):
                 if m:
                     img = html.unescape(m.group(1))
                     break
+            for pat in (r'<meta[^>]+property=["\']og:description["\'][^>]+content=["\']([^"\']+)',
+                        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:description["\']',
+                        r'<meta[^>]+name=["\']description["\'][^>]+content=["\']([^"\']+)',
+                        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+name=["\']description["\']'):
+                m = re.search(pat, page, re.I)
+                if m:
+                    desc = html.unescape(m.group(1)).strip()
+                    break
         except Exception as e:
-            return self._json({"error": str(e), "img": ""})
+            return self._json({"error": str(e), "img": "", "desc": ""})
         if len(OG_CACHE) > 500:
             OG_CACHE.clear()
-        OG_CACHE[url] = img
-        return self._json({"img": img})
+        OG_CACHE[url] = {"img": img, "desc": desc}
+        return self._json({"img": img, "desc": desc})
 
     # --- kollektivtrafik via Trafiklab ResRobot v2.1, samma API och nyckel som e-ink-tavlan (fetchers/bus.py) ---
     def rr_get(self, endpoint, params):
