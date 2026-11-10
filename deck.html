@@ -1,0 +1,1999 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BLAUPUNKT · Stream Controller</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Bebas+Neue&family=Inter:wght@500;700&family=JetBrains+Mono:wght@500;700&family=Limelight&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#121316; --panel:#1b1d21; --panel2:#23262b; --panel3:#2b2f35; --line:#30343b; --line2:#3d424a;
+  --tx:#e8e9ec; --mut:#8e939c; --dim:#5d626b; --acc:#4c8dff; --acc-d:#2f6fe0; --ok:#30d158; --warn:#ffb020; --bad:#ff5a52;
+  --r:8px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--tx);font:13px/1.4 "Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;overflow:hidden;
+  -webkit-font-smoothing:antialiased;user-select:none}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.ic{width:18px;height:18px;flex:none}
+#app{display:grid;grid-template-rows:52px minmax(0,1fr) auto;height:100dvh}
+
+/* ---------- överkanten ---------- */
+#top{display:flex;align-items:center;gap:10px;padding:0 14px;background:var(--panel);border-bottom:1px solid var(--line);min-width:0}
+.brand{display:flex;align-items:center;gap:8px;color:var(--tx);text-decoration:none;font-weight:700;letter-spacing:.12em;font-size:12px;white-space:nowrap}
+.brand .ic{color:var(--mut)}
+.brand small{font-weight:500;letter-spacing:.04em;color:var(--mut)}
+.vsep{width:1px;height:24px;background:var(--line);flex:none}
+.tbtn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-radius:var(--r);border:1px solid var(--line);background:var(--panel2);white-space:nowrap}
+.tbtn:hover{border-color:var(--line2);background:var(--panel3)}
+.tbtn:disabled{opacity:.35;cursor:default}
+.tbtn.icon{width:32px;padding:0;justify-content:center}
+.tbtn .caret{color:var(--mut);font-size:10px;margin-left:2px}
+#profileBtn{max-width:200px}
+#profileBtn b{overflow:hidden;text-overflow:ellipsis;font-weight:600}
+#pageTabs{display:flex;align-items:center;gap:4px;min-width:0;overflow-x:auto;scrollbar-width:none}
+#pageTabs::-webkit-scrollbar{display:none}
+.ptab{height:32px;min-width:34px;padding:0 11px;border-radius:var(--r);border:1px solid transparent;background:transparent;color:var(--mut);white-space:nowrap;font-weight:600}
+.ptab:hover{background:var(--panel2);color:var(--tx)}
+.ptab.on{background:var(--panel3);border-color:var(--line2);color:var(--tx)}
+.ptab.live::after{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ok);margin-left:6px;vertical-align:1px}
+.ptab.add{color:var(--mut);font-size:16px;padding:0 9px}
+.grow{flex:1}
+.seg{display:inline-flex;padding:3px;border-radius:10px;background:#101114;border:1px solid var(--line)}
+.seg button{height:26px;padding:0 12px;border:0;border-radius:7px;background:transparent;color:var(--mut);font-weight:600;white-space:nowrap}
+.seg button.on{background:var(--acc);color:#fff}
+.chip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:13px;background:#101114;border:1px solid var(--line);color:var(--mut);font-size:12px;white-space:nowrap;cursor:pointer}
+.chip i{width:8px;height:8px;border-radius:50%;background:var(--dim)}
+.chip.ok i{background:var(--ok);box-shadow:0 0 6px var(--ok)}
+.chip.half i{background:var(--warn)}
+#saveState{font-size:12px;color:var(--mut);min-width:64px;text-align:right;white-space:nowrap}
+#saveState.err{color:var(--bad)}
+
+/* ---------- mitten ---------- */
+#body{display:grid;grid-template-columns:minmax(0,1fr) 316px;min-height:0}
+#stage{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;
+  background:radial-gradient(900px 480px at 50% 40%,#1b1e24 0,#121316 70%)}
+#crumb{display:flex;align-items:center;gap:6px;height:38px;padding:0 16px;color:var(--mut);font-size:12.5px;flex:none}
+#crumb button{background:none;border:0;color:var(--mut);padding:3px 6px;border-radius:5px;display:inline-flex;align-items:center;gap:4px}
+#crumb button:hover{background:var(--panel2);color:var(--tx)}
+#crumb b{color:var(--tx);font-weight:600}
+#crumb .sp{flex:1}
+#crumb label{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+#deviceWrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+#stageHint{height:30px;flex:none;text-align:center;color:var(--dim);font-size:12px;padding:0 12px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+
+/* ---------- enheten (uppifrån, som den står på bordet) ---------- */
+#device{position:relative;width:660px;height:422px;flex:none;border-radius:30px;transform-origin:center;
+  background:linear-gradient(165deg,#2b2d32 0,#1d1f23 38%,#141518 100%);
+  box-shadow:0 0 0 1px #000,inset 0 1px 0 rgba(255,255,255,.09),inset 0 -2px 6px rgba(0,0,0,.6),0 30px 60px rgba(0,0,0,.55),0 8px 18px rgba(0,0,0,.5)}
+#device::before{content:"";position:absolute;inset:10px;border-radius:22px;border:1px solid rgba(255,255,255,.035);pointer-events:none}
+.dvBrand{position:absolute;left:40px;width:320px;top:22px;text-align:center;font:700 9.5px/1 "Segoe UI",Arial,sans-serif;letter-spacing:.42em;color:#5a5e66}
+.key{position:absolute;width:96px;height:96px;border-radius:13px;background:#050506;overflow:hidden;
+  box-shadow:0 0 0 2px #0a0a0b,0 0 0 3px #34373d,0 4px 8px rgba(0,0,0,.6);cursor:pointer;transition:transform .07s ease,filter .07s ease}
+.key canvas{width:100%;height:100%;display:block;border-radius:11px}
+.key .glass{position:absolute;inset:0;border-radius:12px;pointer-events:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.10) 0,rgba(255,255,255,.02) 26%,rgba(255,255,255,0) 50%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)}
+.key.down{transform:translateY(2px) scale(.965);filter:brightness(1.25)}
+.key.empty canvas{opacity:0}
+.mode-edit .key.empty{background:#0c0d0f;box-shadow:0 0 0 2px #0a0a0b,0 0 0 3px #2a2d33}
+.mode-edit .key.empty::after{content:"+";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#3b3f47;font-size:26px;font-weight:300}
+.sbtn{position:absolute;width:42px;height:42px;border-radius:50%;cursor:pointer;
+  background:radial-gradient(circle at 50% 35%,#3a3d43 0,#232529 55%,#17181b 100%);
+  box-shadow:0 0 0 2px #0b0b0c,0 0 0 3px #33363c,0 3px 6px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.12);transition:transform .07s ease}
+.sbtn.down{transform:translateY(2px) scale(.94);filter:brightness(1.3)}
+.sbtn.unset{opacity:.55}
+.cap{position:absolute;font:600 10px/1.1 "Segoe UI",Arial,sans-serif;color:#7d828b;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.hideCaps .cap{display:none}
+.knob{position:absolute;border-radius:50%;cursor:pointer;touch-action:none;
+  background:radial-gradient(circle at 50% 30%,#2c2e33 0,#191a1d 70%);
+  box-shadow:0 0 0 2px #0a0a0b,0 0 0 3px #32353b,0 10px 18px rgba(0,0,0,.6)}
+.knob .dial{position:absolute;inset:9%;border-radius:50%;
+  background:conic-gradient(from 0deg,#3b3e44,#1d1e22 12%,#34373d 25%,#1b1c20 37%,#3b3e44 50%,#1d1e22 62%,#34373d 75%,#1b1c20 87%,#3b3e44);
+  box-shadow:inset 0 2px 3px rgba(255,255,255,.14),inset 0 -6px 12px rgba(0,0,0,.6),0 3px 8px rgba(0,0,0,.6)}
+.knob .top{position:absolute;inset:21%;border-radius:50%;background:radial-gradient(circle at 50% 30%,#34363c 0,#1e2024 75%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 1px 2px rgba(0,0,0,.6)}
+.knob .tick{position:absolute;left:50%;top:13%;width:3px;height:13%;margin-left:-1.5px;border-radius:2px;background:#cfd3da;box-shadow:0 0 5px rgba(255,255,255,.35)}
+.knob.down .dial{transform:scale(.96)}
+.knob .rotwrap{position:absolute;inset:0;border-radius:50%;transition:transform .09s linear}
+.knob .zones{position:absolute;inset:-9px;border-radius:50%;pointer-events:none;display:none}
+.knob .zones span{position:absolute;display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#101114;border:1px solid var(--line2);color:var(--dim);font-size:12px;line-height:1}
+.knob .zones span.set{color:#fff;border-color:var(--acc);background:var(--acc-d)}
+.knob .zones .zl{left:-7px;top:50%;margin-top:-11px}
+.knob .zones .zr{right:-7px;top:50%;margin-top:-11px}
+.knob .zones .zp{left:50%;bottom:-8px;margin-left:-11px}
+.mode-edit .knob .zones{display:block}
+.knob .zones span.hot{background:var(--ok);border-color:var(--ok);color:#04130a}
+.rotBtn{position:absolute;width:26px;height:26px;border-radius:50%;border:1px solid var(--line2);background:#101114;color:var(--mut);display:none;align-items:center;justify-content:center;padding:0}
+.rotBtn:hover{color:#fff;border-color:var(--acc)}
+.mode-use .rotBtn{display:flex}
+.sel{outline:2px solid var(--acc);outline-offset:4px}
+.key.sel{outline-offset:5px}
+.dragover{outline:2px solid var(--ok)!important;outline-offset:5px}
+.mode-use #device .key,.mode-use #device .sbtn{cursor:pointer}
+#device.asleep .key canvas{filter:brightness(0)}
+.flash{animation:flash .28s ease}
+@keyframes flash{0%{filter:brightness(1.9)}100%{filter:none}}
+
+/* ---------- sidopanelen: åtgärder (redigera) / händelser (använd) ---------- */
+#side{background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+#sideHead{padding:10px 12px 8px;border-bottom:1px solid var(--line);flex:none}
+#sideHead h3{margin:0 0 8px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);font-weight:700}
+.search{position:relative}
+.search input{width:100%;height:30px;padding:0 10px 0 30px;border-radius:var(--r);border:1px solid var(--line);background:#101114;outline:none;user-select:text}
+.search input:focus{border-color:var(--acc)}
+.search .ic{position:absolute;left:8px;top:6px;color:var(--dim)}
+#lib,#log{flex:1;overflow:auto;min-height:0;padding:4px 0 14px}
+.libCat{padding:10px 12px 4px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer}
+.libCat .car{font-size:9px;color:var(--dim);transition:transform .12s}
+.libCat.shut .car{transform:rotate(-90deg)}
+.libItem{display:flex;align-items:center;gap:10px;height:34px;margin:1px 6px;padding:0 8px;border-radius:7px;cursor:grab}
+.libItem:hover{background:var(--panel3)}
+.libItem:active{cursor:grabbing}
+.libItem .sw{width:24px;height:24px;border-radius:6px;background:#111216;display:flex;align-items:center;justify-content:center;flex:none;box-shadow:inset 0 0 0 1px var(--line)}
+.libItem .sw .ic{width:16px;height:16px}
+.libItem span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.libItem em{font-style:normal;font-size:10.5px;color:var(--dim)}
+.logRow{padding:5px 12px;border-bottom:1px solid #202328;font-size:12px;display:grid;grid-template-columns:54px 1fr;gap:2px 8px}
+.logRow time{color:var(--dim);font-variant-numeric:tabular-nums}
+.logRow .w{color:var(--tx)}
+.logRow .w em{font-style:normal;color:var(--acc);font-weight:600}
+.logRow .w em.hw{color:var(--ok)}
+.logRow code{grid-column:2;color:var(--mut);font:11px/1.35 "JetBrains Mono",Consolas,monospace;word-break:break-all;user-select:text}
+.empty{padding:22px 16px;color:var(--dim);text-align:center;line-height:1.5}
+
+/* ---------- inspektorn ---------- */
+#inspector{background:var(--panel);border-top:1px solid var(--line);height:292px;min-height:0;overflow:hidden;display:flex}
+.mode-use #inspector{display:none}
+.insEmpty{margin:auto;color:var(--dim);text-align:center;line-height:1.6;max-width:520px;padding:16px}
+.insCol{padding:12px 14px;min-width:0;overflow:auto;border-right:1px solid var(--line)}
+.insCol:last-child{border-right:0}
+.insCol h4,.slotCard h4,.encSide h4{margin:0 0 9px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);font-weight:700;display:flex;align-items:center;gap:8px}
+.insCol h4 .sp,.slotCard h4 .sp{flex:1}
+.insCol h4 button,.slotCard h4 button{font-size:11px;letter-spacing:0;text-transform:none;font-weight:500}
+.colPrev{flex:0 0 178px;display:flex;flex-direction:column;align-items:center;gap:9px}
+.colLook{flex:1 1 430px}
+.colAct{flex:1 1 400px}
+.bigPrev{width:118px;height:118px;border-radius:15px;box-shadow:0 0 0 2px #0a0a0b,0 0 0 3px #34373d,0 6px 14px rgba(0,0,0,.5);background:#050506}
+.stTabs{display:flex;gap:4px}
+.stTabs button{height:24px;padding:0 9px;border-radius:6px;border:1px solid var(--line);background:#101114;color:var(--mut);font-size:12px}
+.stTabs button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.lnk{background:none;border:0;color:var(--acc);padding:0;font-size:12px}
+.lnk:hover{text-decoration:underline}
+.lnk.mut{color:var(--mut)}
+.fRow{display:grid;grid-template-columns:104px minmax(0,1fr);align-items:center;gap:6px 10px;margin-bottom:7px}
+.fRow>label{color:var(--mut);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fRow .ctl{display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap}
+.fRow.top{align-items:start}
+.fRow.top>label{padding-top:6px}
+.in,select.in,textarea.in{height:28px;padding:0 8px;border-radius:6px;border:1px solid var(--line);background:#101114;outline:none;min-width:0;user-select:text}
+textarea.in{height:auto;padding:5px 8px;resize:vertical;width:100%;line-height:1.3;font-family:inherit}
+.in:focus{border-color:var(--acc)}
+.in.w{flex:1;width:100%}
+.in.n{width:68px}
+select.in{padding-right:4px}
+input[type=range]{flex:1;min-width:60px;accent-color:var(--acc);height:20px}
+input[type=color]{width:30px;height:28px;padding:0;border:1px solid var(--line);border-radius:6px;background:#101114;cursor:pointer}
+input[type=checkbox]{accent-color:var(--acc);width:15px;height:15px;margin:0}
+.val{min-width:40px;text-align:right;color:var(--mut);font-variant-numeric:tabular-nums;font-size:12px}
+.tg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#101114}
+.tg button{width:28px;height:26px;border:0;background:transparent;color:var(--mut);display:flex;align-items:center;justify-content:center;padding:0;font-weight:700}
+.tg button+button{border-left:1px solid var(--line)}
+.tg button.on{background:var(--panel3);color:#fff}
+.tg.txt button{width:auto;padding:0 9px;font-weight:500;font-size:12px}
+.sbtnS{height:28px;padding:0 10px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.sbtnS:hover{border-color:var(--line2);background:var(--panel3)}
+.sbtnS.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.sbtnS.danger:hover{border-color:var(--bad);color:var(--bad)}
+.iconBtn{width:44px;height:44px;border-radius:9px;border:1px solid var(--line);background:#101114;display:flex;align-items:center;justify-content:center;padding:0;overflow:hidden}
+.iconBtn:hover{border-color:var(--acc)}
+.iconBtn .ic{width:26px;height:26px}
+.iconBtn img{width:100%;height:100%;object-fit:cover}
+.swatches{display:flex;gap:4px;flex-wrap:wrap}
+.swatches button{width:18px;height:18px;border-radius:50%;border:1px solid rgba(255,255,255,.18);padding:0}
+.actHead{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.actHead .sw{width:30px;height:30px;border-radius:8px;background:#111216;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px var(--line)}
+.actHead b{font-size:14px}
+.actHead small{display:block;color:var(--mut)}
+.note{color:var(--mut);font-size:12px;line-height:1.45;margin:6px 0}
+.note code{background:#101114;border:1px solid var(--line);border-radius:4px;padding:0 4px;font:11px "JetBrains Mono",Consolas,monospace;user-select:text;word-break:break-all}
+.slotCard{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#17191c;margin-bottom:0;min-height:100%}
+.slotCard.dragover{outline-offset:-2px!important}
+.slotCard h4 .zi{display:inline-flex;width:20px;height:20px;border-radius:50%;background:#101114;border:1px solid var(--line2);align-items:center;justify-content:center;font-size:12px;color:var(--tx);letter-spacing:0}
+.encCols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;flex:1;padding:12px 14px;overflow:auto;min-width:0}
+.encSide{flex:0 0 220px;padding:12px 14px;border-right:1px solid var(--line);overflow:auto}
+.step{border:1px solid var(--line);border-radius:8px;background:#17191c;padding:7px 9px;margin-bottom:6px}
+.stepHead{display:flex;align-items:center;gap:7px;margin-bottom:6px}
+.stepHead b{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stepHead .n{width:18px;height:18px;border-radius:50%;background:var(--panel3);font-size:11px;display:flex;align-items:center;justify-content:center;color:var(--mut)}
+.mini{width:24px;height:24px;border-radius:5px;border:1px solid var(--line);background:#101114;color:var(--mut);padding:0;display:inline-flex;align-items:center;justify-content:center}
+.mini:hover{color:#fff;border-color:var(--line2)}
+.mini .ic{width:13px;height:13px}
+
+/* ---------- menyer, dialoger ---------- */
+#menu{position:fixed;z-index:60;min-width:190px;max-height:70vh;overflow:auto;background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:5px;box-shadow:0 14px 40px rgba(0,0,0,.6);display:none}
+#menu.open{display:block}
+#menu button{display:flex;align-items:center;gap:9px;width:100%;height:30px;padding:0 10px;border:0;border-radius:6px;background:transparent;text-align:left;white-space:nowrap}
+#menu button:hover{background:var(--acc);color:#fff}
+#menu button:hover .ic,#menu button:hover kbd{color:#fff}
+#menu button .ic{color:var(--mut);width:16px;height:16px}
+#menu button kbd{margin-left:auto;color:var(--dim);font:11px inherit;padding-left:18px}
+#menu button.on{color:var(--acc)}
+#menu button:disabled{opacity:.4;pointer-events:none}
+#menu hr{border:0;border-top:1px solid var(--line);margin:5px 4px}
+#menu .mh{padding:6px 10px 3px;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);font-weight:700}
+.modal{position:fixed;inset:0;z-index:50;background:rgba(5,6,8,.66);display:none;align-items:center;justify-content:center;padding:18px}
+.modal.open{display:flex}
+.dlg{width:min(720px,100%);max-height:min(86vh,760px);background:var(--panel);border:1px solid var(--line2);border-radius:14px;box-shadow:0 24px 70px rgba(0,0,0,.7);display:flex;flex-direction:column;overflow:hidden}
+.dlg header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.dlg header h2{margin:0;font-size:15px;flex:1}
+.dlg .bd{padding:14px 16px;overflow:auto;min-height:0}
+.dlg footer{display:flex;gap:8px;justify-content:flex-end;padding:11px 16px;border-top:1px solid var(--line)}
+.x{width:28px;height:28px;border-radius:7px;border:0;background:transparent;color:var(--mut);font-size:18px;line-height:1}
+.x:hover{background:var(--panel3);color:#fff}
+.tabs{display:flex;gap:4px;padding:10px 16px 0}
+.tabs button{height:30px;padding:0 12px;border:0;border-radius:7px 7px 0 0;background:transparent;color:var(--mut);font-weight:600;border-bottom:2px solid transparent}
+.tabs button.on{color:#fff;border-bottom-color:var(--acc)}
+.iconGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px}
+.iconGrid button{height:66px;border-radius:9px;border:1px solid transparent;background:#15171a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:2px;color:var(--tx)}
+.iconGrid button:hover{border-color:var(--acc);background:var(--panel3)}
+.iconGrid button.on{border-color:var(--acc);background:#182746}
+.iconGrid button .ic{width:26px;height:26px}
+.iconGrid button small{font-size:9.5px;color:var(--mut);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.iconGrid .emo{font-size:26px;line-height:1}
+.gcat{margin:12px 0 6px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);font-weight:700}
+.gcat:first-child{margin-top:0}
+.drop{border:1.5px dashed var(--line2);border-radius:12px;padding:26px;text-align:center;color:var(--mut);line-height:1.6}
+.drop.dragover{border-color:var(--ok);outline:0!important}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:6px 12px;margin:8px 0}
+.kv span:nth-child(odd){color:var(--mut)}
+.calib{display:flex;gap:18px;align-items:center}
+.calib .big{font-size:18px;font-weight:700;margin:4px 0}
+.prog{height:6px;border-radius:3px;background:#101114;overflow:hidden;margin-top:10px}
+.prog i{display:block;height:100%;background:var(--acc);width:0;transition:width .2s}
+#toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);z-index:70;background:#0c0d0f;border:1px solid var(--line2);border-radius:10px;padding:9px 14px;
+  box-shadow:0 10px 30px rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;max-width:min(560px,92vw);text-align:center}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#33373e;border-radius:5px;border:2px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ---------- smala skärmar: emulatorn som fjärrkontroll ---------- */
+@media (max-width:900px){
+  #app{grid-template-rows:auto minmax(0,1fr) auto}
+  #top{flex-wrap:wrap;padding:8px 10px;gap:8px;row-gap:6px}
+  #top .vsep,#top .grow,.mode-use #undoBtn,.mode-use #redoBtn{display:none}
+  #pageTabs{order:9;flex:1 1 100%}
+  #crumb{height:auto;min-height:32px;flex-wrap:wrap;padding:4px 10px}
+  .mode-use #crumb label,#stageHint{display:none}
+  #body{grid-template-columns:1fr}
+  #side{display:none}
+  .mode-edit #inspector{height:46dvh;flex-wrap:wrap;overflow:auto}
+  .brand small,#saveState{display:none}
+  .colPrev{flex:1 1 100%;flex-direction:row;justify-content:center}
+  .insCol{border-right:0;flex:1 1 100%}
+  .encSide{flex:1 1 100%;border-right:0}
+  .encCols{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div id="app" class="mode-edit">
+  <header id="top">
+    <a class="brand" href="/" title="Tillbaka till skärmen"><span id="brandIc"></span>BLAUPUNKT <small>Stream Controller</small></a>
+    <span class="vsep"></span>
+    <button class="tbtn" id="profileBtn" title="Profiler"><span id="profIc"></span><b id="profileName">Profil</b><span class="caret">▼</span></button>
+    <div id="pageTabs"></div>
+    <span class="grow"></span>
+    <div class="seg" id="modeSeg"><button data-m="edit" class="on">Redigera</button><button data-m="use">Använd</button></div>
+    <span class="chip" id="hubChip" title="Hubben på Raspberry Pi:n och den fysiska enheten"><i></i><span id="hubTxt">Hubb: söker…</span></span>
+    <button class="tbtn icon" id="undoBtn" title="Ångra (Ctrl+Z)"></button>
+    <button class="tbtn icon" id="redoBtn" title="Gör om (Ctrl+Y)"></button>
+    <button class="tbtn icon" id="deviceBtn" title="Enhetsinställningar"></button>
+    <span id="saveState"></span>
+  </header>
+  <div id="body">
+    <main id="stage">
+      <div id="crumb"></div>
+      <div id="deviceWrap"><div id="device"></div></div>
+      <div id="stageHint"></div>
+    </main>
+    <aside id="side">
+      <div id="sideHead"></div>
+      <div id="lib"></div>
+      <div id="log" hidden></div>
+    </aside>
+  </div>
+  <section id="inspector"></section>
+</div>
+<div id="menu"></div>
+<div class="modal" id="modal"><div class="dlg" id="dlg"></div></div>
+<div id="toast"></div>
+<input type="file" id="filePick" hidden>
+<script id="core">
+"use strict";
+/* =====================================================================================
+   KÄRNAN - datamodell, kommandon och körmotor. Ingen DOM här: samma regler finns i
+   hubben på Pi:n (hub/deck_engine.py) och de två jämförs i test/crosscheck. Ändrar du
+   något här ska det ändras där också.
+
+   Enheten (SOOMFON Stream Controller SE):
+     6 LCD-knappar   key 0-2 övre raden, 3-5 nedre raden (vänster till höger)
+     3 små knappar   btn 0-2 under LCD-knapparna (utan skärm)
+     3 rattar        enc 0 = stora ratten, 1 = lilla vänstra, 2 = lilla högra
+                     varje ratt har tre platser: ccw (vrid vänster), cw (vrid höger), press
+
+   deck = { v, device:{brightness, sleepMin, map}, profiles:[profile], _faces }
+   profile = { id, name, pages:[page], folders:{ fid:{ keys:[6] } } }
+   page    = { id, name, keys:[6], btns:[3], encs:[3 x {ccw,cw,press}] }
+   ctl     = { id, states:[ {a:action, look}, ... ] }   // 1 läge, eller 2 som växlar vid tryck
+   nav     = { p:profilId, pg:sidindex, stack:[fid,...] }   // delas med den fysiska enheten
+   ===================================================================================== */
+const DeckCore = (() => {
+  const N_KEYS = 6, N_BTNS = 3, N_ENCS = 3;
+  const HOLD_MS = 550;        // håll in Tillbaka så här länge = hoppa ända upp
+  const ROT_WINDOW_MS = 60;   // snabba rattsteg inom det här fönstret slås ihop till ett kommando
+  const uid = () => Math.random().toString(36).slice(2, 10);
+
+  const newCtl = (a, look) => ({ id: uid(), states: [{ a, look: look || {} }] });
+  const newEnc = () => ({ ccw: null, cw: null, press: null });
+  const newPage = name => ({ id: uid(), name: name || "", keys: Array(N_KEYS).fill(null), btns: Array(N_BTNS).fill(null),
+                             encs: [newEnc(), newEnc(), newEnc()] });
+  const newProfile = name => ({ id: uid(), name: name || "Profil", pages: [newPage()], folders: {} });
+
+  // ---- rattförval: fyller vrid vänster / vrid höger / tryck i ett svep ----
+  const DIALS = {
+    volume:  { name: "Volym",            ccw: r => ({ t:"sonos", room:r.room, op:"vol-rel", value:-3 }),  cw: r => ({ t:"sonos", room:r.room, op:"vol-rel", value:3 }),   press: r => ({ t:"sonos", room:r.room, op:"mute" }) },
+    track:   { name: "Spår",             ccw: r => ({ t:"sonos", room:r.room, op:"prev" }),               cw: r => ({ t:"sonos", room:r.room, op:"next" }),               press: r => ({ t:"sonos", room:r.room, op:"toggle" }) },
+    dim:     { name: "Ljusstyrka",       ccw: r => ({ t:"light", group:r.group, op:"dim-rel", value:-8 }), cw: r => ({ t:"light", group:r.group, op:"dim-rel", value:8 }),  press: r => ({ t:"light", group:r.group, op:"toggle" }) },
+    temp:    { name: "Färgtemperatur",   ccw: r => ({ t:"light", group:r.group, op:"temp-rel", value:-8 }), cw: r => ({ t:"light", group:r.group, op:"temp-rel", value:8 }), press: r => ({ t:"light", group:r.group, op:"temp", value:35 }) },
+    hue:     { name: "Färghjul",         ccw: r => ({ t:"light", group:r.group, op:"hue-rel", value:-15 }), cw: r => ({ t:"light", group:r.group, op:"hue-rel", value:15 }), press: r => ({ t:"light", group:r.group, op:"temp", value:35 }) },
+    viz:     { name: "Kanal",            ccw: () => ({ t:"viz", n:"prev" }),                               cw: () => ({ t:"viz", n:"next" }),                               press: () => ({ t:"palette", p:"next" }) },
+    pages:   { name: "Bläddra sidor",    ccw: () => ({ t:"pagenav", op:"prev" }),                          cw: () => ({ t:"pagenav", op:"next" }),                          press: () => ({ t:"home" }) },
+    deckbri: { name: "Knapparnas ljus",  ccw: () => ({ t:"deckdev", op:"brightness-rel", value:-10 }),     cw: () => ({ t:"deckdev", op:"brightness-rel", value:10 }),      press: () => ({ t:"deckdev", op:"sleep-toggle" }) }
+  };
+  function applyDial(enc, dialId, ctx){
+    const d = DIALS[dialId]; if (!d) return;
+    const r = Object.assign({ room: "Vardagsrum", group: "vardagsrum" }, ctx || {});
+    enc.ccw = newCtl(d.ccw(r)); enc.cw = newCtl(d.cw(r)); enc.press = newCtl(d.press(r));
+    enc.name = d.name;
+  }
+
+  function defaultDeck(){
+    const prof = newProfile("Vardagsrum");
+    const pg = prof.pages[0]; pg.name = "Hem";
+    const G = "vardagsrum", R = "Vardagsrum";
+    const scenes = uid(), screen = uid();
+    pg.keys[0] = newCtl({ t:"sonos", room:R, op:"toggle" });
+    pg.keys[1] = newCtl({ t:"sonos", room:R, op:"prev" });
+    pg.keys[2] = newCtl({ t:"sonos", room:R, op:"next" });
+    pg.keys[3] = { id: uid(), states: [ { a:{ t:"light", group:G, op:"on" }, look:{} }, { a:{ t:"light", group:G, op:"off" }, look:{} } ] };
+    pg.keys[4] = newCtl({ t:"folder", fid: scenes }, { t:{ text:"Ljus" }, i:{ kind:"lib", id:"sparkles" } });
+    pg.keys[5] = newCtl({ t:"folder", fid: screen }, { t:{ text:"Skärm" }, i:{ kind:"lib", id:"tv" } });
+    prof.folders[scenes] = { keys: [
+      newCtl({ t:"light", group:G, op:"dim", value:100 }, { t:{ text:"Fullt" } }),
+      newCtl({ t:"light", group:G, op:"dim", value:40 },  { t:{ text:"Dämpat" }, i:{ kind:"lib", id:"sun-dim" } }),
+      newCtl({ t:"light", group:G, op:"temp", value:10 }, { t:{ text:"Varmt" }, i:{ kind:"lib", id:"flame" } }),
+      newCtl({ t:"light", group:G, op:"temp", value:80 }, { t:{ text:"Kallt" }, i:{ kind:"lib", id:"snow" } }),
+      newCtl({ t:"light", group:G, op:"scene", value:"" }),
+      newCtl({ t:"light", group:G, op:"off" }) ] };
+    prof.folders[screen] = { keys: [
+      newCtl({ t:"bp", c:"open" }), newCtl({ t:"bp", c:"close" }), newCtl({ t:"viz", n:"next" }),
+      newCtl({ t:"palette", p:"next" }), newCtl({ t:"page", p:"wx" }), newCtl({ t:"page", p:"next" }) ] };
+    pg.btns[0] = newCtl({ t:"pagenav", op:"goto", page:1 });
+    pg.btns[1] = newCtl({ t:"pagenav", op:"goto", page:2 });
+    pg.btns[2] = newCtl({ t:"back" });
+    applyDial(pg.encs[0], "volume", { room:R });
+    applyDial(pg.encs[1], "dim", { group:G });
+    applyDial(pg.encs[2], "temp", { group:G });
+    const p2 = newPage("Sida 2");
+    p2.btns = JSON.parse(JSON.stringify(pg.btns)); p2.btns.forEach(b => { if (b) b.id = uid(); });
+    p2.encs = JSON.parse(JSON.stringify(pg.encs)); p2.encs.forEach(e => ["ccw","cw","press"].forEach(s => { if (e[s]) e[s].id = uid(); }));
+    prof.pages.push(p2);
+    return { v: 2, device: { brightness: 70, sleepMin: 0, map: null }, profiles: [prof] };
+  }
+
+  // ---- gamla 4x2-macropaden (S.macropad / S.mpFolders i state.json) -> nya formatet ----
+  function migrateOld(deck, macropad, mpFolders){
+    const conv = b => {
+      if (!b) return null;
+      if (b.kind === "cmd") return { t:"bp", c: b.v1 || "open" };
+      if (b.kind === "viz") return { t:"viz", n: String(b.v1 || "1") };
+      if (b.kind === "palette") return { t:"palette", p: b.v1 || "svartvit" };
+      if (b.kind === "light"){
+        const op = b.v2 || "on";
+        const value = (op === "dim" || op === "temp") ? (+b.v3 || 0) : op === "color" ? String(b.v3 || "ffcc88").replace("#", "") : (b.v3 || "");
+        return { t:"light", group: b.v1 || "", op, value };
+      }
+      return null;
+    };
+    const prof = deck.profiles[0];
+    const slot = b => {
+      if (!b) return null;
+      const look = b.label ? { t:{ text: b.label } } : {};
+      if (b.kind === "folder"){
+        const fid = uid(), src = (mpFolders && mpFolders[b.folderId]) || [];
+        prof.folders[fid] = { keys: Array.from({ length: N_KEYS }, (_, i) => slot(src[i])) };
+        return newCtl({ t:"folder", fid }, look);
+      }
+      if (b.kind === "multi"){
+        const steps = (b.steps || []).map(st => ({ a: conv(st), delay: Math.max(0, +b.delayMs || 150) })).filter(s => s.a);
+        return newCtl({ t:"multi", steps }, look);
+      }
+      if (Array.isArray(b.states) && b.states.length === 2){
+        const sts = b.states.map(s => ({ a: conv(s), look: (s.label || b.label) ? { t:{ text: s.label || b.label } } : {} })).filter(s => s.a);
+        if (sts.length === 2) return { id: uid(), states: sts };
+      }
+      const a = conv(b);
+      return a ? newCtl(a, look) : null;
+    };
+    const all = (macropad || []).map(slot);
+    if (!all.some(Boolean)) return false;
+    const base = prof.pages[0];
+    for (let off = 0; off < all.length; off += N_KEYS){
+      const chunk = all.slice(off, off + N_KEYS);
+      if (!chunk.some(Boolean)) continue;
+      const pg = newPage(off ? "Macropad " + (off / N_KEYS + 1) : "Macropad");
+      chunk.forEach((c, i) => { pg.keys[i] = c; });
+      pg.btns = JSON.parse(JSON.stringify(base.btns)); pg.btns.forEach(b => { if (b) b.id = uid(); });
+      pg.encs = JSON.parse(JSON.stringify(base.encs)); pg.encs.forEach(e => ["ccw","cw","press"].forEach(s => { if (e[s]) e[s].id = uid(); }));
+      prof.pages.push(pg);
+    }
+    return true;
+  }
+
+  // ---- kommandosträngar: det som faktiskt skickas (till /api/send, eller körs direkt av hubben) ----
+  const REL_OPS = { light: ["dim-rel", "temp-rel", "hue-rel"], sonos: ["vol-rel"], deckdev: ["brightness-rel"], z2m: ["brightness-step"] };
+  const isRel = a => !!(a && REL_OPS[a.t] && REL_OPS[a.t].includes(a.op));
+  const num = (v, d) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
+  function toCmd(a, mult){
+    if (!a) return "";
+    const k = mult || 1;
+    switch (a.t){
+      case "bp": return a.c || "";
+      case "viz": return "viz:" + (a.n || "1");
+      case "palette": return "palette:" + (a.p || "svartvit");
+      case "page": return "page:" + (a.p || "next");
+      case "light": {
+        const op = a.op || "on"; let value = null;
+        if (op === "dim") value = Math.max(1, Math.min(100, Math.round(num(a.value, 100))));
+        else if (op === "temp") value = Math.max(0, Math.min(100, Math.round(num(a.value, 50))));
+        else if (op === "dim-rel" || op === "temp-rel" || op === "hue-rel") value = Math.round(num(a.value, 0)) * k;
+        else if (op === "color") value = String(a.value || "ffcc88").replace("#", "").toLowerCase();
+        else if (op === "scene") value = String(a.value || "");
+        return "light:" + JSON.stringify({ group: a.group || "", action: op, value });
+      }
+      case "sonos": {
+        const op = a.op || "toggle", room = a.room || "";
+        if (op === "vol") return "sonos-vol:" + JSON.stringify({ room, value: Math.max(0, Math.min(100, Math.round(num(a.value, 30)))) });
+        let value = null;
+        if (op === "vol-rel") value = Math.round(num(a.value, 0)) * k;
+        else if (op === "playlist" || op === "fav") value = String(a.value || "");
+        return "sonos:" + JSON.stringify({ room, action: op, value });
+      }
+      case "z2m": {
+        const op = a.op || "toggle"; let p;
+        if (op === "on") p = { state: "ON" }; else if (op === "off") p = { state: "OFF" }; else if (op === "toggle") p = { state: "TOGGLE" };
+        else if (op === "brightness") p = { brightness: Math.max(0, Math.min(254, Math.round(num(a.value, 50) / 100 * 254))) };
+        else if (op === "brightness-step") p = { brightness_step: Math.round(num(a.value, 0) / 100 * 254) * k };
+        else if (op === "color_temp") p = { color_temp: Math.round(454 - Math.max(0, Math.min(100, num(a.value, 50))) / 100 * (454 - 250)) };
+        else p = { state: "TOGGLE" };
+        return "mqtt:" + JSON.stringify({ topic: "zigbee2mqtt/" + (a.dev || "") + "/set", payload: JSON.stringify(p) });
+      }
+      case "mqtt": return "mqtt:" + JSON.stringify({ topic: a.topic || "", payload: a.payload == null ? "" : String(a.payload) });
+      case "http": return "http:" + JSON.stringify({ url: a.url || "", method: a.method || "GET", body: a.body || "" });
+      case "sys": return "sys:" + JSON.stringify({ name: a.name || "" });
+      case "deckdev": {
+        const op = a.op || "brightness"; let value = null;
+        if (op === "brightness") value = Math.max(0, Math.min(100, Math.round(num(a.value, 70))));
+        else if (op === "brightness-rel") value = Math.round(num(a.value, 0)) * k;
+        return "deck:" + JSON.stringify({ action: op, value });
+      }
+    }
+    return "";
+  }
+
+  // ---- vy: vad som ligger på knapparna just nu ----
+  function profileOf(deck, nav){ return deck.profiles.find(p => p.id === (nav && nav.p)) || deck.profiles[0]; }
+  function ctlsOfPage(page){
+    const out = [];
+    (page.btns || []).forEach(c => { if (c) out.push(c); });
+    (page.encs || []).forEach(e => ["ccw", "cw", "press"].forEach(s => { if (e && e[s]) out.push(e[s]); }));
+    return out;
+  }
+  // Finns Tillbaka på en liten knapp eller ratt behåller mappen alla sex LCD-knappar.
+  // Annars tar en fast Tillbaka-knapp plats 0 i mappen, som på en Stream Deck.
+  function hasBackControl(page){
+    return ctlsOfPage(page).some(c => c.states.some(s => s.a && (s.a.t === "back" || s.a.t === "home")));
+  }
+  function resolveView(deck, nav){
+    const prof = profileOf(deck, nav);
+    const pg = Math.max(0, Math.min(prof.pages.length - 1, (nav && nav.pg) | 0));
+    const page = prof.pages[pg];
+    const stack = ((nav && nav.stack) || []).filter(f => prof.folders[f]);
+    let keys = page.keys, backKey = -1, folder = null;
+    if (stack.length){
+      folder = prof.folders[stack[stack.length - 1]];
+      keys = folder.keys;
+      if (!hasBackControl(page)) backKey = 0;
+    }
+    return { prof, pg, page, stack, keys, backKey, folder };
+  }
+  function normNav(deck, nav){
+    const v = resolveView(deck, nav || {});
+    return { p: v.prof.id, pg: v.pg, stack: v.stack.slice() };
+  }
+  const sameNav = (a, b) => !!a && !!b && a.p === b.p && a.pg === b.pg && JSON.stringify(a.stack || []) === JSON.stringify(b.stack || []);
+
+  /* ---- körmotorn ----
+     io = { send(cmd, action), navChanged(nav), stChanged(patch), now(), setTimeout(fn, ms) }
+     input(kind, i, down)   kind "key" | "btn" | "encp"   (down = true/false)
+     rotate(i, dir)         dir -1 (vänster) / +1 (höger), ett steg i taget                    */
+  class Engine {
+    constructor(getDeck, io){
+      this.getDeck = getDeck; this.io = io;
+      this.nav = null; this.st = {};
+      this.downAt = {}; this.rot = {};
+    }
+    view(){ const d = this.getDeck(); this.nav = normNav(d, this.nav); return resolveView(d, this.nav); }
+    ctlAt(kind, i){
+      const v = this.view();
+      if (kind === "key") return i === v.backKey ? { id: "__back", states: [{ a: { t: "back" } }] } : v.keys[i];
+      if (kind === "btn") return v.page.btns[i];
+      if (kind === "encp") return v.page.encs[i] && v.page.encs[i].press;
+      return null;
+    }
+    stateOf(ctl){ return ctl && ctl.states.length > 1 ? ((this.st[ctl.id] | 0) % ctl.states.length) : 0; }
+    input(kind, i, down){
+      const ctl = this.ctlAt(kind, i); if (!ctl) return;
+      const key = kind + i, a = ctl.states[this.stateOf(ctl)].a;
+      const holdable = a && a.t === "back";
+      if (down){
+        this.downAt[key] = this.io.now();
+        if (!holdable) this.runCtl(ctl);
+      } else {
+        const t0 = this.downAt[key]; delete this.downAt[key];
+        if (holdable) this.exec(t0 != null && this.io.now() - t0 >= HOLD_MS ? { t: "home" } : a);
+      }
+    }
+    runCtl(ctl){
+      const idx = this.stateOf(ctl), a = ctl.states[idx].a;
+      if (ctl.states.length > 1){
+        const next = (idx + 1) % ctl.states.length;
+        this.st[ctl.id] = next;
+        this.io.stChanged({ [ctl.id]: next });
+      }
+      this.exec(a);
+    }
+    rotate(i, dir){
+      const v = this.view(), enc = v.page.encs[i]; if (!enc) return;
+      const ctl = dir < 0 ? enc.ccw : enc.cw; if (!ctl) return;
+      const a = ctl.states[this.stateOf(ctl)].a;
+      if (!isRel(a)){ this.runCtl(ctl); return; }
+      // relativa steg (volym, ljusstyrka ...): samla snabba steg och skicka ett kommando
+      const slot = this.rot[ctl.id];
+      if (slot){ slot.n++; return; }
+      this.rot[ctl.id] = { n: 1 };
+      this.io.setTimeout(() => {
+        const n = this.rot[ctl.id].n; delete this.rot[ctl.id];
+        const cmd = toCmd(a, n);
+        if (cmd) this.io.send(cmd, a);
+      }, ROT_WINDOW_MS);
+    }
+    setNav(nav){ this.nav = normNav(this.getDeck(), nav); this.io.navChanged(this.nav); }
+    exec(a){
+      if (!a) return;
+      const d = this.getDeck(), v = this.view(), nav = this.nav;
+      switch (a.t){
+        case "folder": if (v.prof.folders[a.fid]) this.setNav({ p: nav.p, pg: nav.pg, stack: nav.stack.concat([a.fid]) }); return;
+        case "back": if (nav.stack.length) this.setNav({ p: nav.p, pg: nav.pg, stack: nav.stack.slice(0, -1) }); return;
+        case "home": if (nav.stack.length) this.setNav({ p: nav.p, pg: nav.pg, stack: [] }); return;
+        case "pagenav": {
+          const n = v.prof.pages.length; let pg = nav.pg;
+          if (a.op === "next") pg = (pg + 1) % n;
+          else if (a.op === "prev") pg = (pg - 1 + n) % n;
+          else pg = Math.max(0, Math.min(n - 1, (parseInt(a.page, 10) || 1) - 1));
+          if (pg !== nav.pg || nav.stack.length) this.setNav({ p: nav.p, pg, stack: [] });
+          return;
+        }
+        case "profile": {
+          const idx = d.profiles.findIndex(p => p.id === nav.p);
+          const target = a.pid && a.pid !== "next" ? d.profiles.find(p => p.id === a.pid) : d.profiles[(idx + 1) % d.profiles.length];
+          if (target && target.id !== nav.p) this.setNav({ p: target.id, pg: 0, stack: [] });
+          return;
+        }
+        case "multi": this.runMulti(a.steps || [], 0); return;
+      }
+      const cmd = toCmd(a);
+      if (cmd) this.io.send(cmd, a);
+    }
+    runMulti(steps, i){
+      if (i >= steps.length) return;
+      const st = steps[i];
+      if (st && st.a && st.a.t !== "multi") this.exec(st.a);
+      if (i + 1 < steps.length) this.io.setTimeout(() => this.runMulti(steps, i + 1), Math.max(0, num(st && st.delay, 150)));
+    }
+  }
+
+  // Alla kontroller i en profil (för ansiktsbilder, validering m.m.)
+  function eachCtl(deck, fn){
+    deck.profiles.forEach(prof => {
+      prof.pages.forEach((page, pi) => {
+        page.keys.forEach((c, i) => { if (c) fn(c, { prof, page, pi, kind: "key", i }); });
+        page.btns.forEach((c, i) => { if (c) fn(c, { prof, page, pi, kind: "btn", i }); });
+        page.encs.forEach((e, i) => ["ccw", "cw", "press"].forEach(s => { if (e && e[s]) fn(e[s], { prof, page, pi, kind: "enc", i, slot: s }); }));
+      });
+      Object.keys(prof.folders).forEach(fid => prof.folders[fid].keys.forEach((c, i) => { if (c) fn(c, { prof, fid, kind: "key", i }); }));
+    });
+  }
+  // Rättar till en inläst konfiguration så att resten av koden kan lita på formen.
+  function sanitize(deck){
+    if (!deck || typeof deck !== "object" || !Array.isArray(deck.profiles) || !deck.profiles.length) return defaultDeck();
+    deck.v = 2;
+    deck.device = Object.assign({ brightness: 70, sleepMin: 0, map: null }, deck.device || {});
+    const fixCtl = c => (c && Array.isArray(c.states) && c.states.length && c.states[0] && c.states[0].a)
+      ? (c.id = c.id || uid(), c.states = c.states.slice(0, 2).filter(s => s && s.a), c.states.forEach(s => { s.look = s.look || {}; }), c) : null;
+    const fixKeys = (arr, n) => Array.from({ length: n }, (_, i) => fixCtl(arr && arr[i]));
+    deck.profiles.forEach(p => {
+      p.id = p.id || uid(); p.name = p.name || "Profil";
+      if (!Array.isArray(p.pages) || !p.pages.length) p.pages = [newPage()];
+      if (!p.folders || typeof p.folders !== "object") p.folders = {};
+      p.pages.forEach(pg => {
+        pg.id = pg.id || uid(); pg.keys = fixKeys(pg.keys, N_KEYS); pg.btns = fixKeys(pg.btns, N_BTNS);
+        pg.encs = Array.from({ length: N_ENCS }, (_, i) => {
+          const e = (pg.encs && pg.encs[i]) || {};
+          return { ccw: fixCtl(e.ccw), cw: fixCtl(e.cw), press: fixCtl(e.press), name: e.name || "" };
+        });
+      });
+      Object.keys(p.folders).forEach(f => { p.folders[f] = { keys: fixKeys(p.folders[f] && p.folders[f].keys, N_KEYS) }; });
+    });
+    return deck;
+  }
+
+  return { N_KEYS, N_BTNS, N_ENCS, HOLD_MS, uid, newCtl, newEnc, newPage, newProfile, DIALS, applyDial, defaultDeck, migrateOld,
+           toCmd, isRel, profileOf, hasBackControl, resolveView, normNav, sameNav, Engine, eachCtl, sanitize };
+})();
+if (typeof module !== "undefined") module.exports = DeckCore;
+</script>
+<script id="icons">
+"use strict";
+/* Ikonbiblioteket. Egen uppsättning, ritad på ett 24x24-rutnät med rundade linjer.
+   Varje ikon är en lista banor; en bana som börjar med "F " fylls (och får samma
+   linje runt sig så hörnen blir runda), övriga är bara linjer. Samma data används
+   för canvas (knappbilderna) och för SVG (listorna i gränssnittet). */
+const ICONS = {
+  // ---- musik ----
+  "play":       { n:"Spela", c:"Musik", d:["F M8.5 5.8v12.4l10-6.2z"] },
+  "pause":      { n:"Paus", c:"Musik", d:["F M7.2 5.5h2.6v13H7.2z", "F M14.2 5.5h2.6v13h-2.6z"] },
+  "playpause":  { n:"Spela/paus", c:"Musik", d:["F M4 6.5v11l8-5.5z", "F M14.6 6.5h1.6v11h-1.6z", "F M18.9 6.5h1.6v11h-1.6z"] },
+  "stop":       { n:"Stopp", c:"Musik", d:["F M7 7h10v10H7z"] },
+  "next":       { n:"Nästa", c:"Musik", d:["F M5.5 6v12l9.5-6z", "M18.5 6v12"] },
+  "prev":       { n:"Föregående", c:"Musik", d:["F M18.5 6v12L9 12z", "M5.5 6v12"] },
+  "vol-up":     { n:"Volym upp", c:"Musik", d:["F M3.5 9.5v5h3.2l4.3 3.6V5.9L6.7 9.5z", "M14.6 9.2a4 4 0 0 1 0 5.6", "M17.3 6.6a7.7 7.7 0 0 1 0 10.8"] },
+  "vol-down":   { n:"Volym ner", c:"Musik", d:["F M5.5 9.5v5h3.2l4.3 3.6V5.9L8.7 9.5z", "M16.6 9.2a4 4 0 0 1 0 5.6"] },
+  "mute":       { n:"Ljud av", c:"Musik", d:["F M3.5 9.5v5h3.2l4.3 3.6V5.9L6.7 9.5z", "M15.5 9.5l5 5", "M20.5 9.5l-5 5"] },
+  "note":       { n:"Not", c:"Musik", d:["M9 17.5V6.2l10-2.2v11.3", "F M9 17.5a2.6 2.6 0 1 1-5.2 0a2.6 2.6 0 0 1 5.2 0z", "F M19 15.3a2.6 2.6 0 1 1-5.2 0a2.6 2.6 0 0 1 5.2 0z"] },
+  "playlist":   { n:"Spellista", c:"Musik", d:["M4 6.5h11", "M4 11h8", "M4 15.5h5", "M15.5 17.5V10l4.5-1.2", "F M15.5 17.5a2 2 0 1 1-4 0a2 2 0 0 1 4 0z"] },
+  "vinyl":      { n:"Skiva", c:"Musik", d:["M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18z", "M12 9a3 3 0 1 0 0 6a3 3 0 0 0 0-6z", "M6.6 9.2a6 6 0 0 1 2.6-2.6", "F M12 11.6a.4.4 0 1 0 0 .8a.4.4 0 0 0 0-.8z"] },
+  "radio":      { n:"Radio", c:"Musik", d:["M5 9h14a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5v-7A1.5 1.5 0 0 1 5 9z", "M7 9l9.5-4.5", "M8.3 11.7a2.3 2.3 0 1 0 0 4.6a2.3 2.3 0 0 0 0-4.6z", "M14 12.5h3.5", "M14 15.5h3.5"] },
+  "speaker":    { n:"Högtalare", c:"Musik", d:["M7.5 3h9A1.5 1.5 0 0 1 18 4.5v15a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 19.500v-15A1.5 1.5 0 0 1 7.500 3z", "M12 11a3.3 3.300 0 1 0 0 6.600a3.300 3.300 0 0 0 0-6.600z", "F M12 6.300a1 1 0 1 0 0 2a1 1 0 0 0 0-2z"] },
+  "shuffle":    { n:"Blanda", c:"Musik", d:["M3.5 7H7c2.200 0 3.300 1.400 5 5s2.800 5 5 5h3.500", "M3.500 17H7c1 0 1.800-.3 2.500-1", "M14.500 8c.7-.7 1.500-1 2.500-1h3.500", "M18 4.500L20.500 7 18 9.500", "M18 14.500l2.500 2.500-2.500 2.500"] },
+  "repeat":     { n:"Upprepa", c:"Musik", d:["M4 11V9.500A2.500 2.500 0 0 1 6.500 7H19", "M16.500 4.500L19 7l-2.500 2.500", "M20 13v1.500a2.500 2.500 0 0 1-2.500 2.500H5", "M7.500 19.500L5 17l2.500-2.500"] },
+  "heart":      { n:"Hjärta", c:"Musik", d:["M12 19.500s-7.500-4.600-7.500-10.200A4 4 0 0 1 12 7.200a4 4 0 0 1 7.500 2.100c0 5.600-7.500 10.200-7.500 10.200z"] },
+  "beer":       { n:"Öl", c:"Musik", d:["M6 9h10v10.500a1.500 1.500 0 0 1-1.500 1.500h-7A1.500 1.500 0 0 1 6 19.500z", "M16 11.500h1.800a2.200 2.200 0 0 1 0 4.400H16", "M6 9a2.600 2.600 0 0 1 1.500-4.600a3.200 3.200 0 0 1 5.900-.6A2.700 2.700 0 0 1 16 9", "M9.300 12.500v5", "M12.700 12.500v5"] },
+  // ---- ljus ----
+  "bulb":       { n:"Lampa", c:"Ljus", d:["M12 3a6.200 6.200 0 0 0-3.900 11c.7.6 1.100 1.400 1.200 2.500h5.400c.1-1.100.5-1.900 1.200-2.500A6.200 6.200 0 0 0 12 3z", "M9.500 19h5", "M10.500 21.500h3"] },
+  "bulb-on":    { n:"Lampa tänd", c:"Ljus", d:["F M12 6.500a4.600 4.600 0 0 0-2.900 8.200c.5.400.8 1 .9 1.800h4c.1-.8.4-1.400.9-1.800A4.600 4.600 0 0 0 12 6.500z", "M10 19h4", "M10.800 21.500h2.400", "M12 1.800v2", "M5 4.600l1.400 1.400", "M19 4.600L17.600 6", "M2.300 11.200h2", "M19.700 11.200h2"] },
+  "bulb-off":   { n:"Lampa släckt", c:"Ljus", d:["M9.400 5.600A6.200 6.200 0 0 1 17.600 13.300", "M15.800 15.300c-.6.600-1 1.200-1.100 2.200H9.300c-.1-1.100-.5-1.900-1.200-2.500a6.200 6.200 0 0 1-1.900-6.300", "M9.500 20h5", "M4 4l16 16"] },
+  "sun":        { n:"Ljusstyrka", c:"Ljus", d:["M12 8a4 4 0 1 0 0 8a4 4 0 0 0 0-8z", "M12 2.500v2", "M12 19.500v2", "M2.500 12h2", "M19.500 12h2", "M5.300 5.300l1.400 1.400", "M17.300 17.300l1.400 1.400", "M5.300 18.700l1.400-1.400", "M17.300 6.700l1.400-1.400"] },
+  "sun-dim":    { n:"Dämpat", c:"Ljus", d:["M12 9a3 3 0 1 0 0 6a3 3 0 0 0 0-6z", "M12 4v.01", "M12 20v.01", "M4 12h.01", "M20 12h.01", "M6.300 6.300l.01.01", "M17.700 17.700l.01.01", "M6.300 17.700l.01-.01", "M17.700 6.300l.01-.01"] },
+  "temp":       { n:"Färgtemperatur", c:"Ljus", d:["M10 13.600V5a2 2 0 1 1 4 0v8.600a4 4 0 1 1-4 0z", "M12 9v6", "F M12 15.200a1.300 1.300 0 1 0 0 2.600a1.300 1.300 0 0 0 0-2.600z"] },
+  "palette":    { n:"Färg", c:"Ljus", d:["M12 3a9 9 0 0 0 0 18c1.300 0 2.100-.9 2.100-2 0-.5-.2-1-.5-1.400-.3-.4-.5-.8-.5-1.300 0-1.100.9-2 2-2h2.100A3.800 3.800 0 0 0 21 10.500C21 6.300 17 3 12 3z", "F M7.500 10.200a1 1 0 1 0 0 2a1 1 0 0 0 0-2z", "F M10.300 6.500a1 1 0 1 0 0 2a1 1 0 0 0 0-2z", "F M14.700 6.500a1 1 0 1 0 0 2a1 1 0 0 0 0-2z"] },
+  "sparkles":   { n:"Scen", c:"Ljus", d:["M10.500 4l1.700 4.800L17 10.500l-4.800 1.700L10.500 17l-1.700-4.800L4 10.500l4.800-1.700z", "M18 14.500l.8 2.200 2.200.8-2.200.8-.8 2.200-.8-2.200-2.200-.8 2.200-.8z", "M18.500 3.500v3", "M17 5h3"] },
+  "lamp-floor": { n:"Golvlampa", c:"Ljus", d:["M8.500 3h7l2.500 7H6z", "M12 10v10.500", "M8 20.500h8"] },
+  "lamp-ceil":  { n:"Taklampa", c:"Ljus", d:["M12 2.500v4", "M5.500 13.500a6.500 6.500 0 0 1 13 0z", "M9.800 16.500a2.300 2.300 0 0 0 4.400 0"] },
+  "lamp-desk":  { n:"Bordslampa", c:"Ljus", d:["M9 4h6l3 7H6z", "M12 11v3.500", "M8.500 20.500a3.500 3.500 0 0 1 7 0z"] },
+  "candle":     { n:"Ljus", c:"Ljus", d:["M9 11.500h6V21H9z", "M12 3c1.600 2 2.300 3.100 2.300 4.400a2.300 2.300 0 0 1-4.600 0C9.700 6.100 10.400 5 12 3z"] },
+  "flame":      { n:"Varmt", c:"Ljus", d:["M12 3c.6 3.200 5.200 5.300 5.200 10.300a5.200 5.200 0 0 1-10.400 0c0-2 .9-3.300 2-4.600.3 1.500.9 2.300 1.700 2.600C10.300 8.300 10.800 5.500 12 3z"] },
+  "snow":       { n:"Kallt", c:"Ljus", d:["M12 2.500v19", "M3.800 7.200l16.400 9.600", "M20.200 7.200L3.800 16.800", "M9.500 4l2.500 2 2.500-2", "M9.500 20l2.500-2 2.500 2"] },
+  "moon":       { n:"Måne", c:"Ljus", d:["M20 14.200A8.200 8.200 0 0 1 9.800 4a8.200 8.200 0 1 0 10.200 10.200z"] },
+  "sunrise":    { n:"Soluppgång", c:"Ljus", d:["M5.500 18a6.500 6.500 0 0 1 13 0", "M2.500 18h19", "M12 5v2.500", "M4.600 8.600l1.800 1.800", "M19.400 8.600l-1.800 1.800", "M8 21.500h8"] },
+  "power":      { n:"Av/på", c:"Ljus", d:["M12 3v8.500", "M6.500 6.600a8 8 0 1 0 11 0"] },
+  "plug":       { n:"Uttag", c:"Ljus", d:["M9 3v5", "M15 3v5", "M6.500 8h11v3.500a5.500 5.500 0 0 1-11 0z", "M12 17v4"] },
+  "toggle":     { n:"Växla", c:"Ljus", d:["M8 7h8a5 5 0 0 1 0 10H8A5 5 0 0 1 8 7z", "F M16 9.800a2.200 2.200 0 1 0 0 4.400a2.200 2.200 0 0 0 0-4.400z"] },
+  "sliders":    { n:"Reglage", c:"Ljus", d:["M5 4v5", "M5 13v7", "M12 4v9", "M12 17v3", "M19 4v2", "M19 10v10", "M3 11h4", "M10 15h4", "M17 8h4"] },
+  // ---- skärmen ----
+  "tv":         { n:"TV", c:"Skärm", d:["M4.500 7h15A1.500 1.500 0 0 1 21 8.500v9a1.500 1.500 0 0 1-1.500 1.500h-15A1.500 1.500 0 0 1 3 17.500v-9A1.500 1.500 0 0 1 4.500 7z", "M8 3l4 4 4-4", "M17.500 11v.01", "M17.500 14.500v.01", "M6 10h8v6H6z"] },
+  "tv-off":     { n:"TV av", c:"Skärm", d:["M9.500 7H19.500A1.500 1.500 0 0 1 21 8.500V17", "M17.500 19H4.500A1.500 1.500 0 0 1 3 17.500v-9A1.500 1.500 0 0 1 4.500 7H5", "M8 3l4 4 4-4", "M3 3l18 18"] },
+  "wave":       { n:"Oscilloskop", c:"Skärm", d:["M2.500 12h3l2-6.500 3.200 13 2.800-10 2 5.500 1.800-2H21.500"] },
+  "eye":        { n:"Magiskt öga", c:"Skärm", d:["M2.500 12s3.500-6.500 9.500-6.500 9.500 6.500 9.500 6.500-3.500 6.500-9.500 6.500S2.500 12 2.500 12z", "M12 9a3 3 0 1 0 0 6a3 3 0 0 0 0-6z"] },
+  "gauge":      { n:"VU-mätare", c:"Skärm", d:["M3.500 17.500a8.500 8.500 0 0 1 17 0", "M12 17.500l4.200-6.200", "M2.500 17.500h19", "M6.200 12.300l1.200.9", "M12 9v1.500"] },
+  "atom":       { n:"Atom", c:"Skärm", d:["M2.500 12a9.500 3.800 0 1 0 19 0a9.500 3.800 0 1 0-19 0", "M7.250 3.770a9.500 3.800 60 1 0 9.500 16.460a9.500 3.800 60 1 0-9.500-16.460", "M16.750 3.770a9.500 3.800 -60 1 0-9.500 16.460a9.500 3.800 -60 1 0 9.500-16.460", "F M12 10.800a1.200 1.200 0 1 0 0 2.400a1.200 1.200 0 0 0 0-2.400z"] },
+  "bars":       { n:"Ljusorgel", c:"Skärm", d:["M5 20v-9", "M9.700 20V4.500", "M14.300 20v-7", "M19 20V8"] },
+  "weather":    { n:"Väder", c:"Skärm", d:["M7.500 19.500h9.300a3.700 3.700 0 0 0 .5-7.370A5.600 5.600 0 0 0 6.700 13 3.300 3.300 0 0 0 7.500 19.500z", "M13.800 7a3.300 3.300 0 0 1 5.900 2.600", "M16 2.500v1.500", "M21.500 6.500l-1.200.8", "M11.300 3.800l1 1.200"] },
+  "news":       { n:"Nyheter", c:"Skärm", d:["M4 5h13v14.500H5.500A1.500 1.500 0 0 1 4 18z", "M17 9.500h3V18a1.500 1.500 0 0 1-3 0", "M7 9h7", "M7 12.500h7", "M7 16h4"] },
+  "image":      { n:"Foto", c:"Skärm", d:["M5 4.500h14A1.500 1.500 0 0 1 20.500 6v12a1.500 1.500 0 0 1-1.500 1.500H5A1.500 1.500 0 0 1 3.500 18V6A1.500 1.500 0 0 1 5 4.500z", "M3.500 16.500l5-5 4 4 2.500-2.500 5.500 5", "M15 8a1.300 1.300 0 1 0 0 2.600a1.300 1.300 0 0 0 0-2.600z"] },
+  "ball":       { n:"Fotboll", c:"Skärm", d:["M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18z", "M12 8.200l3.600 2.600-1.400 4.200H9.800l-1.400-4.200z", "M12 3.200v5", "M15.600 10.800l4.700-1.600", "M14.200 15l2.900 4", "M9.800 15l-2.900 4", "M8.400 10.800L3.700 9.200"] },
+  "hockey":     { n:"Hockey", c:"Skärm", d:["M9 3.500l5 11.500", "M14 15h5.500a1.500 1.500 0 0 1 0 3H12.800a2 2 0 0 1-1.850-1.250L6 4.500", "F M3.500 17.500h4.500v2H3.500z"] },
+  "bus":        { n:"Buss", c:"Skärm", d:["M6.500 4h11A2.500 2.500 0 0 1 20 6.500V16H4V6.500A2.500 2.500 0 0 1 6.500 4z", "M4 11h16", "M4 16v2.500h2.500V16", "M17.500 16v2.500H20V16", "M7.500 13.500v.01", "M16.500 13.500v.01"] },
+  "clock":      { n:"Klocka", c:"Skärm", d:["M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18z", "M12 7.500V12l3.200 2"] },
+  "home":       { n:"Hem", c:"Skärm", d:["M3.500 11.500L12 4l8.500 7.500", "M6 9.500V20h12V9.500", "M10 20v-5.500h4V20"] },
+  "jalusi":     { n:"Jalusi", c:"Skärm", d:["M4 4h16v16H4z", "M4 8h16", "M4 12h16", "M4 16h16", "M12 16v4"] },
+  "film":       { n:"Film", c:"Skärm", d:["M4 4.500h16v15H4z", "M8 4.500v15", "M16 4.500v15", "M4 9.500h4", "M4 14.500h4", "M16 9.500h4", "M16 14.500h4"] },
+  "testcard":   { n:"Testbild", c:"Skärm", d:["M3.500 5.500h17v13h-17z", "M12 8.500a3.500 3.500 0 1 0 0 7a3.500 3.500 0 0 0 0-7z", "M3.500 12h5", "M15.500 12h5", "M12 5.500v3", "M12 15.500v3"] },
+  // ---- navigering ----
+  "folder":     { n:"Mapp", c:"Navigering", d:["M3.500 7.500A1.500 1.500 0 0 1 5 6h4.200l2 2.500H19a1.500 1.500 0 0 1 1.500 1.500v7.500A1.500 1.500 0 0 1 19 19H5a1.500 1.500 0 0 1-1.500-1.500z"] },
+  "back":       { n:"Tillbaka", c:"Navigering", d:["M19.500 12h-15", "M10.500 6l-6 6 6 6"] },
+  "up-level":   { n:"Upp en nivå", c:"Navigering", d:["M9 13.500L4.500 9 9 4.500", "M4.500 9h10a5 5 0 0 1 5 5v5.500"] },
+  "arrow-right":{ n:"Pil höger", c:"Navigering", d:["M4.500 12h15", "M13.500 6l6 6-6 6"] },
+  "arrow-up":   { n:"Pil upp", c:"Navigering", d:["M12 19.500v-15", "M6 10.500l6-6 6 6"] },
+  "arrow-down": { n:"Pil ner", c:"Navigering", d:["M12 4.500v15", "M6 13.500l6 6 6-6"] },
+  "chev-left":  { n:"Föregående sida", c:"Navigering", d:["M14.500 5.500L8 12l6.500 6.500"] },
+  "chev-right": { n:"Nästa sida", c:"Navigering", d:["M9.500 5.500L16 12l-6.500 6.500"] },
+  "pages":      { n:"Sidor", c:"Navigering", d:["M8.500 3.500h11v14h-11z", "M5 7.500v13h10.500"] },
+  "grid":       { n:"Rutnät", c:"Navigering", d:["M4.500 4.500h6v6h-6z", "M13.500 4.500h6v6h-6z", "M4.500 13.500h6v6h-6z", "M13.500 13.500h6v6h-6z"] },
+  "layers":     { n:"Profil", c:"Navigering", d:["M12 3.500l9 4.800-9 4.800-9-4.800z", "M3.500 12.500l8.500 4.500 8.500-4.500", "M3.500 16.500L12 21l8.500-4.500"] },
+  "one":        { n:"Ett", c:"Navigering", d:["M9.500 7.500L12.500 5v14", "M9.500 19h6"] },
+  "two":        { n:"Två", c:"Navigering", d:["M8.500 8.500a3.500 3.500 0 1 1 6.300 2.100L8.500 19h7"] },
+  "three":      { n:"Tre", c:"Navigering", d:["M8.500 7a3.300 3.300 0 1 1 3.500 5a3.600 3.600 0 1 1-3.800 5"] },
+  // ---- system ----
+  "search":     { n:"Sök", c:"System", d:["M10.500 4a6.500 6.500 0 1 0 0 13a6.500 6.500 0 0 0 0-13z", "M15.300 15.300L20 20"] },
+  "gear":       { n:"Inställningar", c:"System", d:["M12 8.700a3.300 3.300 0 1 0 0 6.600a3.300 3.300 0 0 0 0-6.600z", "M10.300 3h3.400l.5 2.300 1.700.9 2.200-.8 1.700 2.900-1.700 1.600v2.200l1.700 1.600-1.700 2.900-2.200-.8-1.700.9-.5 2.300h-3.400l-.5-2.300-1.700-.9-2.200.8-1.700-2.900 1.700-1.600v-2.200L4.200 8.300l1.700-2.900 2.200.8 1.700-.9z"] },
+  "refresh":    { n:"Uppdatera", c:"System", d:["M19.500 11A7.700 7.700 0 0 0 5.800 7.500", "M4.500 4v4h4", "M4.500 13a7.700 7.700 0 0 0 13.700 3.500", "M19.500 20v-4h-4"] },
+  "timer":      { n:"Timer", c:"System", d:["M12 5.500a7.700 7.700 0 1 0 0 15.400a7.700 7.700 0 0 0 0-15.400z", "M12 9.500v4l2.500 1.700", "M9.500 2.500h5"] },
+  "hourglass":  { n:"Paus mellan steg", c:"System", d:["M7 3.500h10", "M7 20.500h10", "M8 3.500c0 4.500 8 4.800 8 8.500s-8 4-8 8.500", "M16 3.500c0 4.500-8 4.800-8 8.500s8 4 8 8.500"] },
+  "globe":      { n:"Webb", c:"System", d:["M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18z", "M3 12h18", "M12 3c3 2.800 3 15.200 0 18c-3-2.800-3-15.200 0-18z"] },
+  "terminal":   { n:"Kommando", c:"System", d:["M4.500 5h15A1.500 1.500 0 0 1 21 6.500v11a1.500 1.500 0 0 1-1.500 1.500h-15A1.500 1.500 0 0 1 3 17.500v-11A1.500 1.500 0 0 1 4.500 5z", "M7 9.500l3 2.500-3 2.500", "M12.500 15H17"] },
+  "antenna":    { n:"Zigbee", c:"System", d:["M12 12.500V21", "M8.500 21h7", "F M12 8.700a1.600 1.600 0 1 0 0 3.200a1.600 1.600 0 0 0 0-3.200z", "M8.300 6.600a5.200 5.200 0 0 0 0 7.400", "M15.700 6.600a5.200 5.200 0 0 1 0 7.400", "M5.500 4a9 9 0 0 0 0 12.600", "M18.500 4a9 9 0 0 1 0 12.600"] },
+  "wifi":       { n:"Nätverk", c:"System", d:["M2.500 9a14 14 0 0 1 19 0", "M5.800 12.500a9 9 0 0 1 12.400 0", "M9 16a4.300 4.300 0 0 1 6 0", "F M12 18.600a.9.900 0 1 0 0 1.800a.9.900 0 0 0 0-1.800z"] },
+  "bolt":       { n:"Blixt", c:"System", d:["M13 2.500L5.500 13.500H11l-1 8 7.500-11H12z"] },
+  "list":       { n:"Flera åtgärder", c:"System", d:["M4.500 6h.01", "M4.500 12h.01", "M4.500 18h.01", "M9 6h11", "M9 12h11", "M9 18h11"] },
+  "swap":       { n:"Två lägen", c:"System", d:["M5 8h13.500", "M15 4.500L18.500 8 15 11.500", "M19 16H5.500", "M9 12.500L5.500 16 9 19.500"] },
+  "send":       { n:"Skicka", c:"System", d:["M20.500 3.500L10 14", "M20.500 3.500L14 20.500l-4-6.500-6.500-4z"] },
+  "bell":       { n:"Klocka", c:"System", d:["M6 16.500V11a6 6 0 0 1 12 0v5.500l1.500 2h-15z", "M10 20.500a2.100 2.100 0 0 0 4 0"] },
+  "star":       { n:"Stjärna", c:"System", d:["M12 3.500l2.600 5.400 5.900.8-4.300 4.100 1.100 5.800L12 16.800 6.700 19.600l1.100-5.800-4.300-4.100 5.900-.8z"] },
+  "check":      { n:"Bock", c:"System", d:["M4.500 12.500l5 5 10-11"] },
+  "cross":      { n:"Kryss", c:"System", d:["M6 6l12 12", "M18 6L6 18"] },
+  "plus":       { n:"Plus", c:"System", d:["M12 5v14", "M5 12h14"] },
+  "minus":      { n:"Minus", c:"System", d:["M5 12h14"] },
+  "screen-bri": { n:"Knapparnas ljus", c:"System", d:["M5.500 5h13A1.500 1.500 0 0 1 20 6.500v11a1.500 1.500 0 0 1-1.500 1.500h-13A1.500 1.500 0 0 1 4 17.500v-11A1.500 1.500 0 0 1 5.500 5z", "M12 10a2 2 0 1 0 0 4a2 2 0 0 0 0-4z", "M12 7.300v.01", "M12 16.700v.01", "M7.300 12h.01", "M16.700 12h.01"] },
+  // ---- rum ----
+  "sofa":       { n:"Vardagsrum", c:"Rum", d:["M5.500 11V8a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v3", "M3 13a2 2 0 0 1 4 0v2h10v-2a2 2 0 0 1 4 0v5H3z", "M6 18v2", "M18 18v2"] },
+  "bed":        { n:"Sovrum", c:"Rum", d:["M3 18.500v-6.500a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6.500", "M3 15.500h18", "M3 18.500v2", "M21 18.500v2", "M6 10V7.500A1.500 1.500 0 0 1 7.500 6h9A1.500 1.500 0 0 1 18 7.500V10"] },
+  "pot":        { n:"Kök", c:"Rum", d:["M5.500 10.500h13V17a3 3 0 0 1-3 3h-7a3 3 0 0 1-3-3z", "M3 10.500h18", "M9.500 7c0-1.500 1.500-1.500 1.500-3", "M13.500 7c0-1.500 1.500-1.500 1.500-3"] },
+  "bath":       { n:"Badrum", c:"Rum", d:["M3 12.500h18v2.500a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5z", "M6 12.500V6a2 2 0 0 1 4 0", "M7.500 20l-1 1.500", "M16.500 20l1 1.500"] },
+  "door":       { n:"Hall", c:"Rum", d:["M6.500 21V4.500A1.500 1.500 0 0 1 8 3h8a1.500 1.500 0 0 1 1.500 1.500V21", "M4 21h16", "M14.500 12v.01"] },
+  "tree":       { n:"Ute", c:"Rum", d:["M12 3l5 6.500h-2.500L18.500 15h-13l4-5.500H7z", "M12 15v6"] }
+};
+const ICON_CATS = ["Musik", "Ljus", "Skärm", "Navigering", "System", "Rum"];
+function iconSvg(id, cls){
+  const ic = ICONS[id]; if (!ic) return "";
+  const paths = ic.d.map(p => p.startsWith("F ") ? `<path d="${p.slice(2)}" fill="currentColor"/>` : `<path d="${p}"/>`).join("");
+  return `<svg class="${cls || "ic"}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+}
+const _iconPaths = {};
+function drawIcon(ctx, id, cx, cy, size, color, weight){
+  const ic = ICONS[id]; if (!ic) return;
+  const paths = _iconPaths[id] || (_iconPaths[id] = ic.d.map(p => ({ fill: p.startsWith("F "), p: new Path2D(p.startsWith("F ") ? p.slice(2) : p) })));
+  const k = size / 24;
+  ctx.save();
+  ctx.translate(cx - size / 2, cy - size / 2); ctx.scale(k, k);
+  ctx.lineWidth = weight || 1.8; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.strokeStyle = color; ctx.fillStyle = color;
+  for (const it of paths){ if (it.fill) ctx.fill(it.p); ctx.stroke(it.p); }
+  ctx.restore();
+}
+</script>
+<script id="app">
+"use strict";
+/* =====================================================================================
+   APPEN - konfiguratorn (Redigera) och emulatorn (Använd).
+   ===================================================================================== */
+const C = DeckCore;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" })[c]);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const clone = o => JSON.parse(JSON.stringify(o));
+function h(tag, props, ...kids){
+  const el = document.createElement(tag);
+  for (const k in (props || {})){
+    const v = props[k];
+    if (v == null || v === false) continue;
+    if (k === "class") el.className = v;
+    else if (k === "text") el.textContent = v;
+    else if (k === "html") el.innerHTML = v;
+    else if (k === "style" && typeof v === "object") Object.assign(el.style, v);
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (k in el && k !== "list") el[k] = v;
+    else el.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kid of kids.flat()){ if (kid == null || kid === false) continue; el.append(kid.nodeType ? kid : document.createTextNode(String(kid))); }
+  return el;
+}
+const icon = (id, cls) => h("span", { html: iconSvg(id, cls), style: { display: "inline-flex" } });
+let toastT = 0;
+function toast(msg, ms){ const t = $("#toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), ms || 2600); }
+const prefs = {
+  get(k, d){ try { const v = localStorage.getItem("deck." + k); return v == null ? d : JSON.parse(v); } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem("deck." + k, JSON.stringify(v)); } catch(e){} }
+};
+
+// ---------- namn och listor ----------
+const VIZ_NAMES = { 1:"Oscilloskop", 2:"Magiskt öga", 3:"VU-mätare", 4:"Atomålder", 5:"Ljusorgel", 6:"Ljusorgel Spegel", 7:"Ljusorgel Båge", 8:"Ljusorgel Fjäril" };
+const VIZ_ICONS = { 1:"wave", 2:"eye", 3:"gauge", 4:"atom", 5:"bars", 6:"bars", 7:"bars", 8:"bars" };
+const PALETTE_NAMES = { svartvit:"Svartvit", sepia:"Sepia", fosfor:"Grön fosfor", farg:"60-talsfärg" };
+const PAGE_NAMES = { hem:"Hemskärm", wx:"Väder", news:"Nyheter", foto:"Foton", fotboll:"Fotboll", hockey:"Hockey", test:"Testbild" };
+const PAGE_ICONS = { hem:"home", wx:"weather", news:"news", foto:"image", fotboll:"ball", hockey:"hockey", test:"testcard" };
+const BP_NAMES = { open:"Öppna", close:"Stäng", playpause:"Spela/paus", next:"Nästa", prev:"Föregående", wake:"Väckning" };
+const BP_ICONS = { open:"tv", close:"tv-off", playpause:"playpause", next:"next", prev:"prev", wake:"sunrise" };
+const LIGHT_OPS = [["on","Tänd"],["off","Släck"],["toggle","Tänd/släck (växla)"],["dim","Ljusstyrka"],["dim-rel","Ljusare/mörkare (steg)"],["temp","Färgtemperatur"],["temp-rel","Varmare/kallare (steg)"],["color","Färg"],["hue-rel","Färghjul (steg)"],["scene","Scen"]];
+const SONOS_OPS = [["toggle","Spela/paus"],["play","Spela"],["pause","Pausa"],["next","Nästa spår"],["prev","Föregående spår"],["vol","Volym (fast nivå)"],["vol-rel","Volym upp/ner (steg)"],["mute","Ljud av/på"],["playlist","Spela spellista"],["fav","Spela Sonos-favorit"]];
+const Z2M_OPS = [["toggle","Växla"],["on","På"],["off","Av"],["brightness","Ljusstyrka"],["brightness-step","Ljusare/mörkare (steg)"],["color_temp","Färgtemperatur"]];
+const DECK_OPS = [["brightness","Ljusstyrka (fast nivå)"],["brightness-rel","Ljusare/mörkare (steg)"],["sleep","Släck knapparna"],["wake","Tänd knapparna"],["sleep-toggle","Släck/tänd knapparna"]];
+const CAT = { bp:"#5ac8fa", sonos:"#32d74b", light:"#ffd60a", z2m:"#ff9f0a", nav:"#a5b4fc", sys:"#c9ced6", deck:"#f48fb1" };
+const SWATCHES = ["#ffffff","#c9ced6","#5ac8fa","#4c8dff","#a5b4fc","#bf5af2","#f48fb1","#ff5a52","#ff9f0a","#ffd60a","#32d74b","#66d4cf"];
+const BG_SWATCHES = ["#272a31","#0b0c0e","#1d3557","#14532d","#7c2d12","#6b1d2a","#4a1d6b","#5b4a00","#0f4c5c","#3a3d44"];
+const FONTS = { sans:["Standard",'"Segoe UI",system-ui,Arial,sans-serif'], inter:["Inter",'"Inter",sans-serif'], cond:["Smal",'"Barlow Condensed",sans-serif'],
+  bebas:["Bebas",'"Bebas Neue",sans-serif'], mono:["Mono",'"JetBrains Mono",monospace'], elite:["Skrivmaskin",'"Special Elite",monospace'], lime:["Limelight",'"Limelight",serif'] };
+let GROUPS = {};                 // Trådfri-grupper -> scener, från /api/tradfri-list
+const signed = n => (n > 0 ? "+" : n < 0 ? "−" : "") + Math.abs(n);
+
+function profById(id){ return deck.profiles.find(p => p.id === id); }
+// Det en knapp visar när man inte ställt in något eget: ikon, färg och titel.
+function autoLook(a){
+  if (!a) return { icon:"plus", color:"#888", title:"" };
+  switch (a.t){
+    case "bp": return { icon: BP_ICONS[a.c] || "tv", color: CAT.bp, title: BP_NAMES[a.c] || "Skärm" };
+    case "viz": return a.n === "next" ? { icon:"chev-right", color:CAT.bp, title:"Nästa kanal" } : a.n === "prev" ? { icon:"chev-left", color:CAT.bp, title:"Föreg. kanal" }
+      : { icon: VIZ_ICONS[a.n] || "wave", color: CAT.bp, title: VIZ_NAMES[a.n] || "Kanal" };
+    case "palette": return { icon:"palette", color:CAT.bp, title: a.p === "next" ? "Färgläge" : (PALETTE_NAMES[a.p] || "Färgläge") };
+    case "page": return a.p === "next" ? { icon:"pages", color:CAT.bp, title:"Bläddra" } : { icon: PAGE_ICONS[a.p] || "tv", color: CAT.bp, title: PAGE_NAMES[a.p] || "Sida" };
+    case "light": {
+      const v = +a.value || 0;
+      const m = { on:["bulb-on","Tänd"], off:["bulb-off","Släck"], toggle:["power","Tänd/släck"], dim:["sun","Ljus " + (a.value ?? 100) + "%"],
+        "dim-rel":[v < 0 ? "sun-dim" : "sun", v < 0 ? "Mörkare" : "Ljusare"], temp:[v < 34 ? "flame" : v > 66 ? "snow" : "temp", v < 34 ? "Varmt" : v > 66 ? "Kallt" : "Neutralt"],
+        "temp-rel":[v < 0 ? "flame" : "snow", v < 0 ? "Varmare" : "Kallare"], color:["palette","Färg"], "hue-rel":["palette","Färghjul"], scene:["sparkles", a.value || "Scen"] }[a.op] || ["bulb","Ljus"];
+      return { icon: m[0], color: a.op === "color" && a.value ? "#" + String(a.value).replace("#","") : CAT.light, title: m[1] };
+    }
+    case "sonos": {
+      const v = +a.value || 0;
+      const m = { toggle:["playpause","Spela/paus"], play:["play","Spela"], pause:["pause","Pausa"], next:["next","Nästa"], prev:["prev","Föregående"], vol:["vol-up","Volym " + (a.value ?? 30)],
+        "vol-rel":[v < 0 ? "vol-down" : "vol-up", "Volym " + signed(v)], mute:["mute","Ljud av/på"], playlist:["playlist","Spellista"], fav:["heart", a.value || "Favorit"] }[a.op] || ["note","Sonos"];
+      return { icon: m[0], color: CAT.sonos, title: m[1] };
+    }
+    case "z2m": return { icon: a.op === "on" ? "bulb-on" : a.op === "off" ? "bulb-off" : a.op === "toggle" ? "plug" : "sun", color: CAT.z2m, title: a.dev || "Zigbee" };
+    case "mqtt": return { icon:"antenna", color:CAT.z2m, title:"MQTT" };
+    case "http": return { icon:"globe", color:CAT.sys, title:"HTTP" };
+    case "sys": return { icon:"terminal", color:CAT.sys, title: a.name || "Kommando" };
+    case "deckdev": return { icon: a.op && a.op.startsWith("brightness") ? "screen-bri" : "moon", color: CAT.deck,
+      title: a.op === "brightness" ? "Ljus " + (a.value ?? 70) + "%" : a.op === "brightness-rel" ? "Ljus " + signed(+a.value || 0) : a.op === "wake" ? "Tänd" : "Släck" };
+    case "folder": return { icon:"folder", color:CAT.nav, title:"Mapp" };
+    case "back": return { icon:"back", color:CAT.nav, title:"Tillbaka" };
+    case "home": return { icon:"up-level", color:CAT.nav, title:"Överst" };
+    case "pagenav": return a.op === "next" ? { icon:"chev-right", color:CAT.nav, title:"Nästa sida" } : a.op === "prev" ? { icon:"chev-left", color:CAT.nav, title:"Föreg. sida" }
+      : { icon: ({1:"one",2:"two",3:"three"})[a.page] || "pages", color: CAT.nav, title: "Sida " + (a.page || 1) };
+    case "profile": { const p = a.pid && a.pid !== "next" ? profById(a.pid) : null; return { icon:"layers", color:CAT.nav, title: p ? p.name : "Byt profil" }; }
+    case "multi": return { icon:"list", color:CAT.sys, title:"Flera åtgärder" };
+  }
+  return { icon:"plus", color:"#888", title:"" };
+}
+const ACT_KIND = { bp:"Blaupunkt-skärmen", viz:"Blaupunkt-skärmen · Kanal", palette:"Blaupunkt-skärmen · Färgläge", page:"Blaupunkt-skärmen · Visa sida", light:"Belysning (Trådfri)",
+  sonos:"Sonos", z2m:"Zigbee-enhet", mqtt:"MQTT-meddelande", http:"HTTP-anrop", sys:"Kommando på Pi:n", deckdev:"Stream Controllern", folder:"Mapp", back:"Tillbaka",
+  home:"Överst i mappen", pagenav:"Byt sida", profile:"Byt profil", multi:"Flera åtgärder" };
+
+// Fälten i inspektorn för varje åtgärdstyp.
+function fieldsFor(a){
+  const opt = (obj) => Object.entries(obj);
+  switch (a.t){
+    case "bp": return [{ k:"c", label:"Gör", type:"select", opts: opt(BP_NAMES) }];
+    case "viz": return [{ k:"n", label:"Kanal", type:"select", opts: [["next","Nästa kanal"],["prev","Föregående kanal"], ...opt(VIZ_NAMES).map(([v,l]) => [v, v + " · " + l])] }];
+    case "palette": return [{ k:"p", label:"Färgläge", type:"select", opts: [["next","Nästa färgläge"], ...opt(PALETTE_NAMES)] }];
+    case "page": return [{ k:"p", label:"Sida", type:"select", opts: [["next","Nästa sida i tur"], ...opt(PAGE_NAMES)] },
+      { type:"note", text:"Sidorna visas på skärmen när inget spelas och bara de som är påslagna under När inget spelar." }];
+    case "light": {
+      const f = [{ k:"group", label:"Grupp", type:"suggest", sugg: () => Object.keys(GROUPS), re:true }, { k:"op", label:"Gör", type:"select", opts: LIGHT_OPS, re:true, reset:"value" }];
+      if (a.op === "dim") f.push({ k:"value", label:"Ljusstyrka", type:"range", min:1, max:100, unit:"%", def:100 });
+      if (a.op === "dim-rel") f.push({ k:"value", label:"Steg", type:"num", min:-100, max:100, def:8, hint:"procentenheter, minus = mörkare" });
+      if (a.op === "temp") f.push({ k:"value", label:"Färgtemperatur", type:"range", min:0, max:100, def:35, fmt: v => v < 34 ? "Varm" : v > 66 ? "Kall" : "Neutral" });
+      if (a.op === "temp-rel") f.push({ k:"value", label:"Steg", type:"num", min:-100, max:100, def:8, hint:"minus = varmare, plus = kallare" });
+      if (a.op === "color") f.push({ k:"value", label:"Färg", type:"color", def:"ffcc88" });
+      if (a.op === "hue-rel") f.push({ k:"value", label:"Steg", type:"num", min:-180, max:180, def:15, hint:"grader runt färghjulet" });
+      if (a.op === "scene") f.push({ k:"value", label:"Scen", type:"suggest", sugg: () => GROUPS[a.group] || Object.values(GROUPS).flat(), re:true });
+      return f;
+    }
+    case "sonos": {
+      const f = [{ k:"room", label:"Rum", type:"suggest", sugg: () => [...new Set(["Vardagsrum", ...(LIVE.hub.rooms || [])])] }, { k:"op", label:"Gör", type:"select", opts: SONOS_OPS, re:true, reset:"value" }];
+      if (a.op === "vol") f.push({ k:"value", label:"Volym", type:"range", min:0, max:100, def:30 });
+      if (a.op === "vol-rel") f.push({ k:"value", label:"Steg", type:"num", min:-50, max:50, def:3, hint:"minus = lägre" });
+      if (a.op === "playlist") f.push({ k:"value", label:"Spellista", type:"text", ph:"spotify:playlist:… eller en Spotify-länk", re:false });
+      if (a.op === "fav") f.push({ k:"value", label:"Favorit", type:"text", ph:"Namnet som det står i Sonos-appen" });
+      return f;
+    }
+    case "z2m": {
+      const f = [{ k:"dev", label:"Enhetens namn", type:"text", ph:"friendly name i Zigbee2MQTT", re:false }, { k:"op", label:"Gör", type:"select", opts: Z2M_OPS, re:true, reset:"value" }];
+      if (a.op === "brightness") f.push({ k:"value", label:"Ljusstyrka", type:"range", min:0, max:100, unit:"%", def:60 });
+      if (a.op === "brightness-step") f.push({ k:"value", label:"Steg", type:"num", min:-100, max:100, def:10, hint:"procentenheter" });
+      if (a.op === "color_temp") f.push({ k:"value", label:"Färgtemperatur", type:"range", min:0, max:100, def:35, fmt: v => v < 34 ? "Varm" : v > 66 ? "Kall" : "Neutral" });
+      return f;
+    }
+    case "mqtt": return [{ k:"topic", label:"Ämne", type:"text", ph:"zigbee2mqtt/lampa/set" }, { k:"payload", label:"Innehåll", type:"textarea", ph:'{"state":"TOGGLE"}' },
+      { type:"note", text:"Skickas av hubben till MQTT-servern på Pi:n. Bara ämnen under zigbee2mqtt/ tillåts om inget annat ställts in på Pi:n." }];
+    case "http": return [{ k:"url", label:"Adress", type:"text", ph:"https://…" }, { k:"method", label:"Metod", type:"select", opts: [["GET","GET"],["POST","POST"]] }, { k:"body", label:"Innehåll", type:"textarea", ph:"(valfritt, för POST)" },
+      { type:"note", text:"Anropet görs av hubben, och bara till adresser som finns i listan http_allow i hubbens inställningsfil på Pi:n." }];
+    case "sys": return [{ k:"name", label:"Kommando", type:"suggest", sugg: () => LIVE.hub.sys || [], re:false },
+      { type:"note", text:"Kör ett namngivet kommando som du själv har lagt in i hubbens inställningsfil på Pi:n (commands). Härifrån går det bara att välja bland dem." }];
+    case "deckdev": {
+      const f = [{ k:"op", label:"Gör", type:"select", opts: DECK_OPS, re:true, reset:"value" }];
+      if (a.op === "brightness") f.push({ k:"value", label:"Ljusstyrka", type:"range", min:0, max:100, unit:"%", def:70 });
+      if (a.op === "brightness-rel") f.push({ k:"value", label:"Steg", type:"num", min:-100, max:100, def:10 });
+      return f;
+    }
+    case "pagenav": {
+      const f = [{ k:"op", label:"Gör", type:"select", opts: [["next","Nästa sida"],["prev","Föregående sida"],["goto","Gå till sida"]], re:true }];
+      if (a.op === "goto") f.push({ k:"page", label:"Sida", type:"select", opts: editView().prof.pages.map((p, i) => [String(i + 1), (i + 1) + (p.name ? " · " + p.name : "")]), numeric:true });
+      return f;
+    }
+    case "profile": return [{ k:"pid", label:"Profil", type:"select", opts: [["next","Nästa profil"], ...deck.profiles.map(p => [p.id, p.name])] }];
+    case "back": return [{ type:"note", text:"Går upp en nivå ur en mapp. Håll in knappen för att hoppa ända upp." }];
+    case "home": return [{ type:"note", text:"Hoppar ända upp ur alla mappar." }];
+  }
+  return [];
+}
+const OP_DEFAULTS = { light:{ dim:100, "dim-rel":8, temp:35, "temp-rel":8, color:"ffcc88", "hue-rel":15, scene:"" }, sonos:{ vol:30, "vol-rel":3, playlist:"", fav:"" },
+  z2m:{ brightness:60, "brightness-step":10, color_temp:35 }, deckdev:{ brightness:70, "brightness-rel":10 } };
+
+// Åtgärdsbiblioteket (högerspalten). make() ger en ny åtgärd; two = färdig tvålägesknapp; dial = rattförval.
+const R0 = "Vardagsrum";
+const defGroup = () => Object.keys(GROUPS).find(g => /vardag/i.test(g)) || Object.keys(GROUPS)[0] || "vardagsrum";
+const LIBRARY = [
+  { cat:"Sonos", items:[
+    { id:"s-toggle", name:"Spela/paus", make:() => ({ t:"sonos", room:R0, op:"toggle" }) },
+    { id:"s-next", name:"Nästa spår", make:() => ({ t:"sonos", room:R0, op:"next" }) },
+    { id:"s-prev", name:"Föregående spår", make:() => ({ t:"sonos", room:R0, op:"prev" }) },
+    { id:"s-volup", name:"Volym upp", make:() => ({ t:"sonos", room:R0, op:"vol-rel", value:3 }) },
+    { id:"s-voldn", name:"Volym ner", make:() => ({ t:"sonos", room:R0, op:"vol-rel", value:-3 }) },
+    { id:"s-vol", name:"Volym, fast nivå", make:() => ({ t:"sonos", room:R0, op:"vol", value:30 }) },
+    { id:"s-mute", name:"Ljud av/på", make:() => ({ t:"sonos", room:R0, op:"mute" }) },
+    { id:"s-pl", name:"Spela spellista", make:() => ({ t:"sonos", room:R0, op:"playlist", value:"" }) },
+    { id:"s-fav", name:"Spela Sonos-favorit", make:() => ({ t:"sonos", room:R0, op:"fav", value:"" }) } ] },
+  { cat:"Belysning", items:[
+    { id:"l-two", name:"Tänd/släck, två lägen", ico:"swap", two:() => [{ t:"light", group:defGroup(), op:"on" }, { t:"light", group:defGroup(), op:"off" }] },
+    { id:"l-on", name:"Tänd", make:() => ({ t:"light", group:defGroup(), op:"on" }) },
+    { id:"l-off", name:"Släck", make:() => ({ t:"light", group:defGroup(), op:"off" }) },
+    { id:"l-toggle", name:"Tänd/släck (växla)", make:() => ({ t:"light", group:defGroup(), op:"toggle" }) },
+    { id:"l-dim", name:"Ljusstyrka", make:() => ({ t:"light", group:defGroup(), op:"dim", value:60 }) },
+    { id:"l-up", name:"Ljusare", make:() => ({ t:"light", group:defGroup(), op:"dim-rel", value:10 }) },
+    { id:"l-dn", name:"Mörkare", make:() => ({ t:"light", group:defGroup(), op:"dim-rel", value:-10 }) },
+    { id:"l-temp", name:"Färgtemperatur", make:() => ({ t:"light", group:defGroup(), op:"temp", value:35 }) },
+    { id:"l-color", name:"Färg", make:() => ({ t:"light", group:defGroup(), op:"color", value:"ff8a3d" }) },
+    { id:"l-scene", name:"Scen", make:() => ({ t:"light", group:defGroup(), op:"scene", value:(GROUPS[defGroup()] || [])[0] || "" }) } ] },
+  { cat:"Blaupunkt-skärmen", items:[
+    { id:"b-open", name:"Öppna (tänd bild, spela)", make:() => ({ t:"bp", c:"open" }) },
+    { id:"b-close", name:"Stäng (pausa, släck bild)", make:() => ({ t:"bp", c:"close" }) },
+    { id:"b-pp", name:"Spela/paus", make:() => ({ t:"bp", c:"playpause" }) },
+    { id:"b-next", name:"Nästa", make:() => ({ t:"bp", c:"next" }) },
+    { id:"b-prev", name:"Föregående", make:() => ({ t:"bp", c:"prev" }) },
+    { id:"b-wake", name:"Väckning", make:() => ({ t:"bp", c:"wake" }) },
+    { id:"b-viz", name:"Kanal (visualisering)", make:() => ({ t:"viz", n:"next" }) },
+    { id:"b-pal", name:"Färgläge", make:() => ({ t:"palette", p:"next" }) },
+    { id:"b-page", name:"Visa sida", make:() => ({ t:"page", p:"wx" }) } ] },
+  { cat:"Zigbee", items:[
+    { id:"z-dev", name:"Zigbee-enhet", make:() => ({ t:"z2m", dev:"", op:"toggle" }) },
+    { id:"z-mqtt", name:"MQTT-meddelande", make:() => ({ t:"mqtt", topic:"zigbee2mqtt/", payload:"" }) } ] },
+  { cat:"Navigering", items:[
+    { id:"n-folder", name:"Mapp", make:() => ({ t:"folder", fid:"" }) },
+    { id:"n-back", name:"Tillbaka", make:() => ({ t:"back" }) },
+    { id:"n-home", name:"Överst i mappen", make:() => ({ t:"home" }) },
+    { id:"n-next", name:"Nästa sida", make:() => ({ t:"pagenav", op:"next" }) },
+    { id:"n-prev", name:"Föregående sida", make:() => ({ t:"pagenav", op:"prev" }) },
+    { id:"n-goto", name:"Gå till sida", make:() => ({ t:"pagenav", op:"goto", page:1 }) },
+    { id:"n-prof", name:"Byt profil", make:() => ({ t:"profile", pid:"next" }) } ] },
+  { cat:"System", items:[
+    { id:"y-multi", name:"Flera åtgärder", make:() => ({ t:"multi", steps:[] }) },
+    { id:"y-multi2", name:"Flera åtgärder, två lägen", ico:"swap", two:() => [{ t:"multi", steps:[] }, { t:"multi", steps:[] }] },
+    { id:"y-bri", name:"Knapparnas ljusstyrka", make:() => ({ t:"deckdev", op:"brightness", value:70 }) },
+    { id:"y-sleep", name:"Släck/tänd knapparna", make:() => ({ t:"deckdev", op:"sleep-toggle" }) },
+    { id:"y-http", name:"HTTP-anrop", make:() => ({ t:"http", url:"", method:"GET", body:"" }) },
+    { id:"y-sys", name:"Kommando på Pi:n", make:() => ({ t:"sys", name:"" }) } ] },
+  { cat:"Rattar", note:"dra till en ratt", items: Object.entries(C.DIALS).map(([id, d]) => ({ id:"d-" + id, name:d.name, dial:id, ico:"refresh" })) }
+];
+const LIB_BY_ID = {}; LIBRARY.forEach(c => c.items.forEach(it => { LIB_BY_ID[it.id] = it; }));
+function libCtl(it){
+  if (it.two){ const [a, b] = it.two(); return { id: C.uid(), states: [{ a, look:{} }, { a: b, look:{} }] }; }
+  const a = it.make();
+  if (a.t === "folder"){ a.fid = C.uid(); editView().prof.folders[a.fid] = { keys: Array(C.N_KEYS).fill(null) }; }
+  return C.newCtl(a);
+}
+
+// ---------- knappytan: bakgrund, ikon och titel ritade på canvas ----------
+const FACE = 144;                // arbetsupplösning; enheten får 120 px som den själv skalar till 60
+const shade = (hex, f) => { const n = parseInt(hex.replace("#",""), 16); const ch = s => clamp(Math.round(((n >> s) & 255) * f), 0, 255); return "#" + [16, 8, 0].map(s => ch(s).toString(16).padStart(2, "0")).join(""); };
+function effLook(st){
+  const L = st.look || {}, t = L.t || {}, i = L.i || {}, b = L.b || {}, auto = autoLook(st.a);
+  const kind = b.kind || "grad", c1 = b.c1 || "#272a31";
+  return {
+    t: { text: t.text != null ? t.text : auto.title, show: t.show !== false, font: t.font || "sans", size: t.size || 17, color: t.color || "#ffffff", bold: t.bold !== false, italic: !!t.italic, pos: t.pos || "bottom" },
+    i: { kind: i.kind || "lib", id: i.id || auto.icon, data: i.data || "", ch: i.ch || "", color: i.color || auto.color, size: i.size || 50, dy: i.dy || 0, w: i.w || 1.8 },
+    b: { kind, c1, c2: kind === "solid" ? c1 : (b.c2 || shade(c1, 0.55)), data: b.data || "" }
+  };
+}
+const imgCache = {};
+function getImg(data){
+  if (!data) return null;
+  let e = imgCache[data];
+  if (!e){ e = imgCache[data] = { img: new Image(), ok: false }; e.img.onload = () => { e.ok = true; renderDevice(); refreshPreview(); }; e.img.src = data; }
+  return e.ok ? e.img : null;
+}
+function loadImg(data){ return new Promise(res => { if (!data) return res(); let e = imgCache[data]; if (e && e.ok) return res(); const im = new Image(); im.onload = im.onerror = () => { imgCache[data] = { img: im, ok: im.naturalWidth > 0 }; res(); }; im.src = data; }); }
+function drawCover(ctx, img, x, y, w, h, contain){
+  const r = contain ? Math.min(w / img.naturalWidth, h / img.naturalHeight) : Math.max(w / img.naturalWidth, h / img.naturalHeight);
+  const dw = img.naturalWidth * r, dh = img.naturalHeight * r;
+  ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+}
+function drawFace(ctx, S, look){
+  ctx.save();
+  ctx.clearRect(0, 0, S, S);
+  // bakgrund
+  const b = look.b, bgImg = b.kind === "img" ? getImg(b.data) : null;
+  if (b.kind === "grad"){ const g = ctx.createLinearGradient(0, 0, S * 0.35, S); g.addColorStop(0, b.c1); g.addColorStop(1, b.c2); ctx.fillStyle = g; }
+  else ctx.fillStyle = b.kind === "img" ? "#000" : b.c1;
+  ctx.fillRect(0, 0, S, S);
+  if (bgImg) drawCover(ctx, bgImg, 0, 0, S, S, false);
+  // titelns rader och höjd bestämmer var ikonen hamnar
+  const t = look.t, lines = t.show && t.text ? String(t.text).split("\n").slice(0, 4) : [];
+  let fpx = S * t.size / 100;
+  const fontOf = px => `${t.italic ? "italic " : ""}${t.bold ? "700" : "500"} ${px}px ${FONTS[t.font] ? FONTS[t.font][1] : FONTS.sans[1]}`;
+  if (lines.length){
+    ctx.font = fontOf(fpx);
+    const widest = Math.max(...lines.map(l => ctx.measureText(l).width));
+    if (widest > S * 0.92) fpx = Math.max(S * 0.085, fpx * S * 0.92 / widest);
+  }
+  const lh = fpx * 1.14, th = lines.length * lh;
+  const i = look.i, hasIcon = i.kind !== "none" && (i.kind !== "img" || i.data) && (i.kind !== "emoji" || i.ch);
+  let cy = S / 2;
+  if (lines.length && t.pos === "bottom") cy = (S - th - S * 0.07) / 2 + S * 0.015;
+  else if (lines.length && t.pos === "top") cy = S - (S - th - S * 0.07) / 2 - S * 0.015;
+  cy += S * i.dy / 100;
+  let isz = S * i.size / 100;
+  if (lines.length && t.pos !== "middle") isz = Math.min(isz, (S - th - S * 0.15));
+  if (hasIcon){
+    if (i.kind === "lib") drawIcon(ctx, i.id, S / 2, cy, isz, i.color, i.w);
+    else if (i.kind === "emoji"){
+      ctx.font = `700 ${isz * 0.86}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Segoe UI",sans-serif`;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = i.color;
+      ctx.fillText(i.ch, S / 2, cy + isz * 0.04);
+    } else if (i.kind === "img"){
+      const im = getImg(i.data);
+      if (im){ ctx.save(); ctx.beginPath(); ctx.roundRect(S / 2 - isz / 2, cy - isz / 2, isz, isz, isz * 0.14); ctx.clip(); drawCover(ctx, im, S / 2 - isz / 2, cy - isz / 2, isz, isz, true); ctx.restore(); }
+    }
+  }
+  if (lines.length){
+    ctx.font = fontOf(fpx); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = t.color;
+    ctx.shadowColor = "rgba(0,0,0,.8)"; ctx.shadowBlur = S * 0.035; ctx.shadowOffsetY = S * 0.008;
+    let y0 = t.pos === "bottom" ? S - S * 0.07 - th + lh / 2 : t.pos === "top" ? S * 0.07 + lh / 2 : (S - th) / 2 + lh / 2;
+    lines.forEach((l, n) => ctx.fillText(l, S / 2, y0 + n * lh));
+  }
+  ctx.restore();
+}
+const scratch = document.createElement("canvas");
+// "Verklig skärpa": rita som enhetens 60x60-skärm faktiskt visar det och förstora.
+function paintKey(canvas, look){
+  const ctx = canvas.getContext("2d");
+  if (!look){ ctx.clearRect(0, 0, canvas.width, canvas.height); return; }
+  if (!VIEW.real){ drawFace(ctx, canvas.width, look); return; }
+  scratch.width = scratch.height = FACE; drawFace(scratch.getContext("2d"), FACE, look);
+  const small = document.createElement("canvas"); small.width = small.height = 60;
+  const sc = small.getContext("2d"); sc.imageSmoothingQuality = "high"; sc.drawImage(scratch, 0, 0, 60, 60);
+  ctx.imageSmoothingEnabled = false; ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(small, 0, 0, canvas.width, canvas.height); ctx.imageSmoothingEnabled = true;
+}
+function hashStr(s){ let h1 = 0x811c9dc5, h2 = 0x1b873593; for (let i = 0; i < s.length; i++){ const c = s.charCodeAt(i); h1 = Math.imul(h1 ^ c, 16777619); h2 = Math.imul(h2 + c, 2246822519) ^ (h2 >>> 13); } return (h1 >>> 0).toString(36) + (h2 >>> 0).toString(36); }
+
+// ---------- tillstånd ----------
+let deck = null, myRev = 0;
+let mode = "edit";
+let editNav = { p:"", pg:0, stack:[] };
+let sel = null;                  // { kind:"key"|"btn"|"enc", i, state }
+const VIEW = { real: prefs.get("real", false), caps: prefs.get("caps", true) };
+const CID = C.uid();             // den här flikens id, så egna händelser inte spelas upp två gånger
+const LIVE = { navRev: -1, stRev: -1, valsRev: -1, vals: {}, evLast: -1, hub: { online:false, device:false, sys:[], rooms:[] } };
+const undo = [], redo = [];
+let dirty = false, saving = false, saveT = 0, lastCo = "", lastCoAt = 0;
+const LOG = [];
+
+const engine = new C.Engine(() => deck, {
+  send: (cmd, a) => sendCmd(cmd, a),
+  navChanged: nav => { livePatch({ nav }); if (mode === "use"){ renderTop(); renderDevice(); renderCrumb(); } else renderTop(); },
+  stChanged: patch => { livePatch({ st: patch }); renderDevice(); },
+  now: () => Date.now(),
+  setTimeout: (fn, ms) => setTimeout(fn, ms)
+});
+const editView = () => { editNav = C.normNav(deck, editNav); return C.resolveView(deck, editNav); };
+const curNav = () => mode === "use" ? (engine.view(), engine.nav) : (editView(), editNav);
+const curView = () => mode === "use" ? engine.view() : editView();
+
+// En ändring av konfigurationen: sparar ångra-läge, kör fn, ritar om och sparar strax efteråt.
+function mutate(fn, o){
+  o = o || {};
+  const now = Date.now();
+  if (!(o.co && o.co === lastCo && now - lastCoAt < 1500)){ undo.push(JSON.stringify(deck)); if (undo.length > 80) undo.shift(); redo.length = 0; }
+  lastCo = o.co || ""; lastCoAt = now;
+  fn();
+  scheduleSave();
+  renderTop(); renderDevice(); renderCrumb();
+  if (o.re !== false) renderInspector(); else refreshPreview();
+}
+function doUndo(from, to){
+  if (!from.length) return;
+  to.push(JSON.stringify(deck)); deck = C.sanitize(JSON.parse(from.pop())); lastCo = "";
+  scheduleSave(); renderAll();
+}
+
+// ---------- spara / läsa ----------
+function setSaveState(txt, err){ const el = $("#saveState"); el.textContent = txt; el.classList.toggle("err", !!err); }
+function scheduleSave(){ dirty = true; setSaveState("Sparar…"); clearTimeout(saveT); saveT = setTimeout(publish, 800); }
+async function ensureImages(){
+  const all = new Set();
+  C.eachCtl(deck, c => c.states.forEach(s => { const L = s.look || {}; if (L.i && L.i.data) all.add(L.i.data); if (L.b && L.b.data) all.add(L.b.data); }));
+  await Promise.all([...all].map(loadImg));
+  if (document.fonts && document.fonts.ready){
+    const used = new Set(["sans"]); C.eachCtl(deck, c => c.states.forEach(s => used.add((s.look && s.look.t && s.look.t.font) || "sans")));
+    await Promise.all([...used].map(f => document.fonts.load(`700 20px ${FONTS[f] ? FONTS[f][1] : FONTS.sans[1]}`).catch(() => {})));
+  }
+}
+// Ritar varje knappläge till en färdig bild som den fysiska enheten visar rakt av -
+// det enheten visar är alltså exakt det som syns här.
+function buildFaces(){
+  const faces = {}, map = {}, cv = document.createElement("canvas"); cv.width = cv.height = 120;
+  const ctx = cv.getContext("2d");
+  const add = (key, look) => {
+    const hsh = hashStr(JSON.stringify(look));
+    if (!faces[hsh]){ drawFace(ctx, 120, look); faces[hsh] = cv.toDataURL("image/jpeg", 0.92); }
+    map[key] = hsh;
+  };
+  C.eachCtl(deck, (c, info) => { if (info.kind === "key") c.states.forEach((st, si) => add(c.id + ":" + si, effLook(st))); });
+  add("__back", effLook({ a: { t:"back" } }));
+  return { faces, map };
+}
+// Mappar som ingen knapp längre pekar på städas bort (utom den man står i).
+function gcFolders(){
+  deck.profiles.forEach(prof => {
+    const used = new Set(prof.id === editNav.p ? editNav.stack : []);
+    C.eachCtl({ profiles: [prof] }, c => c.states.forEach(s => { if (s.a.t === "folder") used.add(s.a.fid); }));
+    Object.keys(prof.folders).forEach(f => { if (!used.has(f)) delete prof.folders[f]; });
+  });
+}
+async function publish(){
+  if (saving){ saveT = setTimeout(publish, 400); return; }
+  saving = true; dirty = false;
+  try {
+    await ensureImages();
+    gcFolders();
+    const { faces, map } = buildFaces();
+    deck._faces = map;
+    const r = await fetch("/api/deck", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ deck, faces }) });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || "kunde inte spara");
+    myRev = j.rev; setSaveState("Sparat ✓");
+  } catch(e){ dirty = true; setSaveState("Inte sparat", true); toast("Kunde inte spara: " + e.message); }
+  saving = false;
+}
+async function loadDeck(){
+  const j = await (await fetch("/api/deck", { cache:"no-store" })).json();
+  myRev = j.rev || 0;
+  if (j.deck){ deck = C.sanitize(j.deck); return false; }
+  deck = C.defaultDeck();
+  try {   // första gången: ta med knapparna från den gamla macropaden
+    const st = await (await fetch("/api/state", { cache:"no-store" })).json(), s = (st && st.settings) || {};
+    if (Array.isArray(s.macropad) && C.migrateOld(deck, s.macropad, s.mpFolders || {})) toast("Knapparna från den gamla macropaden ligger på egna sidor.", 5000);
+  } catch(e){}
+  return true;
+}
+async function loadGroups(){
+  try { const d = await (await fetch("/api/tradfri-list", { cache:"no-store" })).json(); GROUPS = {}; (d.groups || []).forEach(g => { GROUPS[g.name] = g.moods || []; }); } catch(e){}
+}
+
+// ---------- delat körläge (emulatorn <-> den fysiska enheten) ----------
+let pendLive = null;
+function livePatch(p){
+  if (!pendLive){ pendLive = {}; setTimeout(flushLive, 15); }
+  if (p.nav) pendLive.nav = p.nav;
+  if (p.st) pendLive.st = Object.assign(pendLive.st || {}, p.st);
+  if (p.vals) pendLive.vals = Object.assign(pendLive.vals || {}, p.vals);
+  if (p.ev) pendLive.ev = (pendLive.ev || []).concat(p.ev);
+  if (p.stReset) pendLive.stReset = true;
+}
+async function flushLive(){
+  const body = pendLive; pendLive = null;
+  try {
+    const j = await (await fetch("/api/deck/live", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) })).json();
+    if (body.nav) LIVE.navRev = Math.max(LIVE.navRev, j.navRev);
+    if (body.st || body.stReset) LIVE.stRev = Math.max(LIVE.stRev, j.stRev);
+    if (body.vals) LIVE.valsRev = Math.max(LIVE.valsRev, j.valsRev);
+  } catch(e){}
+}
+let pollBusy = false, calib = null;
+async function pollLive(){
+  if (pollBusy || document.hidden) return;
+  pollBusy = true;
+  try {
+    const first = LIVE.evLast < 0;
+    const j = await (await fetch("/api/deck/live?ev=" + Math.max(0, LIVE.evLast), { cache:"no-store" })).json();
+    const hubWas = LIVE.hub.online + "/" + LIVE.hub.device;
+    LIVE.hub = j.hub || LIVE.hub;
+    if (hubWas !== LIVE.hub.online + "/" + LIVE.hub.device) renderHub();
+    if (j.navRev > LIVE.navRev){
+      LIVE.navRev = j.navRev;
+      if (j.nav && !C.sameNav(C.normNav(deck, j.nav), engine.nav)){ engine.nav = C.normNav(deck, j.nav); renderTop(); if (mode === "use"){ renderDevice(); renderCrumb(); } }
+    }
+    if (j.stRev > LIVE.stRev){ LIVE.stRev = j.stRev; engine.st = Object.assign({}, j.st || {}); if (mode === "use") renderDevice(); }
+    if (j.valsRev > LIVE.valsRev){
+      const old = LIVE.vals, nv = j.vals || {}, had = LIVE.valsRev >= 0;
+      LIVE.valsRev = j.valsRev; LIVE.vals = nv; applyDeviceLight();
+      if (had && mode === "use") for (const k in nv){ if (nv[k] === old[k]) continue; const [what, who] = [k.slice(0, k.indexOf(":")), k.slice(k.indexOf(":") + 1)];
+        if (what === "vol") toast("Volym " + nv[k] + " · " + who, 1400); else if (what === "dim") toast("Ljusstyrka " + nv[k] + "% · " + who, 1400); else if (k === "jalusi") toast(nv[k] === "open" ? "Jalusin öppnades" : "Jalusin stängdes"); }
+    }
+    if (first) LIVE.evLast = j.evLast;
+    else for (const e of (j.ev || [])){ LIVE.evLast = Math.max(LIVE.evLast, e.id); if (e.cid !== CID) remoteEvent(e); }
+    if (j.deckRev > myRev && !dirty && !saving){
+      const d = await (await fetch("/api/deck", { cache:"no-store" })).json();
+      if (d.deck && d.rev > myRev){ myRev = d.rev; deck = C.sanitize(d.deck); undo.length = redo.length = 0; renderAll(); toast("Konfigurationen ändrades från en annan enhet."); }
+    }
+  } catch(e){}
+  pollBusy = false;
+}
+function remoteEvent(e){
+  if (calib && e.src === "hw" && e.rk){ calibEvent(e); return; }
+  if (e.k === "enc"){ knobAngle[e.i] = (knobAngle[e.i] || 0) + (e.d < 0 ? -24 : 24); if (mode === "use") updateKnob(e.i); }
+  else if (mode === "use") pressFx(e.k, e.i, !!e.d, true);
+  if (e.cmd || e.d || e.k === "enc") logEvent(e.src === "hw" ? "hw" : "web", ctlLabel(e.k, e.i, e.d), e.cmd || "");
+}
+
+// ---------- skicka kommandon ----------
+// Utan hubb finns bara den gamla mottagaren på kameradatorn, som bara kan fasta värden.
+// Relativa steg räknas därför om till fasta värden här tills hubben är igång.
+function fallbackCmds(cmd){
+  const v = LIVE.vals, upd = {};
+  let out = cmd;
+  try {
+    if (cmd.startsWith("light:")){
+      const c = JSON.parse(cmd.slice(6)), g = c.group, mk = (action, value) => "light:" + JSON.stringify({ group: g, action, value });
+      if (c.action === "toggle"){ const on = !(v["on:" + g] ?? false); upd["on:" + g] = on; out = mk(on ? "on" : "off", null); }
+      else if (c.action === "on" || c.action === "off") upd["on:" + g] = c.action === "on";
+      else if (c.action === "dim") upd["dim:" + g] = c.value;
+      else if (c.action === "temp") upd["temp:" + g] = c.value;
+      else if (c.action === "dim-rel"){ const n = clamp((v["dim:" + g] ?? 60) + c.value, 1, 100); upd["dim:" + g] = n; out = mk("dim", n); }
+      else if (c.action === "temp-rel"){ const n = clamp((v["temp:" + g] ?? 35) + c.value, 0, 100); upd["temp:" + g] = n; out = mk("temp", n); }
+      else if (c.action === "hue-rel"){ const n = (((v["hue:" + g] ?? 30) + c.value) % 360 + 360) % 360; upd["hue:" + g] = n; out = mk("color", hslHex(n)); }
+    } else if (cmd.startsWith("sonos:")){
+      const c = JSON.parse(cmd.slice(6));
+      if (c.action === "vol-rel"){ const n = clamp((v["vol:" + c.room] ?? 30) + c.value, 0, 100); upd["vol:" + c.room] = n; out = "sonos-vol:" + JSON.stringify({ room: c.room, value: n }); }
+    } else if (cmd.startsWith("sonos-vol:")){ const c = JSON.parse(cmd.slice(10)); upd["vol:" + c.room] = c.value; }
+  } catch(e){}
+  if (Object.keys(upd).length){ Object.assign(LIVE.vals, upd); livePatch({ vals: upd }); }
+  return out;
+}
+function hslHex(hd){ const f = n => { const k = (n + hd / 30) % 12; return Math.round(255 * (0.5 - 0.5 * Math.max(-1, Math.min(k - 3, 9 - k, 1)))).toString(16).padStart(2, "0"); }; return f(0) + f(8) + f(4); }
+function sendCmd(cmd, a){
+  let out = cmd;
+  if (cmd.startsWith("deck:")){
+    try {   // knapparnas ljus: visa direkt i emulatorn; hubben gör samma sak på enheten
+      const c = JSON.parse(cmd.slice(5)), cur = LIVE.vals["deck:bri"] ?? deck.device.brightness, upd = {};
+      if (c.action === "brightness") upd["deck:bri"] = c.value;
+      else if (c.action === "brightness-rel") upd["deck:bri"] = clamp(cur + c.value, 0, 100);
+      else if (c.action === "sleep") upd["deck:sleep"] = true;
+      else if (c.action === "wake") upd["deck:sleep"] = false;
+      else if (c.action === "sleep-toggle") upd["deck:sleep"] = !LIVE.vals["deck:sleep"];
+      Object.assign(LIVE.vals, upd); if (!LIVE.hub.online) livePatch({ vals: upd }); applyDeviceLight();
+    } catch(e){}
+  } else if (!LIVE.hub.online) out = fallbackCmds(cmd);
+  lastSent = out;
+  fetch("/api/send?c=" + encodeURIComponent(out)).catch(() => {});
+}
+let lastSent = "";
+
+// ---------- händelseloggen (Använd-läget) ----------
+function ctlLabel(k, i, d){
+  if (k === "key") return "Knapp " + (i + 1);
+  if (k === "btn") return "Liten knapp " + (i + 1);
+  const nm = ["Stora ratten", "Vänster ratt", "Höger ratt"][i] || "Ratt";
+  return k === "encp" ? nm + ", tryck" : nm + (d < 0 ? " ↺" : " ↻");
+}
+function logEvent(src, what, cmd){
+  LOG.unshift({ t: new Date(), src, what, cmd }); if (LOG.length > 120) LOG.pop();
+  if (mode === "use") renderLog();
+}
+function renderLog(){
+  const el = $("#log");
+  if (!LOG.length){ el.innerHTML = '<div class="empty">Tryck på en knapp eller vrid på en ratt, här eller på den riktiga enheten, så syns det här.</div>'; return; }
+  el.innerHTML = LOG.map(r => `<div class="logRow"><time>${r.t.toTimeString().slice(0, 8)}</time><span class="w"><em class="${r.src === "hw" ? "hw" : ""}">${r.src === "hw" ? "Enheten" : r.src === "me" ? "Här" : "Annan flik"}</em> · ${esc(r.what)}</span>${r.cmd ? `<code>${esc(r.cmd)}</code>` : ""}</div>`).join("");
+}
+
+// ---------- enheten ----------
+const GEO = { kx:40, ky:58, ks:96, kg:16, by:332, bd:42, enc:[{ cx:508, cy:150, d:150 }, { cx:452, cy:330, d:72 }, { cx:564, cy:330, d:72 }] };
+const knobAngle = [0, 0, 0];
+const el = { keys:[], btns:[], encs:[], bcap:[], ecap:[] };
+function buildDevice(){
+  const dv = $("#device"); dv.innerHTML = "";
+  dv.append(h("div", { class:"dvBrand", text:"STREAM CONTROLLER" }));
+  for (let i = 0; i < 6; i++){
+    const cv = h("canvas", { width: FACE, height: FACE });
+    const k = h("div", { class:"key", "data-k":"key", "data-i": i, draggable: true, style:{ left: GEO.kx + (i % 3) * (GEO.ks + GEO.kg) + "px", top: GEO.ky + Math.floor(i / 3) * (GEO.ks + GEO.kg) + "px" } }, cv, h("div", { class:"glass" }));
+    el.keys.push(k); dv.append(k);
+  }
+  for (let i = 0; i < 3; i++){
+    const cx = GEO.kx + i * (GEO.ks + GEO.kg) + GEO.ks / 2;
+    const b = h("div", { class:"sbtn", "data-k":"btn", "data-i": i, style:{ left: cx - GEO.bd / 2 + "px", top: GEO.by - GEO.bd / 2 + "px" } });
+    const cap = h("div", { class:"cap", style:{ left: cx - 52 + "px", width:"104px", top: GEO.by + GEO.bd / 2 + 8 + "px" } });
+    el.btns.push(b); el.bcap.push(cap); dv.append(b, cap);
+  }
+  GEO.enc.forEach((g, i) => {
+    const kn = h("div", { class:"knob", "data-k":"enc", "data-i": i, style:{ left: g.cx - g.d / 2 + "px", top: g.cy - g.d / 2 + "px", width: g.d + "px", height: g.d + "px" } },
+      h("div", { class:"rotwrap" }, h("div", { class:"dial" }), h("div", { class:"top" }), h("div", { class:"tick" })),
+      h("div", { class:"zones" }, h("span", { class:"zl", text:"↺", title:"Vrid vänster" }), h("span", { class:"zr", text:"↻", title:"Vrid höger" }), h("span", { class:"zp", text:"●", title:"Tryck" })));
+    const cap = h("div", { class:"cap", style:{ left: g.cx - 60 + "px", width:"120px", top: g.cy + g.d / 2 + 16 + "px" } });
+    const mkRot = (dir) => h("button", { class:"rotBtn", title: dir < 0 ? "Vrid vänster" : "Vrid höger", text: dir < 0 ? "‹" : "›",
+      style: i ? { left: g.cx + (dir < 0 ? -28 : 2) + "px", top: g.cy - g.d / 2 - 31 + "px" } : { left: (dir < 0 ? g.cx - g.d / 2 - 32 : g.cx + g.d / 2 + 6) + "px", top: g.cy - 13 + "px" },
+      onclick: ev => { ev.stopPropagation(); useRotate(i, dir); } });
+    el.encs.push(kn); el.ecap.push(cap); dv.append(kn, cap, mkRot(-1), mkRot(1));
+  });
+  wireDevice();
+  fitDevice();
+}
+function fitDevice(){
+  const w = $("#deviceWrap"), s = clamp(Math.min((w.clientWidth - (w.clientWidth < 700 ? 8 : 24)) / (w.clientWidth < 700 ? 668 : 700), (w.clientHeight - 16) / 440), 0.3, 1.7);
+  $("#device").style.transform = `scale(${s})`;
+}
+function updateKnob(i){ el.encs[i].querySelector(".rotwrap").style.transform = `rotate(${knobAngle[i]}deg)`; }
+function applyDeviceLight(){
+  const bri = LIVE.vals["deck:bri"] ?? (deck ? deck.device.brightness : 70), asleep = !!LIVE.vals["deck:sleep"] && mode === "use";
+  $("#device").classList.toggle("asleep", asleep);
+  const f = mode === "use" ? 0.35 + 0.65 * bri / 100 : 1;
+  el.keys.forEach(k => { k.querySelector("canvas").style.filter = asleep ? "" : f === 1 ? "" : `brightness(${f})`; });
+}
+const ctlTitle = c => { if (!c) return ""; const lk = effLook(c.states[0]); return (lk.t.text || "").replace(/\n/g, " "); };
+function renderDevice(){
+  if (!deck) return;
+  const v = curView(), use = mode === "use";
+  $("#app").classList.toggle("hideCaps", !VIEW.caps);
+  for (let i = 0; i < 6; i++){
+    const k = el.keys[i], ctl = i === v.backKey ? { id:"__back", states:[{ a:{ t:"back" } }] } : v.keys[i];
+    let si = 0;
+    if (ctl && ctl.states.length > 1) si = use ? engine.stateOf(ctl) : (sel && sel.kind === "key" && sel.i === i ? (sel.state | 0) % ctl.states.length : 0);
+    k.classList.toggle("empty", !ctl);
+    k.classList.toggle("sel", !use && !!sel && sel.kind === "key" && sel.i === i);
+    k.draggable = !use && !!ctl && i !== v.backKey;
+    k.title = !use && i === v.backKey ? "Tillbaka ligger alltid här i en mapp (lägg Tillbaka på en liten knapp eller ratt så blir platsen ledig)" : "";
+    paintKey(k.querySelector("canvas"), ctl ? effLook(ctl.states[si]) : null);
+  }
+  for (let i = 0; i < 3; i++){
+    const c = v.page.btns[i];
+    el.btns[i].classList.toggle("unset", !c);
+    el.btns[i].classList.toggle("sel", !use && !!sel && sel.kind === "btn" && sel.i === i);
+    el.bcap[i].textContent = ctlTitle(c);
+    const e = v.page.encs[i], kn = el.encs[i];
+    kn.classList.toggle("sel", !use && !!sel && sel.kind === "enc" && sel.i === i);
+    kn.querySelector(".zl").classList.toggle("set", !!e.ccw); kn.querySelector(".zr").classList.toggle("set", !!e.cw); kn.querySelector(".zp").classList.toggle("set", !!e.press);
+    el.ecap[i].textContent = e.name || (e.cw ? ctlTitle(e.cw) : "") || (e.press ? ctlTitle(e.press) : "");
+    updateKnob(i);
+  }
+  applyDeviceLight();
+}
+function pressFx(kind, i, down, remote){
+  const node = kind === "key" ? el.keys[i] : kind === "btn" ? el.btns[i] : el.encs[i];
+  if (!node) return;
+  node.classList.toggle("down", down);
+  if (remote && down) setTimeout(() => node.classList.remove("down"), 260);
+}
+
+// ---------- Använd-läget: trycka och vrida ----------
+function useInput(kind, i, down){
+  pressFx(kind, i, down);
+  lastSent = "";
+  const navBefore = JSON.stringify(engine.nav);
+  engine.input(kind, i, down);
+  const moved = JSON.stringify(engine.nav) !== navBefore;
+  if (down || lastSent || moved) logEvent("me", ctlLabel(kind, i), lastSent || (moved ? "(bytte vy)" : ""));
+  livePatch({ ev: [{ src:"web", cid: CID, k: kind, i, d: down ? 1 : 0, cmd: lastSent }] });
+}
+function useRotate(i, dir){
+  knobAngle[i] += dir * 24; updateKnob(i);
+  lastSent = "";
+  engine.rotate(i, dir);
+  setTimeout(() => { logEvent("me", ctlLabel("enc", i, dir), lastSent); }, 75);
+  livePatch({ ev: [{ src:"web", cid: CID, k:"enc", i, d: dir }] });
+}
+
+// ---------- Redigera-läget: markera, dra och släpp ----------
+let clip = prefs.get("clip", null);
+function select(s){ sel = s; renderDevice(); renderInspector(); }
+function slotsOf(kind){ const v = editView(); return kind === "key" ? v.keys : v.page.btns; }
+function getCtl(s){ if (!s) return null; const v = editView(); return s.kind === "key" ? v.keys[s.i] : s.kind === "btn" ? v.page.btns[s.i] : null; }
+function setSlot(kind, i, ctl){ slotsOf(kind)[i] = ctl; }
+function dropLib(it, target){   // target = { kind, i, slot? }
+  const v = editView();
+  if (target.kind === "key" && target.i === v.backKey){ toast("Platsen är upptagen av Tillbaka när man är i en mapp."); return; }
+  if (it.dial){
+    if (target.kind !== "enc"){ toast("Rattförval släpps på en ratt."); return; }
+    const first = Object.values(GROUPS).length ? defGroup() : "vardagsrum";
+    mutate(() => C.applyDial(v.page.encs[target.i], it.dial, { room: R0, group: first }));
+    select({ kind:"enc", i: target.i }); return;
+  }
+  if (target.kind === "enc"){
+    const slot = target.slot || "press";
+    mutate(() => { v.page.encs[target.i][slot] = libCtl(it); });
+    select({ kind:"enc", i: target.i });
+    if (!target.slot) toast("Lades på Tryck. Dra till ↺ eller ↻ för att lägga den på vridning.");
+    return;
+  }
+  if (target.kind === "key" && v.folder && it.id === "n-folder" && v.stack.length >= 4){ toast("Fler nivåer än så blir svårt att hitta i."); return; }
+  mutate(() => setSlot(target.kind, target.i, libCtl(it)));
+  select({ kind: target.kind, i: target.i, state: 0 });
+}
+function encZone(node, ev){
+  const r = node.getBoundingClientRect(), dx = ev.clientX - (r.left + r.width / 2), dy = ev.clientY - (r.top + r.height / 2);
+  if (Math.hypot(dx, dy) < r.width * 0.2 || dy > r.height * 0.3) return "press";
+  return dx < 0 ? "ccw" : "cw";
+}
+function wireDevice(){
+  const dv = $("#device");
+  const hit = ev => { const n = ev.target.closest("[data-k]"); return n ? { node: n, kind: n.dataset.k, i: +n.dataset.i } : null; };
+  // --- redigera ---
+  dv.addEventListener("click", ev => { if (mode !== "edit") return; const t = hit(ev); if (!t) return;
+    if (t.kind === "key" && t.i === editView().backKey){ sel = null; renderDevice(); renderInspector(); return; }
+    select({ kind: t.kind, i: t.i, state: sel && sel.kind === t.kind && sel.i === t.i ? sel.state : 0 }); });
+  dv.addEventListener("dblclick", ev => { if (mode !== "edit") return; const t = hit(ev); if (!t || t.kind !== "key") return;
+    const c = editView().keys[t.i]; if (c && c.states[0].a.t === "folder") openFolder(c.states[0].a.fid); });
+  dv.addEventListener("contextmenu", ev => { const t = hit(ev); if (!t || mode !== "edit") return; ev.preventDefault();
+    if (t.kind === "key" && t.i === editView().backKey) return;
+    if (t.kind !== "enc") select({ kind: t.kind, i: t.i, state: 0 }); else select({ kind:"enc", i: t.i });
+    ctlMenu(ev.clientX, ev.clientY, t); });
+  dv.addEventListener("dragstart", ev => { const t = hit(ev); if (mode !== "edit" || !t || t.kind !== "key" || !editView().keys[t.i]){ ev.preventDefault(); return; }
+    ev.dataTransfer.setData("text/deck-move", String(t.i)); ev.dataTransfer.effectAllowed = "copyMove"; });
+  const clearOver = () => { dv.querySelectorAll(".dragover").forEach(n => n.classList.remove("dragover")); dv.querySelectorAll(".hot").forEach(n => n.classList.remove("hot")); };
+  dv.addEventListener("dragover", ev => { if (mode !== "edit") return; const t = hit(ev); if (!t) return; ev.preventDefault(); clearOver(); t.node.classList.add("dragover");
+    if (t.kind === "enc"){ const z = encZone(t.node, ev); t.node.querySelector(z === "ccw" ? ".zl" : z === "cw" ? ".zr" : ".zp").classList.add("hot"); } });
+  dv.addEventListener("dragleave", ev => { if (!ev.relatedTarget || !dv.contains(ev.relatedTarget)) clearOver(); });
+  dv.addEventListener("drop", ev => { if (mode !== "edit") return; const t = hit(ev); clearOver(); if (!t) return; ev.preventDefault();
+    const dt = ev.dataTransfer, lib = dt.getData("text/deck-lib"), mv = dt.getData("text/deck-move");
+    if (dt.files && dt.files.length && t.kind === "key"){ const v = editView(); if (!v.keys[t.i]) return toast("Lägg en åtgärd på knappen först."); select({ kind:"key", i: t.i, state: 0 }); setIconFromFile(dt.files[0]); return; }
+    if (lib && LIB_BY_ID[lib]) return dropLib(LIB_BY_ID[lib], { kind: t.kind, i: t.i, slot: t.kind === "enc" ? encZone(t.node, ev) : null });
+    if (mv !== "" && t.kind === "key"){
+      const from = +mv, v = editView(); if (from === t.i || t.i === v.backKey) return;
+      mutate(() => { if (ev.ctrlKey || ev.altKey) v.keys[t.i] = recopy(v.keys[from]); else { const tmp = v.keys[t.i]; v.keys[t.i] = v.keys[from]; v.keys[from] = tmp; } });
+      select({ kind:"key", i: t.i, state: 0 });
+    } });
+  // --- använd ---
+  let held = null, drag = null;
+  dv.addEventListener("pointerdown", ev => { if (mode !== "use" || ev.button) return; if (ev.target.closest(".rotBtn")) return; const t = hit(ev); if (!t) return; ev.preventDefault();
+    if (t.kind === "enc"){ const r = t.node.getBoundingClientRect(); drag = { i: t.i, cx: r.left + r.width / 2, cy: r.top + r.height / 2, a: null, acc: 0, moved: false, x: ev.clientX, y: ev.clientY }; t.node.setPointerCapture(ev.pointerId); return; }
+    held = t; useInput(t.kind, t.i, true); });
+  const release = () => { if (held){ useInput(held.kind, held.i, false); held = null; } };
+  window.addEventListener("pointerup", ev => { release();
+    if (drag){ const d = drag; drag = null; if (!d.moved){ useInput("encp", d.i, true); setTimeout(() => useInput("encp", d.i, false), 110); } } });
+  window.addEventListener("pointercancel", () => { release(); drag = null; });
+  dv.addEventListener("pointermove", ev => { if (!drag) return;
+    if (!drag.moved && Math.hypot(ev.clientX - drag.x, ev.clientY - drag.y) < 5) return;
+    const ang = Math.atan2(ev.clientY - drag.cy, ev.clientX - drag.cx) * 180 / Math.PI;
+    if (drag.a == null){ drag.a = ang; drag.moved = true; return; }
+    let d = ang - drag.a; if (d > 180) d -= 360; if (d < -180) d += 360;
+    drag.a = ang; drag.acc += d;
+    while (Math.abs(drag.acc) >= 24){ const dir = drag.acc > 0 ? 1 : -1; drag.acc -= dir * 24; useRotate(drag.i, dir); } });
+  dv.addEventListener("wheel", ev => { if (mode !== "use") return; const t = hit(ev); if (!t || t.kind !== "enc") return; ev.preventDefault(); useRotate(t.i, ev.deltaY > 0 ? -1 : 1); }, { passive:false });
+}
+function recopy(ctl){ if (!ctl) return null; const c = clone(ctl); c.id = C.uid();
+  c.states.forEach(s => { if (s.a.t === "folder"){ const p = editView().prof, nf = C.uid(); p.folders[nf] = clone(p.folders[s.a.fid] || { keys: Array(6).fill(null) }); p.folders[nf].keys = p.folders[nf].keys.map(k => k ? recopy(k) : null); s.a.fid = nf; } });
+  return c; }
+function openFolder(fid){ if (!editView().prof.folders[fid]) return; editNav.stack.push(fid); sel = null; renderAll(); }
+function ctlMenu(x, y, t){
+  const v = editView();
+  if (t.kind === "enc"){
+    const e = v.page.encs[t.i];
+    return openMenu(x, y, [{ h:"Ratt" }, ...Object.entries(C.DIALS).map(([id, d]) => ({ label: d.name, ic:"refresh", fn: () => mutate(() => C.applyDial(e, id, { room: R0, group: defGroup() })) })),
+      "-", { label:"Töm ratten", ic:"cross", fn: () => mutate(() => { e.ccw = e.cw = e.press = null; e.name = ""; }) },
+      { label:"Samma rattar och småknappar på alla sidor", ic:"pages", fn: copyControlsToAll }]);
+  }
+  const ctl = getCtl({ kind: t.kind, i: t.i }), isFolder = ctl && ctl.states[0].a.t === "folder";
+  openMenu(x, y, [
+    isFolder && { label:"Öppna mappen", ic:"folder", fn: () => openFolder(ctl.states[0].a.fid) }, isFolder && "-",
+    { label:"Kopiera", ic:"pages", kbd:"Ctrl+C", dis: !ctl, fn: () => copySel() },
+    { label:"Klipp ut", ic:"cross", kbd:"Ctrl+X", dis: !ctl, fn: () => { copySel(); delSel(); } },
+    { label:"Klistra in", ic:"arrow-down", kbd:"Ctrl+V", dis: !clip, fn: () => pasteSel() },
+    "-",
+    { label:"Ta bort", ic:"cross", kbd:"Del", dis: !ctl, fn: () => delSel() },
+    t.kind === "btn" && "-", t.kind === "btn" && { label:"Samma rattar och småknappar på alla sidor", ic:"pages", fn: copyControlsToAll }
+  ]);
+}
+function copyControlsToAll(){
+  const v = editView();
+  mutate(() => v.prof.pages.forEach(pg => { if (pg === v.page) return;
+    pg.btns = v.page.btns.map(b => b ? Object.assign(clone(b), { id: C.uid() }) : null);
+    pg.encs = v.page.encs.map(e => { const n = clone(e); ["ccw","cw","press"].forEach(s => { if (n[s]) n[s].id = C.uid(); }); return n; }); }));
+  toast("Rattar och småknappar är nu lika på alla sidor i profilen.");
+}
+function copySel(){ const c = getCtl(sel); if (!c) return; clip = clone(c); prefs.set("clip", clip); toast("Kopierad."); }
+function pasteSel(){
+  if (!clip || !sel || sel.kind === "enc") return;
+  if (sel.kind === "key" && sel.i === editView().backKey) return;
+  mutate(() => setSlot(sel.kind, sel.i, recopy(clip)));
+}
+function delSel(){ if (!sel) return; if (sel.kind === "enc") return; if (!getCtl(sel)) return; mutate(() => setSlot(sel.kind, sel.i, null)); }
+
+// ---------- överkanten ----------
+function renderTop(){
+  if (!deck) return;
+  const nav = curNav(), v = curView();
+  $("#profileName").textContent = v.prof.name;
+  const tabs = $("#pageTabs"); tabs.innerHTML = "";
+  const livePg = engine.nav && engine.nav.p === v.prof.id ? engine.nav.pg : -1;
+  v.prof.pages.forEach((pg, i) => {
+    tabs.append(h("button", { class:"ptab" + (i === nav.pg ? " on" : "") + (mode === "edit" && i === livePg && LIVE.hub.device ? " live" : ""), text: pg.name || String(i + 1), title: mode === "edit" && i === livePg && LIVE.hub.device ? "Enheten visar den här sidan" : "",
+      onclick: () => { if (mode === "use") engine.setNav({ p: nav.p, pg: i, stack: [] }); else { editNav.pg = i; editNav.stack = []; sel = null; renderAll(); } },
+      oncontextmenu: ev => { ev.preventDefault(); if (mode === "edit") pageMenu(ev.clientX, ev.clientY, i); } }));
+  });
+  if (mode === "edit") tabs.append(h("button", { class:"ptab add", text:"+", title:"Ny sida", onclick: addPage }));
+  $("#undoBtn").disabled = !undo.length || mode !== "edit"; $("#redoBtn").disabled = !redo.length || mode !== "edit";
+  document.querySelectorAll("#modeSeg button").forEach(b => b.classList.toggle("on", b.dataset.m === mode));
+}
+function addPage(){
+  const v = editView();
+  mutate(() => { const pg = C.newPage("");
+    pg.btns = v.page.btns.map(b => b ? Object.assign(clone(b), { id: C.uid() }) : null);
+    pg.encs = v.page.encs.map(e => { const n = clone(e); ["ccw","cw","press"].forEach(s => { if (n[s]) n[s].id = C.uid(); }); return n; });
+    v.prof.pages.push(pg); editNav.pg = v.prof.pages.length - 1; editNav.stack = []; sel = null; });
+  toast("Ny sida. Rattar och småknappar följde med från förra sidan.");
+}
+function pageMenu(x, y, i){
+  const prof = editView().prof, pg = prof.pages[i];
+  openMenu(x, y, [
+    { label:"Byt namn", ic:"list", fn: async () => { const n = await askText("Sidans namn", pg.name, "t.ex. Musik (tomt = siffra)"); if (n != null) mutate(() => { pg.name = n.trim(); }); } },
+    { label:"Duplicera", ic:"pages", fn: () => mutate(() => { const c = clone(pg); c.id = C.uid(); c.name = pg.name ? pg.name + " 2" : "";
+        c.keys = c.keys.map(k => k ? recopy(k) : null); c.btns.forEach(b => { if (b) b.id = C.uid(); }); c.encs.forEach(e => ["ccw","cw","press"].forEach(s => { if (e[s]) e[s].id = C.uid(); }));
+        prof.pages.splice(i + 1, 0, c); editNav.pg = i + 1; editNav.stack = []; }) },
+    { label:"Flytta åt vänster", ic:"chev-left", dis: i === 0, fn: () => mutate(() => { prof.pages.splice(i - 1, 0, prof.pages.splice(i, 1)[0]); editNav.pg = i - 1; }) },
+    { label:"Flytta åt höger", ic:"chev-right", dis: i === prof.pages.length - 1, fn: () => mutate(() => { prof.pages.splice(i + 1, 0, prof.pages.splice(i, 1)[0]); editNav.pg = i + 1; }) },
+    "-", { label:"Ta bort sidan", ic:"cross", dis: prof.pages.length < 2, fn: () => mutate(() => { prof.pages.splice(i, 1); editNav.pg = Math.min(editNav.pg, prof.pages.length - 1); editNav.stack = []; sel = null; }) }
+  ]);
+}
+function profileMenu(ev){
+  const r = ev.currentTarget.getBoundingClientRect(), cur = curView().prof;
+  const items = [{ h:"Profiler" }, ...deck.profiles.map(p => ({ label: p.name, ic:"layers", on: p.id === cur.id, fn: () => {
+      if (mode === "use") engine.setNav({ p: p.id, pg: 0, stack: [] }); else { editNav = { p: p.id, pg: 0, stack: [] }; sel = null; renderAll(); } } }))];
+  if (mode === "edit") items.push("-",
+    { label:"Ny profil", ic:"plus", fn: async () => { const n = await askText("Ny profil", "", "t.ex. Fest"); if (!n) return; mutate(() => { const p = C.newProfile(n.trim()); deck.profiles.push(p); editNav = { p: p.id, pg: 0, stack: [] }; sel = null; }); } },
+    { label:"Byt namn", ic:"list", fn: async () => { const n = await askText("Profilens namn", cur.name); if (n) mutate(() => { cur.name = n.trim(); }); } },
+    { label:"Duplicera", ic:"pages", fn: () => mutate(() => { const p = clone(cur); p.id = C.uid(); p.name = cur.name + " (kopia)"; deck.profiles.push(p); editNav = { p: p.id, pg: 0, stack: [] }; sel = null; }) },
+    { label:"Ta bort profilen", ic:"cross", dis: deck.profiles.length < 2, fn: () => mutate(() => { deck.profiles = deck.profiles.filter(p => p !== cur); editNav = { p: deck.profiles[0].id, pg: 0, stack: [] }; sel = null; }) },
+    "-", { label:"Exportera profilen…", ic:"arrow-down", fn: () => download(cur.name + ".deckprofil.json", JSON.stringify({ blaupunktDeck: 2, profile: cur }, null, 1)) },
+    { label:"Importera profil…", ic:"arrow-up", fn: importProfile });
+  openMenu(r.left, r.bottom + 4, items);
+}
+function download(name, text){ const a = h("a", { href: URL.createObjectURL(new Blob([text], { type:"application/json" })), download: name }); document.body.append(a); a.click(); a.remove(); }
+function pickFile(accept){ return new Promise(res => { const f = $("#filePick"); f.value = ""; f.accept = accept; f.onchange = () => res(f.files[0] || null); f.click(); }); }
+async function importProfile(){
+  const f = await pickFile(".json,application/json"); if (!f) return;
+  try { const d = JSON.parse(await f.text()); const p = d.profile || (d.profiles && d.profiles[0]); if (!p || !Array.isArray(p.pages)) throw 0;
+    mutate(() => { const np = clone(p); np.id = C.uid(); deck.profiles.push(np); C.sanitize(deck); editNav = { p: np.id, pg: 0, stack: [] }; sel = null; }); toast("Profilen importerades."); }
+  catch(e){ toast("Filen gick inte att läsa som en profil."); }
+}
+function renderHub(){
+  const c = $("#hubChip"), hb = LIVE.hub;
+  c.className = "chip" + (hb.device ? " ok" : hb.online ? " half" : "");
+  $("#hubTxt").textContent = hb.device ? "Enheten ansluten" : hb.online ? "Hubb igång, ingen enhet" : "Ingen hubb";
+  renderTop();
+}
+function renderCrumb(){
+  const v = curView(), nav = curNav(), cr = $("#crumb"); cr.innerHTML = "";
+  const go = n => { if (mode === "use") engine.setNav({ p: nav.p, pg: nav.pg, stack: nav.stack.slice(0, n) }); else { editNav.stack = editNav.stack.slice(0, n); sel = null; renderAll(); } };
+  const folderName = fid => { let name = "Mapp"; C.eachCtl(deck, c => c.states.forEach(s => { if (s.a.t === "folder" && s.a.fid === fid) name = effLook(s).t.text || "Mapp"; })); return name.replace(/\n/g, " "); };
+  if (v.stack.length){
+    cr.append(h("button", { onclick: () => go(v.stack.length - 1) }, icon("back"), "Tillbaka"), h("button", { text: v.page.name || "Sida " + (v.pg + 1), onclick: () => go(0) }));
+    v.stack.forEach((fid, n) => { cr.append("›"); cr.append(n === v.stack.length - 1 ? h("b", { text: folderName(fid) }) : h("button", { text: folderName(fid), onclick: () => go(n + 1) })); });
+  } else cr.append(h("span", { text: mode === "use" ? "Emulatorn gör samma sak som den riktiga enheten" : "" }));
+  cr.append(h("span", { class:"sp" }));
+  cr.append(h("label", { title:"Visar knapparna i enhetens verkliga upplösning, 60 × 60 punkter" }, h("input", { type:"checkbox", checked: VIEW.real, onchange: e => { VIEW.real = e.target.checked; prefs.set("real", VIEW.real); renderDevice(); refreshPreview(); } }), "Verklig skärpa"));
+  cr.append(h("label", {}, h("input", { type:"checkbox", checked: VIEW.caps, onchange: e => { VIEW.caps = e.target.checked; prefs.set("caps", VIEW.caps); renderDevice(); } }), "Etiketter"));
+  $("#stageHint").textContent = mode === "use" ? "Klicka på knapparna. Rattar: snurra med mushjulet, dra runt eller använd pilarna, klicka för att trycka."
+    : "Dra åtgärder från listan till en knapp eller ratt. Dra en knapp till en annan för att byta plats (Ctrl = kopiera). Dubbelklicka på en mapp för att öppna den.";
+}
+
+// ---------- åtgärdslistan ----------
+const shut = new Set(prefs.get("shut", []));
+function renderSide(){
+  const head = $("#sideHead");
+  if (mode === "use"){
+    head.innerHTML = "<h3>Händelser</h3>"; $("#lib").hidden = true; $("#log").hidden = false; renderLog(); return;
+  }
+  $("#lib").hidden = false; $("#log").hidden = true;
+  if (!head.querySelector("input")){
+    head.innerHTML = "";
+    head.append(h("h3", { text:"Åtgärder" }), h("div", { class:"search" }, icon("search"), h("input", { id:"libSearch", placeholder:"Sök åtgärd", oninput: renderLib })));
+  }
+  renderLib();
+}
+function renderLib(){
+  const q = ($("#libSearch") ? $("#libSearch").value : "").trim().toLowerCase(), lib = $("#lib"); lib.innerHTML = "";
+  LIBRARY.forEach(cat => {
+    const items = cat.items.filter(it => !q || (it.name + " " + cat.cat).toLowerCase().includes(q));
+    if (!items.length) return;
+    const isShut = !q && shut.has(cat.cat);
+    lib.append(h("div", { class:"libCat" + (isShut ? " shut" : ""), onclick: () => { shut.has(cat.cat) ? shut.delete(cat.cat) : shut.add(cat.cat); prefs.set("shut", [...shut]); renderLib(); } },
+      h("span", { class:"car", text:"▼" }), cat.cat, cat.note ? h("em", { style:{ fontStyle:"normal", color:"var(--dim)", letterSpacing:0, textTransform:"none", fontWeight:500 }, text:"· " + cat.note }) : null));
+    if (isShut) return;
+    items.forEach(it => {
+      const al = it.dial ? { icon:"refresh", color:"#c9ced6" } : autoLook(it.two ? it.two()[0] : it.make());
+      const row = h("div", { class:"libItem", draggable:true, title:"Dra till en knapp, eller klicka för att lägga på den markerade",
+        ondragstart: ev => { ev.dataTransfer.setData("text/deck-lib", it.id); ev.dataTransfer.effectAllowed = "copy"; },
+        onclick: () => { if (!sel) return toast("Markera först en knapp eller ratt, eller dra åtgärden dit."); dropLib(it, { kind: sel.kind, i: sel.i, slot: sel.kind === "enc" ? (sel.slot || null) : null }); } },
+        h("span", { class:"sw", html: iconSvg(it.ico || al.icon), style:{ color: al.color } }), h("span", { text: it.name }));
+      lib.append(row);
+    });
+  });
+  if (!lib.children.length) lib.append(h("div", { class:"empty", text:"Ingen åtgärd matchar." }));
+}
+
+// ---------- inspektorn ----------
+let prevCanvas = null, prevState = null;
+function refreshPreview(){ if (prevCanvas && prevState) paintKey(prevCanvas, effLook(prevState)); }
+function field(lbl, ...ctl){ return h("div", { class:"fRow" }, h("label", { text: lbl, title: lbl }), h("div", { class:"ctl" }, ...ctl)); }
+let dlN = 0;
+// Fälten för en åtgärd. co = nyckel så att flera tangenttryck i samma fält blir ett ångra-steg.
+function actionFields(a, co){
+  const box = h("div");
+  fieldsFor(a).forEach(f => {
+    if (f.type === "note"){ box.append(h("div", { class:"note", text: f.text })); return; }
+    const set = (val, re) => mutate(() => { a[f.k] = val; if (f.reset){ const d = (OP_DEFAULTS[a.t] || {})[a.op]; if (d === undefined) delete a[f.reset]; else a[f.reset] = d; } }, { co: co + f.k, re: re === undefined ? !!f.re : re });
+    let cur = a[f.k]; if (cur === undefined && f.def !== undefined) cur = f.def;
+    let ctl;
+    if (f.type === "select") ctl = [h("select", { class:"in w", onchange: e => set(f.numeric ? +e.target.value : e.target.value, true) }, f.opts.map(([v, l]) => h("option", { value: v, text: l, selected: String(cur) === String(v) })))];
+    else if (f.type === "suggest"){ const id = "dl" + (++dlN);
+      ctl = [h("input", { class:"in w", value: cur || "", list: id, placeholder: f.ph || "", oninput: e => set(e.target.value, false), onchange: e => set(e.target.value, !!f.re) }), h("datalist", { id }, (f.sugg() || []).map(s => h("option", { value: s })))]; }
+    else if (f.type === "text") ctl = [h("input", { class:"in w", value: cur || "", placeholder: f.ph || "", oninput: e => set(e.target.value, false) })];
+    else if (f.type === "textarea") ctl = [h("textarea", { class:"in", rows: 2, placeholder: f.ph || "", oninput: e => set(e.target.value, false) }, cur || "")];
+    else if (f.type === "num") ctl = [h("input", { class:"in n", type:"number", min: f.min, max: f.max, value: cur, oninput: e => set(clamp(+e.target.value || 0, f.min, f.max), false) }), f.hint ? h("span", { class:"note", style:{ margin:0 }, text: f.hint }) : null];
+    else if (f.type === "range"){ const out = h("span", { class:"val", text: f.fmt ? f.fmt(+cur) : cur + (f.unit || "") });
+      ctl = [h("input", { type:"range", min: f.min, max: f.max, value: cur, oninput: e => { out.textContent = f.fmt ? f.fmt(+e.target.value) : e.target.value + (f.unit || ""); set(+e.target.value, false); } }), out]; }
+    else if (f.type === "color") ctl = [h("input", { type:"color", value:"#" + String(cur || "ffcc88").replace("#",""), oninput: e => set(e.target.value.slice(1), false) })];
+    box.append(field(f.label, ...ctl));
+  });
+  return box;
+}
+function testAction(a){
+  if (["folder","back","home","pagenav","profile"].includes(a.t)) return toast("Navigering provas i läget Använd.");
+  if (a.t === "multi"){ if (!a.steps.length) return toast("Inga steg att köra."); engine.runMulti(a.steps, 0); return toast("Kör " + a.steps.length + " steg…"); }
+  const cmd = C.toCmd(a); if (!cmd) return;
+  sendCmd(cmd, a); logEvent("me", "Prov från redigeraren", lastSent); toast("Skickade: " + lastSent, 3200);
+}
+function actHead(a){
+  const al = autoLook(a);
+  return h("div", { class:"actHead" }, h("span", { class:"sw", html: iconSvg(al.icon), style:{ color: al.color } }), h("div", { style:{ flex:1, minWidth:0 } }, h("b", { text: ACT_KIND[a.t] || "Åtgärd" }), h("small", { text:"Byt åtgärd genom att dra en ny hit från listan" })),
+    h("button", { class:"sbtnS", title:"Kör åtgärden en gång nu", onclick: () => testAction(a) }, icon("play"), "Prova"));
+}
+function cmdNote(a){
+  const cmd = a.t === "multi" || ["folder","back","home","pagenav","profile"].includes(a.t) ? "" : C.toCmd(a);
+  return cmd ? h("div", { class:"note" }, "Skickar: ", h("code", { text: cmd })) : null;
+}
+const STEP_CHOICES = () => LIBRARY.filter(c => c.cat !== "Rattar").map(c => ({ cat: c.cat, items: c.items.filter(it => it.make && !["n-folder","y-multi"].includes(it.id)) })).filter(c => c.items.length);
+function multiEditor(a, co){
+  const box = h("div");
+  if (!a.steps.length) box.append(h("div", { class:"note", text:"Inga steg än. Stegen körs i ordning, med en paus efter varje." }));
+  a.steps.forEach((st, n) => {
+    const al = autoLook(st.a);
+    box.append(h("div", { class:"step" },
+      h("div", { class:"stepHead" }, h("span", { class:"n", text: n + 1 }), h("span", { html: iconSvg(al.icon), style:{ color: al.color, display:"inline-flex" } }), h("b", { text: (ACT_KIND[st.a.t] || "") }),
+        h("span", { class:"note", style:{ margin:0 }, text:"paus" }), h("input", { class:"in n", type:"number", min:0, max:60000, step:50, value: st.delay ?? 150, title:"Paus efter steget, i millisekunder", style:{ width:"62px" }, oninput: e => mutate(() => { st.delay = clamp(+e.target.value || 0, 0, 60000); }, { co: co + "d" + n, re:false }) }),
+        h("button", { class:"mini", title:"Flytta upp", disabled: n === 0, onclick: () => mutate(() => { a.steps.splice(n - 1, 0, a.steps.splice(n, 1)[0]); }) }, icon("arrow-up")),
+        h("button", { class:"mini", title:"Flytta ner", disabled: n === a.steps.length - 1, onclick: () => mutate(() => { a.steps.splice(n + 1, 0, a.steps.splice(n, 1)[0]); }) }, icon("arrow-down")),
+        h("button", { class:"mini", title:"Ta bort steget", onclick: () => mutate(() => { a.steps.splice(n, 1); }) }, icon("cross"))),
+      actionFields(st.a, co + "s" + n)));
+  });
+  box.append(h("button", { class:"sbtnS", onclick: ev => { const r = ev.currentTarget.getBoundingClientRect();
+    openMenu(r.left, r.top - 8, STEP_CHOICES().flatMap(c => [{ h: c.cat }, ...c.items.map(it => ({ label: it.name, ic: autoLook(it.make()).icon, fn: () => mutate(() => { a.steps.push({ a: it.make(), delay: 150 }); }) }))]), true); } }, icon("plus"), "Lägg till steg"));
+  return box;
+}
+function actionEditor(st, co){
+  const a = st.a, box = h("div", {}, actHead(a));
+  if (a.t === "folder") box.append(h("button", { class:"sbtnS pri", onclick: () => openFolder(a.fid) }, icon("folder"), "Öppna mappen"), h("div", { class:"note", text:"En mapp är en egen uppsättning knappar. Dubbelklick på knappen öppnar den också." }));
+  else if (a.t === "multi") box.append(multiEditor(a, co));
+  else box.append(actionFields(a, co));
+  const cn = cmdNote(a); if (cn) box.append(cn);
+  return box;
+}
+function lookEditor(st, co){
+  const L = st.look = st.look || {}, eff = effLook(st);
+  const T = () => (L.t = L.t || {}), I = () => (L.i = L.i || {}), B = () => (L.b = L.b || {});
+  const m = (fn, re) => mutate(fn, { co: co + "look", re: !!re });
+  const box = h("div");
+  // titel
+  const ta = h("textarea", { class:"in", rows: 2, placeholder: autoLook(st.a).title || "(ingen titel)", oninput: e => m(() => { T().text = e.target.value; }) }, L.t && L.t.text != null ? L.t.text : "");
+  box.append(h("div", { class:"fRow top" }, h("label", { text:"Titel" }), h("div", { class:"ctl" }, ta)));
+  box.append(field("Text",
+    h("select", { class:"in", title:"Typsnitt", onchange: e => m(() => { T().font = e.target.value; }) }, Object.entries(FONTS).map(([k, f]) => h("option", { value: k, text: f[0], selected: eff.t.font === k }))),
+    h("input", { class:"in n", type:"number", min:8, max:40, value: eff.t.size, title:"Storlek", style:{ width:"54px" }, oninput: e => m(() => { T().size = clamp(+e.target.value || 17, 8, 40); }) }),
+    h("div", { class:"tg" }, h("button", { class: eff.t.bold ? "on" : "", text:"B", title:"Fet", onclick: () => m(() => { T().bold = !eff.t.bold; }, true) }), h("button", { class: eff.t.italic ? "on" : "", text:"I", style:{ fontStyle:"italic" }, title:"Kursiv", onclick: () => m(() => { T().italic = !eff.t.italic; }, true) })),
+    h("div", { class:"tg txt" }, [["top","Uppe"],["middle","Mitt"],["bottom","Nere"]].map(([v, l]) => h("button", { class: eff.t.pos === v ? "on" : "", text: l, onclick: () => m(() => { T().pos = v; }, true) }))),
+    h("input", { type:"color", value: eff.t.color, title:"Textfärg", oninput: e => m(() => { T().color = e.target.value; }) }),
+    h("label", { style:{ display:"inline-flex", gap:"5px", alignItems:"center", color:"var(--mut)" } }, h("input", { type:"checkbox", checked: eff.t.show, onchange: e => m(() => { T().show = e.target.checked; }) }), "Visa")));
+  // ikon
+  const ib = h("button", { class:"iconBtn", title:"Välj ikon", onclick: () => iconPicker(st, co) });
+  if (eff.i.kind === "img" && eff.i.data) ib.append(h("img", { src: eff.i.data }));
+  else if (eff.i.kind === "emoji") ib.append(h("span", { text: eff.i.ch, style:{ fontSize:"24px", color: eff.i.color } }));
+  else if (eff.i.kind === "none") ib.append(h("span", { text:"–", style:{ color:"var(--dim)" } }));
+  else ib.append(h("span", { html: iconSvg(eff.i.id), style:{ color: eff.i.color, display:"inline-flex" } }));
+  box.append(field("Ikon", ib,
+    h("div", {}, h("div", { class:"swatches", style:{ marginBottom:"5px" } }, SWATCHES.map(c => h("button", { style:{ background: c }, title: c, onclick: () => m(() => { I().color = c; }, true) })), h("input", { type:"color", value: /^#[0-9a-f]{6}$/i.test(eff.i.color) ? eff.i.color : "#ffffff", title:"Egen färg", style:{ width:"22px", height:"20px" }, oninput: e => m(() => { I().color = e.target.value; }) })),
+      h("div", { style:{ display:"flex", gap:"8px", alignItems:"center" } }, h("span", { class:"note", style:{ margin:0 }, text:"Storlek" }), h("input", { type:"range", min:20, max:100, value: eff.i.size, style:{ width:"92px", flex:"none" }, oninput: e => m(() => { I().size = +e.target.value; }) }),
+        h("span", { class:"note", style:{ margin:0 }, text:"Höjd" }), h("input", { type:"range", min:-30, max:30, value: eff.i.dy, style:{ width:"72px", flex:"none" }, oninput: e => m(() => { I().dy = +e.target.value; }) }),
+        h("span", { class:"note", style:{ margin:0 }, text:"Linje" }), h("input", { type:"range", min:1, max:3, step:0.1, value: eff.i.w, style:{ width:"60px", flex:"none" }, oninput: e => m(() => { I().w = +e.target.value; }) })))));
+  // bakgrund
+  const bk = eff.b.kind;
+  box.append(field("Bakgrund",
+    h("div", { class:"tg txt" }, [["grad","Toning"],["solid","Enfärgad"],["img","Bild"]].map(([v, l]) => h("button", { class: bk === v ? "on" : "", text: l, onclick: async () => {
+      if (v === "img"){ const f = await pickFile("image/*"); if (!f) return; const data = await fileToData(f, 240, true); m(() => { B().kind = "img"; B().data = data; }, true); }
+      else m(() => { B().kind = v; }, true); } }))),
+    bk !== "img" ? h("input", { type:"color", value: eff.b.c1, title:"Färg", oninput: e => m(() => { B().c1 = e.target.value; delete B().c2; }) }) : null,
+    bk === "grad" ? h("input", { type:"color", value: eff.b.c2, title:"Toningens andra färg", oninput: e => m(() => { B().c2 = e.target.value; }) }) : null,
+    bk !== "img" ? h("div", { class:"swatches" }, BG_SWATCHES.map(c => h("button", { style:{ background: c }, title: c, onclick: () => m(() => { B().c1 = c; delete B().c2; }, true) }))) : null));
+  box.append(h("div", { style:{ marginTop:"4px" } }, h("button", { class:"lnk mut", text:"Återställ utseendet", onclick: () => mutate(() => { st.look = {}; }) })));
+  return box;
+}
+function renderInspector(){
+  const ins = $("#inspector"); ins.innerHTML = ""; prevCanvas = prevState = null;
+  if (!deck || mode !== "edit") return;
+  const v = editView();
+  if (!sel){ ins.append(h("div", { class:"insEmpty", html:"<b>Markera en knapp, en liten knapp eller en ratt</b><br>så ställer du in den här. Dra åtgärder från listan till höger, precis som i Stream Deck-appen." })); return; }
+  if (sel.kind === "enc") return renderEncInspector(ins, v);
+  const ctl = getCtl(sel), isKey = sel.kind === "key";
+  if (!ctl){ ins.append(h("div", { class:"insEmpty", html: (isKey ? "<b>Tom knapp</b>" : "<b>Den lilla knappen har ingen åtgärd</b>") + "<br>Dra en åtgärd hit från listan, eller klicka på en åtgärd i listan." + (clip ? "<br>Ctrl+V klistrar in den kopierade knappen." : "") })); return; }
+  const si = (sel.state | 0) % ctl.states.length, st = ctl.states[si], co = ctl.id + ":" + si + ":";
+  const two = ctl.states.length > 1;
+  // vänster: förhandsvisning och lägen
+  const left = h("div", { class:"insCol colPrev" });
+  if (isKey){ prevCanvas = h("canvas", { class:"bigPrev", width: 236, height: 236 }); prevState = st; left.append(prevCanvas); }
+  else left.append(h("div", { class:"sbtn", style:{ position:"static", width:"64px", height:"64px", margin:"18px 0 6px" } }), h("div", { class:"note", style:{ textAlign:"center" }, text:"Liten knapp " + (sel.i + 1) + " (utan skärm)" }));
+  if (two) left.append(h("div", { class:"stTabs" }, [0, 1].map(n => h("button", { class: n === si ? "on" : "", text:"Läge " + (n + 1), onclick: () => { sel.state = n; renderDevice(); renderInspector(); } }))));
+  const canTwo = !["folder","back","home"].includes(st.a.t);
+  if (canTwo) left.append(h("label", { style:{ display:"flex", gap:"6px", alignItems:"center", color:"var(--mut)", fontSize:"12px" }, title:"Knappen växlar mellan två lägen vid varje tryck, vart och ett med egen åtgärd och eget utseende" },
+    h("input", { type:"checkbox", checked: two, onchange: e => mutate(() => {
+      if (e.target.checked){ const n = clone(ctl.states[0]); const a = n.a;
+        if (a.t === "light" && a.op === "on") a.op = "off"; else if (a.t === "light" && a.op === "off") a.op = "on";
+        else if (a.t === "sonos" && a.op === "play") a.op = "pause"; else if (a.t === "bp" && a.c === "open") a.c = "close";
+        ctl.states.push(n); sel.state = 1; }
+      else { ctl.states.length = 1; sel.state = 0; livePatch({ st: { [ctl.id]: null } }); } }) }), "Två lägen"));
+  left.append(h("button", { class:"lnk mut", text:"Ta bort", onclick: delSel }));
+  ins.append(left);
+  if (isKey) ins.append(h("div", { class:"insCol colLook" }, h("h4", { text:"Utseende" + (two ? " · läge " + (si + 1) : "") }), lookEditor(st, co)));
+  else ins.append(h("div", { class:"insCol", style:{ flex:"0 1 300px" } }, h("h4", { text:"Etikett" }),
+    h("input", { class:"in w", value: st.look && st.look.t && st.look.t.text != null ? st.look.t.text : "", placeholder: autoLook(st.a).title, oninput: e => mutate(() => { st.look = st.look || {}; (st.look.t = st.look.t || {}).text = e.target.value; }, { co: co + "cap", re:false }) }),
+    h("div", { class:"note", text:"Etiketten syns bara här i emulatorn, som stöd för minnet." })));
+  ins.append(h("div", { class:"insCol colAct" }, h("h4", { text:"Åtgärd" + (two ? " · läge " + (si + 1) : "") }), actionEditor(st, co)));
+  refreshPreview();
+}
+function renderEncInspector(ins, v){
+  const e = v.page.encs[sel.i], nm = ["Stora ratten", "Lilla ratten till vänster", "Lilla ratten till höger"][sel.i];
+  const side = h("div", { class:"encSide" }, h("h4", { text: nm }),
+    field("Namn", h("input", { class:"in w", value: e.name || "", placeholder:"t.ex. Volym", oninput: ev => mutate(() => { e.name = ev.target.value; }, { co:"encname" + sel.i, re:false }) })),
+    h("div", { class:"note", text:"En ratt har tre platser: vrid vänster, vrid höger och tryck. Välj ett förval eller dra valfri åtgärd till var och en." }),
+    h("button", { class:"sbtnS", style:{ marginBottom:"8px" }, onclick: ev => { const r = ev.currentTarget.getBoundingClientRect();
+      openMenu(r.left, r.bottom + 4, Object.entries(C.DIALS).map(([id, d]) => ({ label: d.name, ic:"refresh", fn: () => mutate(() => C.applyDial(e, id, { room: R0, group: defGroup() })) }))); } }, icon("refresh"), "Förval…"),
+    h("div", {}, h("button", { class:"lnk mut", text:"Samma rattar och småknappar på alla sidor", onclick: copyControlsToAll })));
+  const cols = h("div", { class:"encCols" });
+  [["ccw","↺","Vrid vänster"],["cw","↻","Vrid höger"],["press","●","Tryck"]].forEach(([slot, sym, label]) => {
+    const ctl = e[slot];
+    const card = h("div", { class:"slotCard",
+      ondragover: ev => { ev.preventDefault(); card.classList.add("dragover"); }, ondragleave: () => card.classList.remove("dragover"),
+      ondrop: ev => { ev.preventDefault(); card.classList.remove("dragover"); const it = LIB_BY_ID[ev.dataTransfer.getData("text/deck-lib")]; if (it) dropLib(it, { kind:"enc", i: sel.i, slot }); },
+      onclick: () => { sel.slot = slot; } },
+      h("h4", {}, h("span", { class:"zi", text: sym }), label, h("span", { class:"sp" }), ctl ? h("button", { class:"lnk mut", text:"Töm", onclick: () => mutate(() => { e[slot] = null; }) }) : null));
+    if (!ctl) card.append(h("div", { class:"note", text:"Tom. Dra en åtgärd hit." }));
+    else {
+      const two = ctl.states.length > 1;
+      ctl.states.forEach((st, n) => { if (two) card.append(h("div", { class:"note", style:{ fontWeight:700 }, text:"Läge " + (n + 1) })); card.append(actionEditor(st, ctl.id + ":" + n + ":")); });
+    }
+    cols.append(card);
+  });
+  ins.append(side, cols);
+}
+
+// ---------- ikonväljaren ----------
+const EMOJI = ["🎵","🎶","📻","🎧","🔊","🔇","💡","🕯️","🌙","☀️","🌅","🔥","❄️","🎨","✨","⭐","❤️","🍺","🍷","☕","🍿","🎬","📺","⚽","🏒","🚌","🏠","🛋️","🛏️","🛁","🚪","🌧️","⛅","🕒","⏰","🔔","⚙️","🔌","🔒","✅","❌","➕","➖","⬅️","➡️","⬆️","⬇️","🔁","🔀","⏯️","⏭️","⏮️","⏹️","🐇","🎄","🎉"];
+async function fileToData(file, max, cover){
+  const url = URL.createObjectURL(file);
+  const im = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+  const cv = document.createElement("canvas");
+  if (cover){ cv.width = cv.height = max; drawCover(cv.getContext("2d"), im, 0, 0, max, max, false); }
+  else { const r = Math.min(1, max / Math.max(im.naturalWidth, im.naturalHeight)); cv.width = Math.round(im.naturalWidth * r); cv.height = Math.round(im.naturalHeight * r); cv.getContext("2d").drawImage(im, 0, 0, cv.width, cv.height); }
+  URL.revokeObjectURL(url);
+  return cover ? cv.toDataURL("image/jpeg", 0.9) : cv.toDataURL("image/png");
+}
+async function setIconFromFile(file, st){
+  if (!file || !/^image\//.test(file.type)) return toast("Det där är ingen bild.");
+  try { const data = await fileToData(file, 192, false); const target = st || (getCtl(sel) && getCtl(sel).states[(sel.state | 0) % getCtl(sel).states.length]); if (!target) return;
+    mutate(() => { target.look = target.look || {}; Object.assign(target.look.i = target.look.i || {}, { kind:"img", data }); if (!target.look.i.size) target.look.i.size = 62; }); }
+  catch(e){ toast("Bilden gick inte att läsa."); }
+}
+function iconPicker(st, co){
+  let tab = "lib", q = "";
+  const eff = () => effLook(st), I = () => { st.look = st.look || {}; return (st.look.i = st.look.i || {}); };
+  const body = h("div", { class:"bd", style:{ height:"440px" } });
+  const tabs = h("div", { class:"tabs" });
+  const draw = () => {
+    tabs.innerHTML = ""; [["lib","Bibliotek"],["img","Egen bild"],["emoji","Symbol eller text"]].forEach(([k, l]) => tabs.append(h("button", { class: tab === k ? "on" : "", text: l, onclick: () => { tab = k; draw(); } })));
+    body.innerHTML = "";
+    if (tab === "lib"){
+      body.append(h("div", { class:"search", style:{ marginBottom:"12px" } }, icon("search"), h("input", { placeholder:"Sök ikon", value: q, oninput: e => { q = e.target.value; grid(); } })));
+      const holder = h("div"); body.append(holder);
+      const grid = () => { holder.innerHTML = ""; const ql = q.trim().toLowerCase();
+        ICON_CATS.forEach(cat => { const ids = Object.keys(ICONS).filter(id => ICONS[id].c === cat && (!ql || (ICONS[id].n + " " + id).toLowerCase().includes(ql))); if (!ids.length) return;
+          holder.append(h("div", { class:"gcat", text: cat }), h("div", { class:"iconGrid" }, ids.map(id => h("button", { class: eff().i.kind === "lib" && eff().i.id === id ? "on" : "", title: ICONS[id].n,
+            onclick: () => { mutate(() => { Object.assign(I(), { kind:"lib", id }); delete I().data; }); closeModal(); } }, h("span", { html: iconSvg(id), style:{ display:"inline-flex" } }), h("small", { text: ICONS[id].n }))))); });
+        if (!holder.children.length) holder.append(h("div", { class:"empty", text:"Ingen ikon matchar." })); };
+      grid();
+    } else if (tab === "img"){
+      const dz = h("div", { class:"drop", ondragover: e => { e.preventDefault(); dz.classList.add("dragover"); }, ondragleave: () => dz.classList.remove("dragover"),
+        ondrop: async e => { e.preventDefault(); dz.classList.remove("dragover"); if (e.dataTransfer.files[0]){ await setIconFromFile(e.dataTransfer.files[0], st); closeModal(); } } },
+        h("div", { html:"<b>Släpp en bild här</b><br>eller" }), h("button", { class:"sbtnS pri", style:{ marginTop:"8px" }, text:"Välj bildfil…", onclick: async () => { const f = await pickFile("image/*"); if (f){ await setIconFromFile(f, st); closeModal(); } } }),
+        h("div", { class:"note", html:"PNG med genomskinlig bakgrund ger snyggast resultat. Bilden krymps till högst 192 punkter.<br>Du kan också släppa en bild direkt på en knapp på enheten." }));
+      body.append(dz);
+    } else {
+      const inp = h("input", { class:"in", style:{ width:"120px", fontSize:"18px", textAlign:"center" }, maxLength: 4, value: eff().i.kind === "emoji" ? eff().i.ch : "", placeholder:"A1" });
+      body.append(h("div", { style:{ display:"flex", gap:"8px", alignItems:"center", marginBottom:"14px" } }, h("span", { class:"note", style:{ margin:0 }, text:"Egen text (1 till 4 tecken):" }), inp,
+        h("button", { class:"sbtnS pri", text:"Använd", onclick: () => { if (!inp.value.trim()) return; mutate(() => { Object.assign(I(), { kind:"emoji", ch: inp.value.trim() }); }); closeModal(); } })));
+      body.append(h("div", { class:"iconGrid" }, EMOJI.map(ch => h("button", { onclick: () => { mutate(() => { Object.assign(I(), { kind:"emoji", ch }); }); closeModal(); } }, h("span", { class:"emo", text: ch })))));
+    }
+  };
+  openModal("Ikon", [tabs, body], [h("button", { class:"sbtnS", text:"Ingen ikon", onclick: () => { mutate(() => { I().kind = "none"; }); closeModal(); } }),
+    h("button", { class:"sbtnS", text:"Åtgärdens egen ikon", onclick: () => { mutate(() => { delete st.look.i; }); closeModal(); } }), h("button", { class:"sbtnS", text:"Stäng", onclick: closeModal })]);
+  draw();
+}
+
+// ---------- menyer och dialoger ----------
+function openMenu(x, y, items, up){
+  const m = $("#menu"); m.innerHTML = "";
+  items.filter(Boolean).forEach(it => {
+    if (it === "-") return m.append(h("hr"));
+    if (it.h) return m.append(h("div", { class:"mh", text: it.h }));
+    m.append(h("button", { class: it.on ? "on" : "", disabled: !!it.dis, onclick: () => { closeMenu(); it.fn(); } }, it.ic ? h("span", { html: iconSvg(it.ic), style:{ display:"inline-flex" } }) : null, it.label, it.kbd ? h("kbd", { text: it.kbd }) : null));
+  });
+  m.classList.add("open");
+  const r = m.getBoundingClientRect();
+  m.style.left = clamp(x, 6, innerWidth - r.width - 6) + "px";
+  m.style.top = clamp(up ? y - r.height : y, 6, innerHeight - r.height - 6) + "px";
+}
+function closeMenu(){ $("#menu").classList.remove("open"); }
+function openModal(title, body, foot, wide){
+  const d = $("#dlg"); d.innerHTML = ""; d.style.width = wide ? "min(820px,100%)" : "";
+  d.append(h("header", {}, h("h2", { text: title }), h("button", { class:"x", text:"×", title:"Stäng", onclick: closeModal })), ...[].concat(body));
+  if (foot) d.append(h("footer", {}, ...foot));
+  $("#modal").classList.add("open");
+}
+function closeModal(){ $("#modal").classList.remove("open"); if (calib){ calib = null; } if (askRes){ const r = askRes; askRes = null; r(null); } }
+let askRes = null;
+function askText(title, value, ph){
+  return new Promise(res => {
+    const inp = h("input", { class:"in w", value: value || "", placeholder: ph || "", style:{ height:"34px" }, onkeydown: e => { if (e.key === "Enter"){ ok(); } } });
+    const ok = () => { const r = askRes; askRes = null; closeModal(); r(inp.value); };
+    askRes = res;
+    openModal(title, [h("div", { class:"bd" }, inp)], [h("button", { class:"sbtnS", text:"Avbryt", onclick: closeModal }), h("button", { class:"sbtnS pri", text:"OK", onclick: ok })]);
+    $("#dlg").style.width = "min(420px,100%)";
+    setTimeout(() => { inp.focus(); inp.select(); }, 30);
+  });
+}
+
+// ---------- enhetsinställningar och kalibrering ----------
+function deviceModal(){
+  const hb = LIVE.hub, d = deck.device;
+  const briOut = h("span", { class:"val", text: d.brightness + "%" });
+  const body = h("div", { class:"bd" },
+    h("div", { class:"gcat", text:"Skärmarna på knapparna" }),
+    field("Ljusstyrka", h("input", { type:"range", min:5, max:100, value: d.brightness, oninput: e => { briOut.textContent = e.target.value + "%"; mutate(() => { d.brightness = +e.target.value; }, { co:"devbri", re:false }); sendCmd(C.toCmd({ t:"deckdev", op:"brightness", value:+e.target.value })); } }), briOut),
+    field("Släck efter", h("input", { class:"in n", type:"number", min:0, max:600, value: d.sleepMin, oninput: e => mutate(() => { d.sleepMin = clamp(+e.target.value || 0, 0, 600); }, { co:"devsleep", re:false }) }), h("span", { class:"note", style:{ margin:0 }, text:"minuter utan tryck (0 = aldrig). Första trycket väcker bara." })),
+    h("div", { class:"gcat", text:"Hubben och den fysiska enheten" }),
+    h("div", { class:"kv" }, h("span", { text:"Hubb på Pi:n" }), h("span", { text: hb.online ? "Igång" + (hb.name ? " (" + hb.name + ")" : "") + (hb.ver ? ", version " + hb.ver : "") : "Hörs inte av" }),
+      h("span", { text:"Stream Controller" }), h("span", { text: hb.device ? "Ansluten via USB" : hb.online ? "Inte inkopplad" : "–" }),
+      h("span", { text:"Kommandon på Pi:n" }), h("span", { text: (hb.online && (hb.sys || []).join(", ")) || "–" })),
+    h("div", { class:"note", html: hb.online ? "Emulatorn och enheten följs åt: byter du sida eller trycker på en knapp på den ena syns det på den andra."
+      : "Utan hubb fungerar emulatorn ändå: kommandona går till samma kö som förut. Steg-åtgärder (ljusare, volym upp) räknas då om till fasta värden här i webbläsaren." }),
+    h("div", { style:{ display:"flex", gap:"8px", flexWrap:"wrap", marginTop:"10px" } },
+      h("button", { class:"sbtnS", disabled: !hb.device, title: hb.device ? "" : "Kräver att enheten är inkopplad till hubben", onclick: startCalib }, icon("sliders"), "Lär in knapparnas ordning…"),
+      d.map ? h("button", { class:"sbtnS", text:"Återställ ordningen", onclick: () => { mutate(() => { d.map = null; }); closeModal(); toast("Standardordningen gäller igen."); } }) : null,
+      h("button", { class:"sbtnS", text:"Nollställ tvålägesknappar", title:"Alla knappar med två lägen går tillbaka till läge 1", onclick: () => { engine.st = {}; livePatch({ stReset: true }); renderDevice(); toast("Alla tvålägesknappar står i läge 1."); } })),
+    h("div", { class:"gcat", text:"Säkerhetskopia" }),
+    h("div", { style:{ display:"flex", gap:"8px", flexWrap:"wrap" } },
+      h("button", { class:"sbtnS", onclick: () => download("stream-controller.json", JSON.stringify({ blaupunktDeck: 2, deck }, null, 1)) }, icon("arrow-down"), "Exportera allt"),
+      h("button", { class:"sbtnS", onclick: async () => { const f = await pickFile(".json,application/json"); if (!f) return;
+        try { const j = JSON.parse(await f.text()); if (!j.deck || !Array.isArray(j.deck.profiles)) throw 0; mutate(() => { deck = C.sanitize(j.deck); editNav = { p:"", pg:0, stack:[] }; sel = null; }); renderAll(); closeModal(); toast("Konfigurationen lästes in."); }
+        catch(e){ toast("Filen gick inte att läsa som en konfiguration."); } } }, icon("arrow-up"), "Läs in…"),
+      h("button", { class:"sbtnS danger", text:"Börja om från standard", onclick: () => { mutate(() => { deck = C.defaultDeck(); editNav = { p:"", pg:0, stack:[] }; sel = null; }); renderAll(); closeModal(); toast("Standarduppsättningen är inläst. Ångra med Ctrl+Z."); } })));
+  openModal("Enhetsinställningar", [body], [h("button", { class:"sbtnS pri", text:"Klar", onclick: closeModal })]);
+}
+// Kalibreringen: tryck/vrid varje kontroll i tur och ordning, så lär sig hubben vilken som är vilken.
+const CAL_STEPS = [
+  ...[0,1,2,3,4,5].map(i => ({ kind:"key", i, text:"Tryck på skärmknapp " + (i + 1), sub: ["övre raden, vänster","övre raden, mitten","övre raden, höger","nedre raden, vänster","nedre raden, mitten","nedre raden, höger"][i] })),
+  ...[0,1,2].map(i => ({ kind:"btn", i, text:"Tryck på liten knapp " + (i + 1), sub: ["vänster","mitten","höger"][i] })),
+  ...[0,1,2].map(i => ({ kind:"enc", i, text:"Vrid " + ["stora ratten","lilla ratten till vänster","lilla ratten till höger"][i], sub:"åt höger (medurs)" })),
+  ...[0,1,2].map(i => ({ kind:"encp", i, text:"Tryck ner " + ["stora ratten","lilla ratten till vänster","lilla ratten till höger"][i], sub:"" }))
+];
+function startCalib(){
+  calib = { n: 0, map: { key:[], btn:[], enc:[], encp:[], encDir:[] }, lastAt: 0, used: new Set() };
+  drawCalib();
+}
+function drawCalib(){
+  const s = CAL_STEPS[calib.n];
+  const body = h("div", { class:"bd" }, h("div", { class:"note", text:"Gör en sak i taget på den riktiga enheten. Det tar ungefär en halv minut." }),
+    h("div", { class:"calib" }, h("div", {}, h("div", { class:"big", text: s.text }), h("div", { class:"note", text: s.sub }))),
+    h("div", { class:"prog" }, h("i", { style:{ width: (calib.n / CAL_STEPS.length * 100) + "%" } })));
+  const keep = calib; openModal("Lär in knapparnas ordning (" + (calib.n + 1) + " av " + CAL_STEPS.length + ")", [body], [h("button", { class:"sbtnS", text:"Avbryt", onclick: closeModal })]); calib = keep;
+}
+function calibEvent(e){
+  const s = CAL_STEPS[calib.n], now = Date.now();
+  if (now - calib.lastAt < 350) return;
+  const isEnc = e.rk === "enc", id = e.rk + e.ri;
+  if (s.kind === "enc"){ if (!isEnc) return; if (calib.map.enc.includes(e.ri)) return; calib.map.enc[s.i] = e.ri; calib.map.encDir[s.i] = e.d < 0 ? -1 : 1; }
+  else { if (isEnc || !e.d || calib.used.has(id)) return; calib.used.add(id); calib.map[s.kind][s.i] = e.ri; }
+  calib.lastAt = now; calib.n++;
+  if (calib.n >= CAL_STEPS.length){ const map = calib.map; calib = null; mutate(() => { deck.device.map = map; }); closeModal(); toast("Klart. Enheten och emulatorn har nu samma ordning.", 4000); }
+  else drawCalib();
+}
+
+// ---------- läge, tangenter, start ----------
+function setMode(m){
+  mode = m; prefs.set("mode", m);
+  $("#app").className = "mode-" + m;
+  if (m === "use"){ sel = null; engine.view(); }
+  closeMenu(); renderAll(); setTimeout(fitDevice, 0);
+}
+function renderAll(){ renderTop(); renderCrumb(); renderDevice(); renderSide(); renderInspector(); renderHub(); }
+document.addEventListener("keydown", ev => {
+  const inField = /^(INPUT|TEXTAREA|SELECT)$/.test((ev.target.tagName || ""));
+  if (ev.key === "Escape"){ closeMenu(); if ($("#modal").classList.contains("open")) closeModal(); return; }
+  if ($("#modal").classList.contains("open")) return;
+  const mod = ev.ctrlKey || ev.metaKey, k = ev.key.toLowerCase();
+  if (mode === "edit"){
+    if (mod && k === "z" && !ev.shiftKey){ if (inField) return; ev.preventDefault(); doUndo(undo, redo); return; }
+    if (mod && (k === "y" || (k === "z" && ev.shiftKey))){ if (inField) return; ev.preventDefault(); doUndo(redo, undo); return; }
+    if (inField) return;
+    if (mod && k === "c"){ copySel(); return; }
+    if (mod && k === "x"){ copySel(); delSel(); return; }
+    if (mod && k === "v"){ pasteSel(); return; }
+    if (k === "delete" || k === "backspace"){ delSel(); return; }
+  } else if (!inField && !ev.repeat){
+    if (/^[1-6]$/.test(ev.key)){ const i = +ev.key - 1; useInput("key", i, true); const up = e2 => { if (e2.key === ev.key){ useInput("key", i, false); document.removeEventListener("keyup", up); } }; document.addEventListener("keyup", up); }
+  }
+  if (mode === "use" && !inField && (ev.key === "ArrowLeft" || ev.key === "ArrowRight")) useRotate(0, ev.key === "ArrowLeft" ? -1 : 1);
+});
+document.addEventListener("pointerdown", ev => { if (!ev.target.closest("#menu")) closeMenu(); }, true);
+$("#modal").addEventListener("pointerdown", ev => { if (ev.target.id === "modal") closeModal(); });
+window.addEventListener("resize", fitDevice);
+window.addEventListener("beforeunload", ev => { if (dirty || saving){ ev.preventDefault(); ev.returnValue = ""; } });
+document.addEventListener("visibilitychange", () => { if (!document.hidden) pollLive(); });
+
+(async function init(){
+  $("#brandIc").innerHTML = iconSvg("back"); $("#profIc").innerHTML = iconSvg("layers");
+  $("#undoBtn").innerHTML = iconSvg("up-level"); $("#redoBtn").innerHTML = iconSvg("up-level"); $("#redoBtn").firstChild.style.transform = "scaleX(-1)";
+  $("#deviceBtn").innerHTML = iconSvg("gear");
+  $("#undoBtn").onclick = () => doUndo(undo, redo); $("#redoBtn").onclick = () => doUndo(redo, undo);
+  $("#deviceBtn").onclick = deviceModal; $("#hubChip").onclick = deviceModal; $("#profileBtn").onclick = profileMenu;
+  $("#modeSeg").addEventListener("click", ev => { const b = ev.target.closest("button"); if (b) setMode(b.dataset.m); });
+  buildDevice();
+  let fresh = false;
+  try { fresh = await loadDeck(); } catch(e){ deck = C.defaultDeck(); toast("Kunde inte läsa konfigurationen från servern."); }
+  await loadGroups();
+  editNav = C.normNav(deck, {}); engine.nav = C.normNav(deck, {});
+  try { const j = await (await fetch("/api/deck/live?ev=0", { cache:"no-store" })).json();
+    LIVE.navRev = j.navRev; LIVE.stRev = j.stRev; LIVE.valsRev = j.valsRev; LIVE.vals = j.vals || {}; LIVE.evLast = j.evLast; LIVE.hub = j.hub || LIVE.hub;
+    if (j.nav) engine.nav = C.normNav(deck, j.nav); engine.st = Object.assign({}, j.st || {}); } catch(e){}
+  const want = new URLSearchParams(location.search).get("mode") || prefs.get("mode", "edit");
+  setMode(want === "use" ? "use" : "edit");
+  setSaveState("");
+  if (fresh) scheduleSave();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { renderDevice(); refreshPreview(); });
+  setInterval(pollLive, 500);
+  setInterval(loadGroups, 60000);
+  new ResizeObserver(fitDevice).observe($("#deviceWrap"));
+  window.DECKDBG = { get deck(){ return deck; }, engine, LIVE, effLook, buildFaces, get sel(){ return sel; } };
+})();
+</script>
+</body></html>

@@ -172,69 +172,65 @@ snabba drag på ett reglage faktiskt appliceras i rätt ordning. Hinner flera ko
 på kön innan tråden hunnit ta det föregående (ett snabbt reglage-drag), slås de ihop per
 grupp+action till bara det SENASTE värdet - de äldre mellanlägena är redan inaktuella.
 
-Macropadens körvy (se nästa avsnitt) är designad som en riktig **Elgato Stream Deck+**
-(eget mörkt hårdvarutema, fristående från BLAUPUNKT:s retro-utseende) - det är den typen
-av fysisk enhet som ska styra detta på riktigt. Knapprutnätet är därför **låst till 4x2
-(8 platser)**, precis som de 8 LCD-knapparna på en riktig Stream Deck+; outnyttjade platser
-visas som tomma rutor man kan klicka för att öppna inställningarna. Varje konfigurerad
-knapp får en ikon automatiskt utifrån vad den gör.
+`light:` förstår också `toggle` (växla), `dim-rel` och `temp-rel` (steg i procentenheter) och `hue-rel`
+(steg i grader runt färghjulet). De kräver hubben på Pi:n; `monitor.py` kan bara de fasta värdena.
 
-Den beter sig också som riktiga Stream Deck-appen, inte bara ser ut som en - efter att ha
-kollat Elgatos egen dokumentation:
+## Stream Controllern (/deck)
 
-- **Mappar** - en knapp (`kind:"folder"`) öppnar en undersida med 7 egna platser (ruta 0
-  blir alltid en fast Tillbaka-knapp när man är inne i en mapp). Mappar kan nästlas.
-  Kort tryck på Tillbaka går en nivå upp, håller man in den (~550ms) hoppar man direkt
-  till toppen - exakt det Exit-knappen gör på riktig hårdvara.
-- **Flera åtgärder (multi-action)** - en knapp (`kind:"multi"`) kör en lista steg i
-  ordning med en inställbar paus (ms) emellan, samma princip som Stream Decks "Multi
-  Action" (förenklat till en gemensam paus istället för separata tider per steg).
-- **Två lägen (states)** - en knapp kan få en `states`-lista med exakt två varianter som
-  växlar automatiskt vid varje tryck (t.ex. Tänd/Släck), med egen ikon/etikett/kommando
-  per läge.
-- Medvetet INTE byggt: "håll in för annan funktion" på vanliga knappar - det är bara en
-  tredjepartsplugin, inte hur riktiga Stream Deck-appen eller hårdvaran fungerar.
+Den fysiska enheten är en SOOMFON Stream Controller SE: sex skärmknappar, tre små knappar och tre
+rattar. Den ställs in på en egen sida, **/deck** (`deck.html`), byggd som Stream Deck-appen:
 
-Datan (`S.macropad`) är en gles array med fast längd 8 (`null` = tom ruta) istället för en
-tät push/splice-lista, så en knapp alltid ligger kvar i sin egen ruta. `S.mpFolders[id]`
-lagrar varje mapps 7 platser på samma format.
+- **Redigera**: enheten ritad uppifrån, åtgärdslistan till höger och inspektorn nederst. Dra en åtgärd
+  till en knapp, en liten knapp eller en ratt. Dra en knapp till en annan för att byta plats
+  (Ctrl = kopiera), högerklicka för kopiera/klistra in/ta bort, Ctrl+Z ångrar.
+- **Utseende** per knapp: titel (typsnitt, storlek, färg, placering), ikon (eget bibliotek med ett
+  hundratal ikoner, egen bild eller valfria tecken), bakgrund (toning, enfärgad eller bild).
+- **Två lägen**: en knapp kan växla mellan två lägen, vart och ett med egen åtgärd och eget utseende.
+- **Flera åtgärder**: en lista steg som körs i ordning med egen paus efter varje steg.
+- **Mappar**, **sidor** och **profiler**. Finns Tillbaka på en liten knapp eller ratt behåller en mapp
+  alla sex knapparna; annars ligger en fast Tillbaka-knapp på plats 1, som på en Stream Deck.
+- **Rattar** har tre platser: vrid vänster, vrid höger och tryck. Förvalen (Volym, Ljusstyrka,
+  Färgtemperatur, Färghjul, Spår, Kanal, Bläddra sidor, Knapparnas ljus) fyller alla tre.
+- **Använd**: emulatorn. Klicka på knapparna, snurra rattarna med mushjulet. Den gör samma sak som
+  den riktiga enheten, och de två följs åt: byter man sida eller trycker på den ena syns det på den andra.
 
-Inställningspanelen är byggd som Stream Deck-appens egen redigeringsyta: ett
-**åtgärdsbibliotek** (Musik/skärm, Kanal, Palett, Belysning, Mapp, Flera åtgärder) man drar
-ifrån, rakt ner på SAMMA 4x2-rutnät som sedan trycks i körläget. Dra till en tom ruta skapar
-en knapp där, dra till en upptagen ruta frågar om överskrivning, dra en befintlig knapp till
-en annan ruta flyttar den. Klick på en tom ruta skapar en standardknapp direkt (snabbväg utan
-drag). Klick på en ifylld ruta väljer den och visar hela redigeraren för just den rutan i en
-inspector-panel under rutnätet.
+Åtgärder: Sonos (spela/paus, spår, volym, spellista, favorit), belysning (tänd, släck, växla,
+ljusstyrka, färgtemperatur, färg, scen), skärmen (öppna, stäng, kanal, färgläge, visa sida),
+Zigbee-enheter och MQTT, navigering, knapparnas ljusstyrka, HTTP-anrop och namngivna kommandon på Pi:n.
 
-Utöver knapparna finns tre skjutreglage för **volym, ljusstyrka och färg** (ej vridratt -
-enklare att klicka/testa med mus, trots att riktiga Stream Deck+ har fysiska vred), allihop
-kopplade till ett valt **rum**: en egen rad med en knapp per Trådfri-grupp (Vardagsrum
-förvalt), eller genom att trycka en belysningsknapp i rutnätet (den "pekar om" rummet till
-sin egen grupp). Varje reglage har även +/- knappar bredvid sig för att stega ett steg i
-taget och testa svarstid.
+Nya kommandon till skärmen: `viz:next`, `viz:prev`, `palette:next` och `page:<namn>` (`hem`, `wx`,
+`news`, `foto`, `fotboll`, `hockey`, `test` eller `next`), som hoppar till en av sidorna som visas när
+inget spelas.
 
-**Färg**-reglaget är en enda kontroll som går igenom hela spektrumet: de första ~20% går
-från varmt till kallt vitt (skickas som `action:"temp"`), resten (~80%) går runt hela
-färghjulet (skickas som `action:"color"` med hex-värde, via HSL->hex med fast mättnad/
-ljushet). Tanken är att samma princip - EN ratt som går igenom temp och sen hela färg-
-spektrumet - ska användas på den riktiga fysiska vridratten också, inte bara i den
-simulerade macropaden.
+### Hur det hänger ihop
 
-Volym styr **Sonos-högtalaren** i det valda rummet, inte webbsidans egen uppspelning -
-skickas som `sonos-vol:{"room":"Vardagsrum","value":62}` (0-100, samma skala SoCo använder
-direkt, ingen omräkning). Sonos har bara **ett** känt rum just nu (`SONOS_ROOM`/`SONOS_IP`
-i `monitor.py`) - väljer man ett rum utan Sonos-högtalare (t.ex. Kök/Sovrum om de bara har
-Trådfri) loggas en varning och inget händer; ljusstyrka/färg fungerar däremot för alla
-Trådfri-grupper oavsett. `sonos-vol:`-kommandon körs genom samma seriella kö/sammanslagnings-
-mönster som `light:` (se `_sonos_vol_worker`), av samma skäl.
+- Konfigurationen sparas på servern i `deck.json` (`/api/deck`), skilt från `state.json`.
+- Varje knappläge ritas till en färdig bild i webbläsaren och sparas i `deck-faces.json`
+  (`/api/deck/faces`). Enheten visar bilderna rakt av, så den ser ut exakt som emulatorn.
+- Körläget (aktuell sida och mapp, tvålägesknapparnas läge, händelser, hubbens livstecken) delas
+  via `/api/deck/live`.
+- **Hubben** på Pi:n (`pi-setup/hub`, ligger inte i det här repot) kör enheten och utför det som bara
+  går att nå hemifrån: `light:`, `sonos:`, `sonos-vol:`, `mqtt:`, `http:`, `sys:` och `deck:`. Tryck på
+  enheten körs direkt där, tryck i emulatorn går via kommandokön.
+- Körmotorn finns på två ställen med samma regler: `<script id="core">` i `deck.html` och
+  `hub/engine.py`. `pi-setup/test/crosscheck.py` slumpar konfigurationer och tryckföljder och kräver
+  att båda ger exakt samma kommandon.
+- Utan hubb fungerar emulatorn ändå: kommandona går till kön som förut, och steg-åtgärder räknas om
+  till fasta värden i webbläsaren.
 
-## På Raspberry Pi (senare)
+Sidan har ingen inloggning. Därför kan en knapp aldrig köra godtyckliga kommandon: Pi-kommandon väljs
+bland namn som står i hubbens inställningsfil, och HTTP och MQTT begränsas av listor i samma fil.
 
-Kioskläge med autostart utan klick:
+Den gamla 4x2-macropaden i `index.html` är borttagen. Första gången /deck öppnas flyttas dess knappar
+(`S.macropad`, `S.mpFolders`) över till egna sidor.
+
+## På Raspberry Pi
+
+Paketet `pi-setup` (README där) installerar skärmen i helskärm, hubben som tjänst och, om man vill,
+Zigbee2MQTT. Skärmen startas med:
 
 ```
-chromium --kiosk --autoplay-policy=no-user-gesture-required "http://127.0.0.1:8888/?autostart=1"
+chromium --kiosk --autoplay-policy=no-user-gesture-required "https://retrospelaren-production.up.railway.app/?autostart=1"
 ```
 
 ## Testversion i molnet (Railway)
@@ -248,6 +244,7 @@ För Spotify där: lägg även till `https://retrospelaren-production.up.railway
 ## Filer
 
 - `index.html` – hela spelaren (en fil)
+- `deck.html` – Stream Controllerns konfigurator och emulator (en fil)
 - `server.py` – servern (lokalt och på Railway): statiska filer, radioproxy, låttitlar, omslag, nyhetsflöden, kommandon
 - `starta.bat` / `starta.sh` – startar servern och öppnar webbläsaren
 

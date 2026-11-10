@@ -364,20 +364,20 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #start .knob::after{content:"";position:absolute;left:50%;top:8%;width:.6vh;height:35%;background:var(--ink);transform:translateX(-50%)}
 #start.gone{display:none}
 
-#gear,#macropadBtn{position:fixed;right:14px;bottom:14px;z-index:20;width:38px;height:38px;border-radius:50%;border:2px solid #555;
+#gear,#deckBtn{position:fixed;right:14px;bottom:14px;z-index:20;width:38px;height:38px;border-radius:50%;border:2px solid #555;
   background:#111;color:#bbb;font:18px/34px "Special Elite",monospace;cursor:pointer;opacity:.25;transition:opacity .3s}
-#gear:hover,#gear:focus-visible,#macropadBtn:hover,#macropadBtn:focus-visible{opacity:1}
-#macropadBtn{bottom:58px;font-size:15px}
-#panel,#mpPanel{position:fixed;top:0;right:0;bottom:0;width:min(440px,100vw);z-index:30;background:var(--panel);color:var(--panel-ink);
+#gear:hover,#gear:focus-visible,#deckBtn:hover,#deckBtn:focus-visible{opacity:1}
+#deckBtn{bottom:58px;font-size:15px;text-align:center;text-decoration:none;box-sizing:content-box}
+#panel{position:fixed;top:0;right:0;bottom:0;width:min(440px,100vw);z-index:30;background:var(--panel);color:var(--panel-ink);
   transform:translateX(102%);transition:transform .35s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;
   box-shadow:-10px 0 40px rgba(0,0,0,.6);font-size:15px}
-#panel.open,#mpPanel.open{transform:none}
-#panel header,#mpPanel header{padding:18px 20px 12px;border-bottom:2px solid var(--panel-line);display:flex;align-items:baseline;justify-content:space-between}
-#panel header h2,#mpPanel header h2{font-family:Limelight,serif;font-weight:400;font-size:28px;margin:0}
-#panel header button,#mpPanel header button{all:unset;cursor:pointer;font-size:22px;padding:0 6px}
-#panel .scroll,#mpPanel .scroll{overflow:auto;padding:6px 20px 30px;flex:1}
-#panel section,#mpPanel section{padding:14px 0;border-bottom:1px dashed var(--panel-line)}
-#panel h3,#mpPanel h3{font:13px "Special Elite",monospace;letter-spacing:.25em;text-transform:uppercase;margin:0 0 10px;color:#6b5a3e}
+#panel.open{transform:none}
+#panel header{padding:18px 20px 12px;border-bottom:2px solid var(--panel-line);display:flex;align-items:baseline;justify-content:space-between}
+#panel header h2{font-family:Limelight,serif;font-weight:400;font-size:28px;margin:0}
+#panel header button{all:unset;cursor:pointer;font-size:22px;padding:0 6px}
+#panel .scroll{overflow:auto;padding:6px 20px 30px;flex:1}
+#panel section{padding:14px 0;border-bottom:1px dashed var(--panel-line)}
+#panel h3{font:13px "Special Elite",monospace;letter-spacing:.25em;text-transform:uppercase;margin:0 0 10px;color:#6b5a3e}
 .seg{display:flex;flex-wrap:wrap;gap:6px}
 .seg button,.btn{font:inherit;font-size:14px;padding:6px 11px;border:1.5px solid var(--panel-ink);background:transparent;color:var(--panel-ink);
   border-radius:3px;cursor:pointer}
@@ -409,89 +409,6 @@ kbd{font:12px "Special Elite",monospace;border:1px solid var(--panel-ink);border
 .lgBtns{display:flex;gap:6px;margin-bottom:4px}
 .lgRow .sl{grid-template-columns:84px 1fr 56px}
 .lgRow select{width:100%;margin-top:6px}
-.mpRow{display:flex;flex-direction:column;gap:6px;border:1.5px solid var(--panel-ink);border-radius:4px;padding:6px 8px;margin-top:6px;background:#f6efdc}
-.mpRowHead{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.mpRowBody{display:flex;flex-direction:column;gap:6px}
-.mpRow input[type=text]{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--panel-ink);background:#fff;color:var(--panel-ink);border-radius:3px;width:9em}
-.mpRow select{flex:none;width:auto;min-width:9em}
-.mpRow input[type=number]{width:4.5em;font:inherit;font-size:14px;padding:6px 4px;border:1.5px solid var(--panel-ink);background:#fff;color:var(--panel-ink);border-radius:3px}
-.mpRow input[type=color]{width:2.4em;height:2.4em;padding:0;border:1.5px solid var(--panel-ink);border-radius:3px}
-.mpRowHead .mpDel{margin-left:auto}
-.mpRowBody .mpSub{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.mpStatesToggle{display:flex;align-items:center;gap:6px;font-size:13px}
-.mpStateBlock{display:flex;gap:6px;flex-wrap:wrap;align-items:center;border-top:1px dashed var(--panel-line);padding-top:6px}
-.mpStateBlock b{flex:none;width:100%;font-size:12px;opacity:.75;font-weight:normal;font-style:italic}
-.mpMulti{display:flex;flex-direction:column;gap:6px}
-.mpStep{display:flex;gap:6px;flex-wrap:wrap;align-items:center;border-top:1px dashed var(--panel-line);padding-top:6px}
-.mpStepNum{flex:none;width:1.4em;opacity:.7}
-.mpStepDel{margin-left:auto}
-.mpDelayLbl{display:flex;align-items:center;gap:6px;font-size:13px;margin-left:auto}
-.mpEditCrumb{display:flex;align-items:center;gap:8px;margin-top:6px}
-.mpEditCrumb:empty{margin:0}
-/* Drag-och-slapp-redigeraren - atgardsbibliotek + rutnat, atervander .mpKey/.mpKeyEmpty
-   (definierade for den morka korvyn ovan - de ar globala klasser, inte scopade till
-   #mpDisplay) sa en knapp ser likadan ut har som i korvyn man sedan trycker i. */
-.mpEditor{display:flex;flex-direction:column;gap:10px;margin-top:8px}
-.mpLibrary{display:flex;flex-wrap:wrap;gap:8px}
-.mpLibItem{all:unset;box-sizing:border-box;width:62px;aspect-ratio:1/1;border-radius:10px;
-  background:linear-gradient(155deg,#1d1d21,#131316);border:1px solid #000;box-shadow:inset 0 0 0 1.5px #2c2c32;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#eee;cursor:grab;padding:4px;text-align:center}
-.mpLibItem:active{cursor:grabbing}
-.mpLibItem .mpKeyIcon{font-size:19px}
-.mpLibItem .mpKeyLabel{font-size:8.5px}
-.mpEditGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;max-width:340px}
-.mpEditGrid .mpKey,.mpEditGrid .mpKeyEmpty{position:relative}
-.mpEditGrid .mpKey.selected,.mpEditGrid .mpKeyEmpty.selected{box-shadow:inset 0 0 0 2px #2563eb,0 3px 8px rgba(0,0,0,.55)}
-.mpEditGrid .mpKey.dragover,.mpEditGrid .mpKeyEmpty.dragover{box-shadow:inset 0 0 0 2px #22c55e,0 3px 8px rgba(0,0,0,.55)}
-.mpKeyDel{position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;background:#b5442c;color:#fff;
-  font-size:11px;line-height:16px;text-align:center;cursor:pointer}
-.mpInspector{margin-top:4px}
-.mpInspector .note{margin-top:6px}
-/* ---- #mpDisplay: simulerad Elgato Stream Deck+ - eget morkt tema, medvetet
-   fristaende fran BLAUPUNKT:s retro-utseende (resten av panelerna anvander
-   fortfarande --panel/--panel-ink osv). Formen ska matcha riktig hardvara:
-   svart holje, fyrkantiga LCD-knappar i ett last 4x2-rutnat, fader-rad under. */
-#mpDisplay{position:fixed;inset:0;z-index:40;background:#09090b;color:#e8e8ea;display:none;flex-direction:column;font-family:Arial,"Helvetica Neue",Helvetica,sans-serif}
-#mpDisplay.open{display:flex}
-#mpDisplay header{padding:14px 22px;border-bottom:1px solid #1e1e22;display:flex;align-items:center;justify-content:space-between;flex:none;background:#101012}
-#mpDisplay header h2{font-family:inherit;font-weight:700;font-size:15px;margin:0;letter-spacing:.14em;text-transform:uppercase;color:#f0f0f2}
-#mpDisplay header h2::before{content:"⬛ ";font-size:11px;vertical-align:1px;opacity:.5}
-#mpDisplay header button{all:unset;cursor:pointer;font-size:22px;padding:0 8px;color:#9a9aa2;line-height:1}
-#mpDisplay header button:hover{color:#fff}
-.mpRoomBar{padding:10px 22px;border-bottom:1px solid #1e1e22;flex:none;display:flex;flex-direction:column;gap:7px;align-items:center;background:#0c0c0e}
-.mpRoomBarLbl{font:11px/1 Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7a7a82}
-.mpRoomBarLbl b{color:#fff;font-weight:700;letter-spacing:.02em;text-transform:none}
-#mpRoomRow{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
-#mpRoomRow button{font:12px/1 Arial,sans-serif;letter-spacing:.03em;padding:6px 12px;border-radius:5px;border:1px solid #2a2a30;background:#19191c;color:#c7c7cc;cursor:pointer}
-#mpRoomRow button:hover{border-color:#444}
-#mpRoomRow button.on{background:#2563eb;border-color:#2563eb;color:#fff}
-.mpDisplayGrid{flex:1;overflow:auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:1fr;gap:12px;padding:20px;align-content:center;justify-content:center;max-width:760px;margin:0 auto;width:100%}
-.mpKey{all:unset;box-sizing:border-box;aspect-ratio:1/1;border-radius:13px;background:linear-gradient(155deg,#1d1d21,#131316);border:1px solid #000;box-shadow:inset 0 0 0 1.5px #2c2c32,0 3px 8px rgba(0,0,0,.55);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#eee;cursor:pointer;padding:6px;overflow:hidden;transition:transform .08s ease,box-shadow .08s ease}
-.mpKey:hover{box-shadow:inset 0 0 0 1.5px #3a3a42,0 3px 8px rgba(0,0,0,.55)}
-.mpKey:active,.mpKey.pressed{transform:scale(.93);box-shadow:inset 0 0 0 2px #2563eb,0 2px 4px rgba(0,0,0,.6)}
-.mpKeyIcon{font-size:28px;line-height:1;filter:drop-shadow(0 0 5px rgba(255,255,255,.2))}
-.mpKeyLabel{font-size:10.5px;letter-spacing:.02em;text-align:center;opacity:.82;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;padding:0 4px}
-.mpKeyEmpty{all:unset;box-sizing:border-box;aspect-ratio:1/1;border-radius:13px;border:1.5px dashed #2a2a30;background:#0d0d0f;color:#3c3c42;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.mpKeyEmpty:hover{border-color:#444;color:#666}
-.mpKeyEmpty .mpKeyPlus{font-size:22px;line-height:1}
-.mpKeyBack{background:linear-gradient(155deg,#1d2430,#111720);box-shadow:inset 0 0 0 1.5px #2563eb55,0 3px 8px rgba(0,0,0,.55)}
-.mpKeyBack .mpKeyIcon{color:#5b9dff}
-.mpKnobs{display:flex;gap:22px;flex-wrap:wrap;padding:16px 22px;border-top:1px solid #1e1e22;flex:none;justify-content:center;background:#101012}
-.mpKnob{display:flex;flex-direction:column;align-items:center;gap:6px;width:190px}
-.mpKnob .mpKnobLbl{font:11px/1 Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#9a9aa2;text-align:center}
-.mpSliderRow{display:flex;align-items:center;gap:6px;width:100%}
-.mpStepBtn{flex:none;width:28px;height:28px;padding:0;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;border-radius:6px;border:1px solid #2a2a30;background:#19191c;color:#c7c7cc}
-.mpStepBtn:hover:not(:disabled){border-color:#444;color:#fff}
-.mpStepBtn:disabled{opacity:.3;cursor:not-allowed}
-.mpSlider{-webkit-appearance:none;appearance:none;flex:1 1 auto;min-width:0;height:34px;background:transparent;cursor:pointer;touch-action:none;margin:2px 0}
-.mpSlider::-webkit-slider-runnable-track{height:14px;border-radius:7px;border:1px solid #000;box-shadow:inset 0 0 0 1px #2c2c32;background:var(--trackGrad,#2b2013)}
-.mpSlider::-moz-range-track{height:14px;border-radius:7px;border:1px solid #000;box-shadow:inset 0 0 0 1px #2c2c32;background:var(--trackGrad,#2b2013)}
-.mpSlider::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;margin-top:-5px;
-  background:#e8e8ea;border:3px solid #0a0a0c;box-shadow:0 0 0 1.5px #444,0 2px 4px rgba(0,0,0,.6)}
-.mpSlider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#e8e8ea;border:3px solid #0a0a0c;box-shadow:0 0 0 1.5px #444}
-.mpSlider:disabled{opacity:.3;cursor:not-allowed}
-.mpKnobVal{font:12px Arial,sans-serif;color:#b7b7bd;display:flex;align-items:center;gap:6px}
-.mpColorSwatch{display:inline-block;width:13px;height:13px;border-radius:50%;border:1.5px solid #444;background:#2b2013}
 select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--panel-ink);background:#f6efdc;color:var(--panel-ink);border-radius:3px;flex:1;min-width:0}
 .lbl{min-width:128px;font-size:13.5px}
 #panel h4{font:12px "Special Elite",monospace;letter-spacing:.2em;text-transform:uppercase;margin:14px 0 2px;color:#8a7756}
@@ -545,7 +462,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
 </div>
 
 <button id="gear" title="Inställningar (S)" aria-label="Inställningar">&#9881;</button>
-<button id="macropadBtn" class="mpGear" title="Macropad (M)" aria-label="Macropad">&#9638;</button>
+<a id="deckBtn" href="/deck" target="_blank" rel="noopener" title="Stream Controller (M)" aria-label="Stream Controller">&#9638;</a>
 
 <aside id="panel" aria-label="Inställningar">
   <header><h2>Inställningar</h2><button id="closePanel" aria-label="Stäng">&times;</button></header>
@@ -609,9 +526,9 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
     </section>
 
     <section>
-      <h3>Virtuell macropad (test)</h3>
-      <div class="note">Testa macropad-upplägget innan den fysiska finns - ställ in vilka knappar den ska ha i en egen liten panel, och fäll upp en stor körbar vy när du faktiskt vill använda den. Samma kommandon (<code>/api/send</code>) som en riktig macropad skulle skicka.</div>
-      <div class="row"><button class="btn" id="mpConfigBtn">Ställ in knappar</button><button class="btn primary" id="mpShowBtn">Visa macropad</button></div>
+      <h3>Stream Controller</h3>
+      <div class="note">Knapparna och rattarna på Stream Controllern ställs in på en egen sida, som också har en emulator som gör samma sak som den riktiga enheten. Samma kommandon (<code>/api/send</code>) som förut.</div>
+      <div class="row"><a class="btn primary" href="/deck" target="_blank" rel="noopener" style="text-decoration:none">Öppna Stream Controller</a><a class="btn" href="/deck?mode=use" target="_blank" rel="noopener" style="text-decoration:none">Bara emulatorn</a></div>
     </section>
 
     <section>
@@ -762,69 +679,13 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
         <kbd>I</kbd><span>Visa / dölj info</span>
         <kbd>F</kbd><span>Helskärm</span>
         <kbd>S</kbd><span>Inställningar</span>
-        <kbd>M</kbd><span>Macropad</span>
+        <kbd>M</kbd><span>Stream Controller</span>
       </div>
       <div class="note">Styrning utifrån, t.ex. jalusins brytare: <code>/api/send?c=open</code>, <code>close</code>, <code>next</code>, <code>prev</code>, <code>playpause</code>, <code>wake</code>, <code>viz:3</code>, <code>palette:sepia</code></div>
       <div class="row"><button class="btn" id="wakeTestBtn">Testa vakna-animation</button></div>
     </section>
   </div>
 </aside>
-
-<aside id="mpPanel" aria-label="Macropad - inställningar">
-  <header><h2>Macropad</h2><button id="closeMpPanel" aria-label="Stäng">&times;</button></header>
-  <div class="scroll">
-    <section>
-      <h3>Knappar</h3>
-      <div class="note">Dra en åtgärd från biblioteket ner på en ruta - eller klicka en tom ruta för en standardknapp. Klicka en ifylld ruta för att redigera den, dra den till en annan ruta för att flytta. Max 8 per sida - som på en riktig Stream Deck+ (4x2 rutnät).</div>
-      <div id="mpEditCrumb" class="mpEditCrumb"></div>
-      <div class="mpEditor">
-        <div id="mpLibrary" class="mpLibrary"></div>
-        <div id="mpEditGrid" class="mpEditGrid"></div>
-      </div>
-      <div class="row"><button class="btn" id="mpAddBtn">+ Lägg till i första lediga ruta</button><span class="note" id="mpAddCount" style="margin:0 0 0 10px"></span></div>
-      <div id="mpInspector" class="mpInspector"></div>
-      <div class="row"><button class="btn primary" id="mpOpenDisplayBtn">Visa macropad &rarr;</button></div>
-    </section>
-  </div>
-</aside>
-
-<div id="mpDisplay" aria-label="Macropad">
-  <header><h2>Macropad</h2><button id="closeMpDisplay" aria-label="Stäng">&times;</button></header>
-  <div class="mpRoomBar">
-    <div class="mpRoomBarLbl">Rum: <b id="mpKnobRoom">&mdash;</b></div>
-    <div class="seg" id="mpRoomRow"></div>
-  </div>
-  <div class="mpKnobs">
-    <div class="mpKnob">
-      <span class="mpKnobLbl">Volym</span>
-      <div class="mpSliderRow">
-        <button type="button" class="btn mpStepBtn" data-target="mpKnobVol" data-delta="-1" aria-label="Minska">&minus;</button>
-        <input type="range" class="mpSlider" id="mpKnobVol" min="0" max="100" step="1" value="50" style="--trackGrad:linear-gradient(90deg,#2b2013,#e8b354)" disabled>
-        <button type="button" class="btn mpStepBtn" data-target="mpKnobVol" data-delta="1" aria-label="Öka">+</button>
-      </div>
-      <output class="mpKnobVal" id="mpKnobVolVal"></output>
-    </div>
-    <div class="mpKnob">
-      <span class="mpKnobLbl">Ljusstyrka</span>
-      <div class="mpSliderRow">
-        <button type="button" class="btn mpStepBtn" data-target="mpKnobDim" data-delta="-1" aria-label="Minska">&minus;</button>
-        <input type="range" class="mpSlider" id="mpKnobDim" min="1" max="100" step="1" value="100" style="--trackGrad:linear-gradient(90deg,#1c140a,#f6efdc)" disabled>
-        <button type="button" class="btn mpStepBtn" data-target="mpKnobDim" data-delta="1" aria-label="Öka">+</button>
-      </div>
-      <output class="mpKnobVal" id="mpKnobDimVal"></output>
-    </div>
-    <div class="mpKnob">
-      <span class="mpKnobLbl">Färg</span>
-      <div class="mpSliderRow">
-        <button type="button" class="btn mpStepBtn" data-target="mpKnobColor" data-delta="-1" aria-label="Minska">&minus;</button>
-        <input type="range" class="mpSlider" id="mpKnobColor" min="0" max="100" step="1" value="10" disabled>
-        <button type="button" class="btn mpStepBtn" data-target="mpKnobColor" data-delta="1" aria-label="Öka">+</button>
-      </div>
-      <output class="mpKnobVal" id="mpKnobColorVal"><span class="mpColorSwatch" id="mpColorSwatch"></span><span id="mpColorText"></span></output>
-    </div>
-  </div>
-  <div id="mpDisplayGrid" class="mpDisplayGrid"><div class="note">Lägg till minst en knapp i inställningarna.</div></div>
-</div>
 
 <script>
 "use strict";
@@ -2805,8 +2666,6 @@ async function loadTradfriLists(){
     _tradfriFillSelect($("#tradfriGroupInput"), groups.map(g => g.name), "(ingen)", S.tradfriGroupName || "");
     refreshTradfriMoodList();
     renderLightCtl();
-    renderMacropad();
-    renderMpRoomButtons();
     const ageS = d && d.at ? Math.round((Date.now()/1000) - d.at) : null;
     note.textContent = groups.length
       ? `Hämtat direkt från gatewayen via kameradatorn.${ageS != null ? " (uppdaterad för " + ageS + "s sedan)" : ""}`
@@ -2851,563 +2710,6 @@ function renderLightCtl(){
     sel.value = "";
   }));
 }
-
-// ---------- virtuell macropad ----------
-// Varje ruta sparas som ett "slot"-objekt (eller null for en tom ruta) i S.macropad -
-// en GLES array med fast langd MP_MAX_BTNS, sa en knapp alltid hamnar kvar i sin egen
-// ruta aven om grannrutor ar tomma. Undermappar (Stream Deck-"folders") lagras separat
-// i S.mpFolders[id] med samma slot-format men MP_FOLDER_BTNS platser - en mindre an
-// huvudsidan, eftersom ruta 0 i en mapp alltid ar den fasta Tillbaka-knappen (precis
-// som pa en riktig Stream Deck: kort tryck gar en niva upp, hall in gar direkt till
-// toppen - se LÄSMIG.md).
-//
-// Ett slot: { kind, label, v1, v2, v3, folderId, steps, delayMs, states, curState }
-//   kind cmd/viz/palette/light - v1/v2/v3 ar byggstenarna for mpBuildCmd, som forut.
-//   kind folder  - folderId pekar in i S.mpFolders. Tryck navigerar in, bygger inget
-//                  eget kommando.
-//   kind multi   - steps ar en lista av mini-slots (egna v1/v2/v3), delayMs ar pausen
-//                  i ms mellan varje steg. Kors i ordning vid tryck, motsvarar Stream
-//                  Decks "Multi Action".
-//   states       - valfri, ej for folder/multi: en lista med EXAKT tva mini-slots.
-//                  Tryck kor den som curState pekar pa och vaxlar sedan curState -
-//                  motsvarar Stream Decks inbyggda tva-lages-knappar (t.ex. Tand/Slack).
-if (!Array.isArray(S.macropad)) S.macropad = [];
-const MP_MAX_BTNS = 8;              // 4x2 - som en riktig Stream Deck+
-const MP_FOLDER_BTNS = MP_MAX_BTNS - 1;  // ruta 0 i en mapp ar alltid Tillbaka-knappen
-(function mpMigrate(){
-  // Gammalt format var en tat array (push/splice). Packa om EN gang till en gles
-  // array med fast langd sa befintliga knappar hamnar kvar i sina rutor.
-  if (S.macropad.length === MP_MAX_BTNS && S.macropad.every(x => x !== undefined)) return;
-  const old = S.macropad.filter(Boolean);
-  const migrated = Array(MP_MAX_BTNS).fill(null);
-  old.slice(0, MP_MAX_BTNS).forEach((b, i) => { migrated[i] = b; });
-  S.macropad = migrated;
-  saveS();
-})();
-if (!S.mpFolders || typeof S.mpFolders !== "object") S.mpFolders = {};
-function mpFolderPage(id){
-  if (!Array.isArray(S.mpFolders[id])) S.mpFolders[id] = Array(MP_FOLDER_BTNS).fill(null);
-  return S.mpFolders[id];
-}
-function mpUid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
-function mpFindSlotByFolderId(id){
-  const scan = arr => arr && arr.find(s => s && s.kind === "folder" && s.folderId === id);
-  let found = scan(S.macropad);
-  if (found) return found;
-  for (const k in S.mpFolders){ found = scan(S.mpFolders[k]); if (found) return found; }
-  return null;
-}
-const MP_CMD_OPTS = [["open","Öppna/spela"],["close","Stäng/pausa"],["next","Nästa"],["prev","Föregående"],["playpause","Play/paus"],["wake","Väckning (animation)"]];
-const MP_PALETTE_NAMES = { svartvit:"Svartvit", sepia:"Sepia", fosfor:"Fosfor", farg:"Färg" };
-const MP_LIGHT_ACTIONS = [["on","Tänd"],["off","Släck"],["dim","Ljusstyrka"],["temp","Färgton"],["color","Färg"],["scene","Scen"]];
-const MP_KIND_OPTS_FULL = [["cmd","Musik/skärm"],["viz","Kanal"],["palette","Palett"],["light","Belysning"],["folder","Mapp"],["multi","Flera åtgärder"]];
-const MP_KIND_OPTS_SIMPLE = [["cmd","Musik/skärm"],["viz","Kanal"],["palette","Palett"],["light","Belysning"]];
-function mpBuildCmd(b){
-  if (!b) return "";
-  if (b.kind === "cmd") return b.v1 || "open";
-  if (b.kind === "viz") return "viz:" + (b.v1 || "1");
-  if (b.kind === "palette") return "palette:" + (b.v1 || "svartvit");
-  if (b.kind === "light"){
-    const action = b.v2 || "on";
-    const value = (action === "dim" || action === "temp") ? (+b.v3 || 0) : (action === "color" ? String(b.v3 || "ffcc88").replace("#", "") : (b.v3 || ""));
-    return "light:" + JSON.stringify({ group: b.v1 || "", action, value });
-  }
-  return "";   // folder/multi bygger inget enda kommando - hanteras sarskilt av mpActivateSlot
-}
-function mpDefaultLabel(b){
-  if (!b) return "";
-  if (b.kind === "cmd") return (MP_CMD_OPTS.find(x => x[0] === b.v1) || [,"?"])[1];
-  if (b.kind === "viz") return VIZ_NAMES[b.v1] || "Kanal";
-  if (b.kind === "palette") return MP_PALETTE_NAMES[b.v1] || b.v1 || "Palett";
-  if (b.kind === "light"){
-    const act = (MP_LIGHT_ACTIONS.find(x => x[0] === b.v2) || [,"?"])[1];
-    return `${b.v1 || "?"}: ${act}`;
-  }
-  if (b.kind === "folder") return "Mapp";
-  if (b.kind === "multi") return "Flera åtgärder";
-  return "Knapp";
-}
-const MP_CMD_ICONS = { open:"▶", close:"⏸", next:"⏭", prev:"⏮", playpause:"⏯", wake:"✨" };
-const MP_LIGHT_ICONS = { on:"💡", off:"🌑", dim:"🔆", temp:"🌡", color:"🎨", scene:"✨" };
-function mpIcon(b){
-  if (!b) return "●";
-  if (Array.isArray(b.states) && b.states.length === 2) return mpIcon(b.states[b.curState ? 1 : 0]);
-  if (b.kind === "cmd") return MP_CMD_ICONS[b.v1] || "▶";
-  if (b.kind === "viz") return "📊";
-  if (b.kind === "palette") return "🎨";
-  if (b.kind === "light") return MP_LIGHT_ICONS[b.v2] || "💡";
-  if (b.kind === "folder") return "📁";
-  if (b.kind === "multi") return "🧩";
-  return "●";
-}
-function mpLabel(b){
-  if (!b) return "";
-  if (Array.isArray(b.states) && b.states.length === 2){
-    const variant = b.states[b.curState ? 1 : 0];
-    return b.label || variant.label || mpDefaultLabel(variant);
-  }
-  return b.label || mpDefaultLabel(b);
-}
-function mpSubHtml(b){
-  if (b.kind === "viz"){
-    return `<select class="mpV1">${Object.entries(VIZ_NAMES).map(([v,l]) => `<option value="${v}"${b.v1===v?" selected":""}>${esc(l)}</option>`).join("")}</select>`;
-  }
-  if (b.kind === "palette"){
-    return `<select class="mpV1">${Object.keys(PALETTES).map(v => `<option value="${v}"${b.v1===v?" selected":""}>${esc(MP_PALETTE_NAMES[v]||v)}</option>`).join("")}</select>`;
-  }
-  if (b.kind === "light"){
-    const groups = Object.keys(TRADFRI_GROUPS);
-    const g = groups.includes(b.v1) ? b.v1 : (groups[0] || "");
-    const a = b.v2 || "on";
-    let val = "";
-    if (a === "dim" || a === "temp") val = `<input type="number" class="mpV3" min="0" max="100" value="${b.v3 ?? (a === "dim" ? 100 : 50)}">`;
-    else if (a === "color") val = `<input type="color" class="mpV3" value="#${String(b.v3 || "ffcc88").replace("#", "")}">`;
-    else if (a === "scene") val = `<select class="mpV3">${(TRADFRI_GROUPS[g] || []).map(m => `<option value="${esc(m)}"${b.v3===m?" selected":""}>${esc(m)}</option>`).join("")}</select>`;
-    return `<select class="mpV1">${groups.length ? groups.map(n => `<option value="${esc(n)}"${n===g?" selected":""}>${esc(n)}</option>`).join("") : '<option value="">(inga grupper hämtade)</option>'}</select>
-      <select class="mpV2">${MP_LIGHT_ACTIONS.map(([v,l]) => `<option value="${v}"${a===v?" selected":""}>${esc(l)}</option>`).join("")}</select>${val}`;
-  }
-  // kind === "cmd" (standard)
-  return `<select class="mpV1">${MP_CMD_OPTS.map(([v,l]) => `<option value="${v}"${(b.v1||"open")===v?" selected":""}>${esc(l)}</option>`).join("")}</select>`;
-}
-// ---------- installningspanelen (redigering) ----------
-// Separat navigeringsstack fran korvyns (mpFolderStack) - man kan redigera en mapp
-// har utan att det paverkar vilken sida korvyn visar, och tvartom.
-let mpEditStack = [];
-function mpEditPage(){ return mpEditStack.length ? mpFolderPage(mpEditStack[mpEditStack.length - 1]) : S.macropad; }
-function mpEditMax(){ return mpEditStack.length ? MP_FOLDER_BTNS : MP_MAX_BTNS; }
-function mpEditFirstFree(){
-  const page = mpEditPage(), max = mpEditMax();
-  for (let i = 0; i < max; i++) if (!page[i]) return i;
-  return -1;
-}
-function mpKindSelectHtml(cls, cur, opts){
-  return `<select class="${cls}">${opts.map(([v,l]) => `<option value="${v}"${cur===v?" selected":""}>${esc(l)}</option>`).join("")}</select>`;
-}
-function mpMultiEditorHtml(b){
-  if (!Array.isArray(b.steps)) b.steps = [];
-  const stepsHtml = b.steps.map((st, si) => `
-    <div class="mpStep" data-step="${si}">
-      <span class="mpStepNum">${si + 1}.</span>
-      ${mpKindSelectHtml("mpStepKind", st.kind, MP_KIND_OPTS_SIMPLE)}
-      <span class="mpSub">${mpSubHtml(st)}</span>
-      <button type="button" class="btn mpStepDel">&times;</button>
-    </div>`).join("");
-  return `<div class="mpMulti">
-      ${stepsHtml || '<div class="note">Inga steg än - lägg till minst ett.</div>'}
-      <div class="row">
-        <button type="button" class="btn mpStepAdd">+ Lägg till steg</button>
-        <label class="mpDelayLbl">Paus mellan steg (ms) <input type="number" class="mpDelay" min="0" max="5000" step="50" value="${b.delayMs ?? 150}"></label>
-      </div>
-    </div>`;
-}
-function mpRowHtml(b, i){
-  const hasStates = Array.isArray(b.states) && b.states.length === 2;
-  let body;
-  if (b.kind === "folder"){
-    body = `<button type="button" class="btn mpOpenFolder">Öppna mapp &rarr;</button>`;
-  } else if (b.kind === "multi"){
-    body = mpMultiEditorHtml(b);
-  } else {
-    body = `<label class="mpStatesToggle"><input type="checkbox" class="mpStatesChk"${hasStates ? " checked" : ""}> Två lägen (t.ex. Tänd/Släck) - växlar vid varje tryck</label>`;
-    if (hasStates){
-      body += [0, 1].map(si => `
-        <div class="mpStateBlock" data-state="${si}">
-          <b>Läge ${si + 1}${b.curState === si ? " (nu aktivt)" : ""}</b>
-          ${mpKindSelectHtml("mpStKind", b.states[si].kind, MP_KIND_OPTS_SIMPLE)}
-          <span class="mpSub">${mpSubHtml(b.states[si])}</span>
-          <input type="text" class="mpStLabel" placeholder="${esc(mpDefaultLabel(b.states[si]))}" value="${esc(b.states[si].label || "")}">
-        </div>`).join("");
-    } else {
-      body += `<span class="mpSub mpSimple">${mpSubHtml(b)}</span>`;
-    }
-  }
-  return `<div class="mpRow" data-i="${i}">
-      <div class="mpRowHead">
-        <input type="text" class="mpLabel" placeholder="${esc(mpDefaultLabel(b))}" value="${esc(b.label || "")}">
-        ${mpKindSelectHtml("mpKind", b.kind, MP_KIND_OPTS_FULL)}
-        <button type="button" class="btn mpDel">Ta bort</button>
-      </div>
-      <div class="mpRowBody">${body}</div>
-    </div>`;
-}
-function mpWireRows(cfg, page){
-  cfg.querySelectorAll(".mpRow").forEach(row => {
-    const i = +row.dataset.i, b = page[i];
-    row.querySelector(".mpLabel").addEventListener("input", e => { b.label = e.target.value; saveS(); renderMacropadGrid(); });
-    row.querySelector(".mpKind").addEventListener("change", e => {
-      const nk = e.target.value;
-      if (nk === "folder") b.folderId = b.folderId || mpUid();
-      if (nk === "multi" && !Array.isArray(b.steps)) b.steps = [];
-      if (nk === "folder" || nk === "multi"){ delete b.states; delete b.curState; }
-      if (b.kind !== nk){ b.v1 = b.v2 = b.v3 = undefined; }
-      b.kind = nk;
-      saveS(); renderMacropad();
-    });
-    row.querySelector(".mpDel").addEventListener("click", () => { page[i] = null; mpSelectedSlot = null; saveS(); renderMacropad(); });
-
-    const openFolder = row.querySelector(".mpOpenFolder");
-    if (openFolder) openFolder.addEventListener("click", () => { mpFolderPage(b.folderId); mpEditStack.push(b.folderId); mpSelectedSlot = null; renderMacropad(); });
-
-    const statesChk = row.querySelector(".mpStatesChk");
-    if (statesChk) statesChk.addEventListener("change", e => {
-      if (e.target.checked){
-        b.states = [
-          { kind: b.kind, label: "", v1: b.v1, v2: b.v2, v3: b.v3 },
-          { kind: b.kind, label: "", v1: b.v1, v2: b.v2, v3: b.v3 }
-        ];
-        b.curState = 0;
-      } else { delete b.states; delete b.curState; }
-      saveS(); renderMacropad();
-    });
-    row.querySelectorAll(".mpStateBlock").forEach(block => {
-      const st = b.states[+block.dataset.state];
-      block.querySelector(".mpStKind").addEventListener("change", e => { st.kind = e.target.value; st.v1 = st.v2 = st.v3 = undefined; saveS(); renderMacropad(); });
-      block.querySelector(".mpStLabel").addEventListener("input", e => { st.label = e.target.value; saveS(); renderMacropadGrid(); });
-      const v1 = block.querySelector(".mpV1"), v2 = block.querySelector(".mpV2"), v3 = block.querySelector(".mpV3");
-      if (v1) v1.addEventListener("change", e => { st.v1 = e.target.value; saveS(); if (st.kind === "light") renderMacropad(); else renderMacropadGrid(); });
-      if (v2) v2.addEventListener("change", e => { st.v2 = e.target.value; saveS(); renderMacropad(); });
-      if (v3) v3.addEventListener("change", e => { st.v3 = e.target.value; saveS(); renderMacropadGrid(); });
-    });
-
-    const stepAdd = row.querySelector(".mpStepAdd");
-    if (stepAdd) stepAdd.addEventListener("click", () => { b.steps.push({ kind: "cmd", v1: "open" }); saveS(); renderMacropad(); });
-    const delayInp = row.querySelector(".mpDelay");
-    if (delayInp) delayInp.addEventListener("change", e => { b.delayMs = Math.max(0, +e.target.value || 0); saveS(); });
-    row.querySelectorAll(".mpStep").forEach(stepEl => {
-      const si = +stepEl.dataset.step, st = b.steps[si];
-      stepEl.querySelector(".mpStepKind").addEventListener("change", e => { st.kind = e.target.value; st.v1 = st.v2 = st.v3 = undefined; saveS(); renderMacropad(); });
-      stepEl.querySelector(".mpStepDel").addEventListener("click", () => { b.steps.splice(si, 1); saveS(); renderMacropad(); });
-      const v1 = stepEl.querySelector(".mpV1"), v2 = stepEl.querySelector(".mpV2"), v3 = stepEl.querySelector(".mpV3");
-      if (v1) v1.addEventListener("change", e => { st.v1 = e.target.value; saveS(); if (st.kind === "light") renderMacropad(); else renderMacropadGrid(); });
-      if (v2) v2.addEventListener("change", e => { st.v2 = e.target.value; saveS(); renderMacropad(); });
-      if (v3) v3.addEventListener("change", e => { st.v3 = e.target.value; saveS(); renderMacropadGrid(); });
-    });
-
-    const simple = row.querySelector(".mpSimple");
-    if (simple){
-      const v1 = simple.querySelector(".mpV1"), v2 = simple.querySelector(".mpV2"), v3 = simple.querySelector(".mpV3");
-      if (v1) v1.addEventListener("change", e => { b.v1 = e.target.value; saveS(); if (b.kind === "light") renderMacropad(); else renderMacropadGrid(); });
-      if (v2) v2.addEventListener("change", e => { b.v2 = e.target.value; saveS(); renderMacropad(); });
-      if (v3) v3.addEventListener("change", e => { b.v3 = e.target.value; saveS(); renderMacropadGrid(); });
-    }
-  });
-}
-// Atgardsbiblioteket man drar ifran - samma 6 knapptyper som fanns i den gamla
-// dropdown-listan, nu som dragbara brickor (motsvarar Stream Deck-appens Actions-panel).
-const MP_LIBRARY = [
-  ["cmd","Musik/skärm","▶"], ["viz","Kanal","📊"], ["palette","Palett","🎨"],
-  ["light","Belysning","💡"], ["folder","Mapp","📁"], ["multi","Flera åtgärder","🧩"]
-];
-function renderMpLibrary(){
-  const host = $("#mpLibrary"); if (!host) return;
-  if (host.dataset.built) return;   // biblioteket ar alltid detsamma - bygg bara en gang
-  host.dataset.built = "1";
-  host.innerHTML = MP_LIBRARY.map(([kind,label,icon]) =>
-    `<div class="mpLibItem" draggable="true" data-kind="${kind}"><span class="mpKeyIcon">${icon}</span><span class="mpKeyLabel">${esc(label)}</span></div>`
-  ).join("");
-  host.querySelectorAll(".mpLibItem").forEach(el => {
-    el.addEventListener("dragstart", e => {
-      e.dataTransfer.setData("text/mpkind", el.dataset.kind);
-      e.dataTransfer.effectAllowed = "copy";
-    });
-  });
-}
-function mpMakeSlot(kind){
-  const b = { kind, v1: kind === "cmd" ? "open" : undefined };
-  if (kind === "folder") b.folderId = mpUid();
-  if (kind === "multi") b.steps = [];
-  return b;
-}
-// Rutnatet man bygger pa - samma 4x2-form och samma .mpKey/.mpKeyEmpty-utseende som
-// korvyn, fast dragbart/droppbart och klickbart for att valja vilken ruta som visas
-// i redigeraren under. Precis som riktiga Stream Deck-appen, dar man drar atgarder
-// rakt ner pa samma knappar man sedan trycker pa.
-let mpSelectedSlot = null;
-function renderMpEditGrid(){
-  const grid = $("#mpEditGrid"); if (!grid) return;
-  const page = mpEditPage(), max = mpEditMax();
-  if (mpSelectedSlot !== null && (mpSelectedSlot >= max || !page[mpSelectedSlot])) mpSelectedSlot = null;
-  const cells = [];
-  for (let i = 0; i < max; i++){
-    const b = page[i], sel = mpSelectedSlot === i ? " selected" : "";
-    if (b) cells.push(`<button type="button" class="mpKey${sel}" draggable="true" data-i="${i}"><span class="mpKeyIcon">${mpIcon(b)}</span><span class="mpKeyLabel">${esc(mpLabel(b))}</span><span class="mpKeyDel" data-del="${i}" title="Ta bort">&times;</span></button>`);
-    else cells.push(`<button type="button" class="mpKeyEmpty${sel}" data-i="${i}"><span class="mpKeyPlus">+</span></button>`);
-  }
-  grid.innerHTML = cells.join("");
-  grid.querySelectorAll(".mpKey,.mpKeyEmpty").forEach(cell => {
-    const i = +cell.dataset.i;
-    cell.addEventListener("click", e => {
-      if (e.target.closest(".mpKeyDel")) return;
-      if (!page[i]) page[i] = mpMakeSlot("cmd");
-      mpSelectedSlot = i;
-      saveS(); renderMacropad();
-    });
-    cell.addEventListener("dragover", e => { e.preventDefault(); cell.classList.add("dragover"); });
-    cell.addEventListener("dragleave", () => cell.classList.remove("dragover"));
-    cell.addEventListener("drop", e => {
-      e.preventDefault(); cell.classList.remove("dragover");
-      const moveFrom = e.dataTransfer.getData("text/mpmove");
-      const newKind = e.dataTransfer.getData("text/mpkind");
-      if (moveFrom !== ""){
-        const from = +moveFrom;
-        if (from === i) return;
-        if (page[i] && !confirm("Rutan är redan upptagen - byta plats ändå?")) return;
-        const tmp = page[i]; page[i] = page[from]; page[from] = tmp;
-      } else if (newKind){
-        if (page[i] && !confirm("Rutan är redan upptagen - skriva över den?")) return;
-        page[i] = mpMakeSlot(newKind);
-      } else return;
-      mpSelectedSlot = i; saveS(); renderMacropad();
-    });
-  });
-  grid.querySelectorAll(".mpKey").forEach(cell => {
-    cell.addEventListener("dragstart", e => {
-      e.dataTransfer.setData("text/mpmove", cell.dataset.i);
-      e.dataTransfer.effectAllowed = "move";
-    });
-  });
-  grid.querySelectorAll(".mpKeyDel").forEach(x => x.addEventListener("click", e => {
-    e.stopPropagation();
-    const i = +x.dataset.del;
-    page[i] = null;
-    if (mpSelectedSlot === i) mpSelectedSlot = null;
-    saveS(); renderMacropad();
-  }));
-}
-// Inspector - visar hela redigeraren (samma mpRowHtml/mpWireRows som forut) for EN
-// vald ruta i taget, istallet for alla staplade i en lista.
-function renderMpInspector(){
-  const host = $("#mpInspector"); if (!host) return;
-  const page = mpEditPage();
-  if (mpSelectedSlot === null || !page[mpSelectedSlot]){
-    host.innerHTML = '<div class="note">Klicka en ruta ovan för att redigera den.</div>';
-    return;
-  }
-  host.innerHTML = mpRowHtml(page[mpSelectedSlot], mpSelectedSlot);
-  mpWireRows(host, page);
-}
-function renderMacropad(){
-  const page = mpEditPage(), inFolder = mpEditStack.length > 0;
-  const crumb = $("#mpEditCrumb");
-  if (crumb){
-    if (inFolder){
-      const id = mpEditStack[mpEditStack.length - 1], slot = mpFindSlotByFolderId(id);
-      crumb.innerHTML = `<button type="button" class="btn" id="mpEditUp">&larr; Huvudsida</button> <b>${esc((slot && mpLabel(slot)) || "Mapp")}</b>`;
-      $("#mpEditUp").addEventListener("click", () => { mpEditStack.pop(); mpSelectedSlot = null; renderMacropad(); });
-    } else {
-      crumb.innerHTML = "";
-    }
-  }
-  renderMpLibrary();
-  renderMpEditGrid();
-  renderMpInspector();
-  const entries = page.filter(Boolean).length;
-  const addBtn = $("#mpAddBtn"), count = $("#mpAddCount"), free = mpEditFirstFree();
-  if (addBtn) addBtn.disabled = free < 0;
-  if (count) count.textContent = `${entries}/${mpEditMax()}`;
-  renderMacropadGrid();
-}
-$("#mpAddBtn").addEventListener("click", () => {
-  const free = mpEditFirstFree();
-  if (free < 0) return;
-  mpEditPage()[free] = mpMakeSlot("cmd");
-  mpSelectedSlot = free;
-  saveS(); renderMacropad();
-});
-
-// ---------- korvyn (#mpDisplay) ----------
-// Egen navigeringsstack - nollstalls varje gang korvyn oppnas (se toggleMpDisplay).
-let mpFolderStack = [];
-function mpCurrentRunPage(){ return mpFolderStack.length ? mpFolderPage(mpFolderStack[mpFolderStack.length - 1]) : S.macropad; }
-// Rutnatet ar last till 4x2 (8 platser) - som en riktig Stream Deck+. Ar man inne i en
-// mapp tar en fast Tillbaka-knapp ruta 0, resten (7 platser) ar mappens egna knappar -
-// exakt som ruta-antalet pa riktig hardvara nar en mapp ar oppen.
-function renderMacropadGrid(){
-  const grid = $("#mpDisplayGrid"); if (!grid) return;
-  const inFolder = mpFolderStack.length > 0;
-  const page = mpCurrentRunPage(), max = inFolder ? MP_FOLDER_BTNS : MP_MAX_BTNS;
-  const cells = [];
-  if (inFolder) cells.push(`<button type="button" class="mpKey mpKeyBack" data-back="1" aria-label="Tillbaka" title="Håll in för att gå direkt till toppen"><span class="mpKeyIcon">⬅</span><span class="mpKeyLabel">Tillbaka</span></button>`);
-  for (let i = 0; i < max; i++){
-    const b = page[i];
-    if (b) cells.push(`<button type="button" class="mpKey" data-i="${i}"><span class="mpKeyIcon">${mpIcon(b)}</span><span class="mpKeyLabel">${esc(mpLabel(b))}</span></button>`);
-    else cells.push(`<button type="button" class="mpKeyEmpty" data-empty="1" aria-label="Lägg till knapp"><span class="mpKeyPlus">+</span></button>`);
-  }
-  grid.innerHTML = cells.join("");
-  const h2 = document.querySelector("#mpDisplay header h2");
-  if (h2){
-    if (inFolder){
-      const slot = mpFindSlotByFolderId(mpFolderStack[mpFolderStack.length - 1]);
-      h2.textContent = (slot && mpLabel(slot)) || "Mapp";
-    } else h2.textContent = "Macropad";
-  }
-  grid.querySelectorAll(".mpKey:not(.mpKeyBack)").forEach(btn => btn.addEventListener("click", () => {
-    mpActivateSlot(page[+btn.dataset.i]);
-    btn.classList.add("pressed"); setTimeout(() => btn.classList.remove("pressed"), 120);
-  }));
-  grid.querySelectorAll(".mpKeyEmpty").forEach(btn => btn.addEventListener("click", () => {
-    toggleMpDisplay(false); togglePanel(false); toggleMpPanel(true);
-  }));
-  const backBtn = grid.querySelector(".mpKeyBack");
-  if (backBtn) mpWireBackKey(backBtn);
-}
-// Kort tryck pa Tillbaka-knappen gar en niva upp, hall in (~550ms) gar direkt till
-// toppen - samma tva-niva-beteende som "Exit"-knappen i en riktig Stream Deck-mapp.
-function mpWireBackKey(btn){
-  let timer = null, didLong = false;
-  const start = () => { didLong = false; timer = setTimeout(() => { didLong = true; mpFolderStack = []; renderMacropadGrid(); }, 550); };
-  const cancel = () => { if (timer){ clearTimeout(timer); timer = null; } };
-  btn.addEventListener("pointerdown", start);
-  btn.addEventListener("pointerup", () => { cancel(); if (!didLong){ mpFolderStack.pop(); renderMacropadGrid(); } });
-  btn.addEventListener("pointerleave", cancel);
-  btn.addEventListener("pointercancel", cancel);
-}
-function mpActivateSlot(b){
-  if (!b) return;
-  if (b.kind === "folder"){
-    mpFolderPage(b.folderId);
-    mpFolderStack.push(b.folderId);
-    renderMacropadGrid();
-    return;
-  }
-  if (b.kind === "multi"){ mpRunMulti(b); return; }
-  let eff = b;
-  if (Array.isArray(b.states) && b.states.length === 2){
-    const idx = b.curState ? 1 : 0;
-    eff = b.states[idx];
-    b.curState = idx === 0 ? 1 : 0;
-    saveS();
-  }
-  if (eff.kind === "light" && eff.v1) mpSetActiveRoom(eff.v1);
-  const cmd = mpBuildCmd(eff);
-  if (cmd) sendRaw(cmd);
-  osd(eff.label || mpDefaultLabel(eff));
-  if (Array.isArray(b.states)) renderMacropadGrid();   // sa ikon/etikett speglar det nya laget direkt
-}
-function mpRunMulti(b){
-  const steps = Array.isArray(b.steps) ? b.steps : [];
-  const delay = Math.max(0, +b.delayMs || 150);
-  osd(b.label || mpDefaultLabel(b));
-  steps.forEach((st, i) => {
-    setTimeout(() => {
-      if (st.kind === "light" && st.v1) mpSetActiveRoom(st.v1);
-      const cmd = mpBuildCmd(st);
-      if (cmd) sendRaw(cmd);
-    }, i * delay);
-  });
-}
-
-// ---------- macropad: skjutreglage for volym, ljusstyrka och farg. Farg-
-// reglaget ar EN enda kontinuerlig skala (inte bara varmt/kallt) - de
-// forsta 20% ar fargtemperatur (varmvit -> kallvit), resten (20-100%) ar
-// hela RGB-fargspektrumet runt - "scrolla igenom alla farger" fran en
-// och samma kontroll, precis som den fysiska macropadens ratt sen ska
-// gora. Alla tre styr det rum som senast valdes via en rumsknapp
-// (mpRoomRow) eller en belysningsknapp i rutnatet. ----------
-const MP_COLOR_SPLIT = 20;  // % av regeln som ar fargtemp - resten ar fargspektrum
-function hslToHex(h, s, l){
-  h = ((h % 360) + 360) % 360;
-  const c = (1 - Math.abs(2*l - 1)) * s, x = c * (1 - Math.abs((h/60) % 2 - 1)), m = l - c/2;
-  let r=0, g=0, b=0;
-  if (h < 60){ r=c; g=x; } else if (h < 120){ r=x; g=c; } else if (h < 180){ g=c; b=x; }
-  else if (h < 240){ g=x; b=c; } else if (h < 300){ r=x; b=c; } else { r=c; b=x; }
-  const toHex = v => Math.round((v+m)*255).toString(16).padStart(2, "0");
-  return toHex(r) + toHex(g) + toHex(b);
-}
-// Vad reglaget faktiskt ska SKICKA (action+varde) for ett givet 0-100-lage.
-function mpColorCmd(v){
-  if (v < MP_COLOR_SPLIT) return { action: "temp", value: Math.round(v / MP_COLOR_SPLIT * 100) };
-  return { action: "color", value: hslToHex((v - MP_COLOR_SPLIT) / (100 - MP_COLOR_SPLIT) * 360, 1, 0.5) };
-}
-// Vad reglaget ska SE UT som (fargad punkt) for samma lage - egen, enklare
-// interpolering i fargtemp-delen (en ren varm-orange -> blavit overgang,
-// bara for att ge ett visuellt intryck - ljusans faktiska fargtemp-stod
-// avgor hur det verkligen blir).
-function mpColorSwatch(v){
-  if (v < MP_COLOR_SPLIT){
-    const t = v / MP_COLOR_SPLIT, lerp = (a,b) => Math.round(a + (b-a)*t);
-    return `rgb(${lerp(255,214)},${lerp(170,227)},${lerp(90,255)})`;
-  }
-  return `hsl(${Math.round((v - MP_COLOR_SPLIT) / (100 - MP_COLOR_SPLIT) * 360)},100%,50%)`;
-}
-// Enkel "trailing" throttle - en DTLS-rundtur mot gatewayen ar for trog for
-// varje pixels drag pa reglaget, men UI:t uppdateras alltid direkt (se
-// input-lyssnarna nedan) - bara sjalva nataverksanropet begransas, och det
-// SISTA vardet nar man slapper skickas alltid med.
-function mpThrottled(fn, ms){
-  let last = 0, pending = null;
-  return (...args) => {
-    const now = Date.now(), wait = ms - (now - last);
-    clearTimeout(pending);
-    if (wait <= 0){ last = now; fn(...args); }
-    else pending = setTimeout(() => { last = Date.now(); fn(...args); }, wait);
-  };
-}
-// Rum valt antingen via en egen rumsknapp (mpRoomRow, bara valjer - gor
-// ingenting annat) eller genom att trycka en belysningsknapp i rutnatet.
-// Vardagsrum ar forvalt sa reglagen fungerar direkt, utan att man maste
-// valja nagot forst (bade Sonos-hogtalaren och Tradfri-gruppen heter sa).
-let mpActiveRoom = S.mpActiveRoom || "Vardagsrum";
-const mpKnobRoomLbl = $("#mpKnobRoom");
-const mpSendVol = mpThrottled(v => { if (mpActiveRoom) sendRaw("sonos-vol:" + JSON.stringify({ room: mpActiveRoom, value: v })); }, 150);
-const mpSendDim = mpThrottled(v => { if (mpActiveRoom) lightCmd(mpActiveRoom, "dim", v); }, 150);
-const mpSendColor = mpThrottled(v => { if (mpActiveRoom){ const c = mpColorCmd(v); lightCmd(mpActiveRoom, c.action, c.value); } }, 150);
-const mpVolSlider = $("#mpKnobVol"), mpDimSlider = $("#mpKnobDim"), mpColorSlider = $("#mpKnobColor");
-const mpVolVal = $("#mpKnobVolVal"), mpDimVal = $("#mpKnobDimVal"), mpColorSwatchEl = $("#mpColorSwatch"), mpColorText = $("#mpColorText");
-// Inget av reglagen har nagon aterkoppling fran den verkliga hogtalaren/
-// lampan (ingen las-API for det) - de minns bara var de senast stod.
-mpVolSlider.addEventListener("input", e => { const v = +e.target.value; mpVolVal.textContent = v + "%"; mpSendVol(v); });
-mpDimSlider.addEventListener("input", e => { const v = +e.target.value; mpDimVal.textContent = v + "%"; mpSendDim(v); });
-mpColorSlider.addEventListener("input", e => {
-  const v = +e.target.value, cmd = mpColorCmd(v);
-  mpColorSwatchEl.style.background = mpColorSwatch(v);
-  mpColorText.textContent = cmd.action === "temp" ? tempLabel(cmd.value) : ("#" + cmd.value);
-  mpSendColor(v);
-});
-mpColorSlider.dispatchEvent(new Event("input"));  // initiera swatch/text till startvardet
-// Fargreglagets bana far en gradient som speglar exakt vad mpColorSwatch()
-// raknar ut - garanterat samma farger som den faktiskt visar/skickar,
-// istallet for att handgissa en liknande gradient separat.
-(function(){
-  const stops = [];
-  for (let i = 0; i <= 100; i += 4) stops.push(`${mpColorSwatch(i)} ${i}%`);
-  mpColorSlider.style.setProperty("--trackGrad", `linear-gradient(90deg, ${stops.join(",")})`);
-})();
-// +/- knappar vid varje reglage - for att stega enkelsteg i taget och testa
-// hur snabbt det svarar. Steget ar alltid 1 (reglagens egen step), oavsett
-// vilken riktning man klickar; samma "input"-event triggas som vid drag, sa
-// UI-uppdatering/throttling/natverksanrop blir identiskt.
-document.querySelectorAll(".mpStepBtn").forEach(btn => {
-  const slider = $("#" + btn.dataset.target), delta = +btn.dataset.delta;
-  btn.addEventListener("click", () => {
-    if (slider.disabled) return;
-    const min = +slider.min, max = +slider.max;
-    const next = Math.max(min, Math.min(max, +slider.value + delta));
-    if (next === +slider.value) return;
-    slider.value = next;
-    slider.dispatchEvent(new Event("input"));
-  });
-});
-function renderMpRoomButtons(){
-  const host = $("#mpRoomRow"); if (!host) return;
-  const names = Object.keys(TRADFRI_GROUPS);
-  if (!names.length){ host.innerHTML = '<span class="note" style="margin:0">Inga rum hämtade än.</span>'; return; }
-  host.innerHTML = names.map(n => `<button type="button" class="${n === mpActiveRoom ? "on" : ""}" data-room="${esc(n)}">${esc(n)}</button>`).join("");
-  host.querySelectorAll("button[data-room]").forEach(b => b.addEventListener("click", () => mpSetActiveRoom(b.dataset.room)));
-}
-function mpUpdateKnobState(){
-  const has = !!mpActiveRoom;
-  mpVolSlider.disabled = mpDimSlider.disabled = mpColorSlider.disabled = !has;
-  document.querySelectorAll(".mpStepBtn").forEach(b => { b.disabled = !has; });
-  mpKnobRoomLbl.textContent = has ? mpActiveRoom : "inget valt";
-  renderMpRoomButtons();
-}
-function mpSetActiveRoom(name){
-  mpActiveRoom = name || "";
-  S.mpActiveRoom = mpActiveRoom; saveS();
-  mpUpdateKnobState();
-}
-mpUpdateKnobState();
 
 function refreshTradfriMoodList(){
   const name = $("#tradfriGroupInput").value || "";
@@ -3658,8 +2960,22 @@ function runCmd(c){
       : Promise.resolve(true);
     playWakeAnimation(ready);
   }
+  else if (c === "viz:next") setViz(nextVizRot(S.viz));
+  else if (c === "viz:prev"){ const all = Object.keys(VIZ).map(Number), on = all.filter(n => S.vizRot[n] !== false), pool = on.length ? on : all;
+    setViz(pool[(pool.indexOf(S.viz) - 1 + pool.length) % pool.length] ?? pool[0]); }
   else if (c.startsWith("viz:")) setViz(parseInt(c.slice(4),10));
+  else if (c === "palette:next"){ const names = Object.keys(PALETTES); setPalette(names[(names.indexOf(S.palette) + 1) % names.length]); }
   else if (c.startsWith("palette:")) setPalette(c.slice(8));
+  else if (c.startsWith("page:")) showIdlePage(c.slice(5));
+}
+// "page:wx" m.fl. från Stream Controllern: hoppa direkt till en av sidorna som visas när inget
+// spelas ("page:next" = nästa i tur). Bara sidor som är påslagna och har innehåll går att visa.
+function showIdlePage(name){
+  const pages = idlePages(); if (!pages.length) return;
+  const cur = pages.indexOf(BOARD.page);
+  const idx = name === "next" ? (cur + 1) % pages.length : pages.indexOf(name);
+  if (idx < 0){ osd("Sidan är inte påslagen"); return; }
+  BOARD.idx = idx - 1; BOARD.until = 0;   // boardStep tar nästa i tur vid nästa bildruta
 }
 setInterval(pollCmd, 300);
 
@@ -3687,24 +3003,6 @@ function togglePanel(open){
 $("#gear").addEventListener("click", () => togglePanel(true));
 $("#closePanel").addEventListener("click", () => togglePanel(false));
 
-// ---------- macropad: egen inställningspanel + egen stor körvy ----------
-const mpPanel = $("#mpPanel"), mpDisplay = $("#mpDisplay");
-function toggleMpPanel(open){
-  const willOpen = open ?? !mpPanel.classList.contains("open");
-  mpPanel.classList.toggle("open", willOpen);
-  if (willOpen){ mpEditStack = []; mpSelectedSlot = null; renderMacropad(); }
-}
-function toggleMpDisplay(open){
-  const willOpen = open ?? !mpDisplay.classList.contains("open");
-  mpDisplay.classList.toggle("open", willOpen);
-  if (willOpen){ mpFolderStack = []; renderMacropadGrid(); mpUpdateKnobState(); }
-}
-$("#macropadBtn").addEventListener("click", () => toggleMpDisplay(true));
-$("#closeMpDisplay").addEventListener("click", () => toggleMpDisplay(false));
-$("#closeMpPanel").addEventListener("click", () => toggleMpPanel(false));
-$("#mpConfigBtn").addEventListener("click", () => { togglePanel(false); toggleMpPanel(true); });
-$("#mpShowBtn").addEventListener("click", () => { togglePanel(false); toggleMpDisplay(true); });
-$("#mpOpenDisplayBtn").addEventListener("click", () => { toggleMpPanel(false); toggleMpDisplay(true); });
 $("#srcSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (b){ start(); setSource(b.dataset.v); } });
 $("#genreSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.genre = b.dataset.q; saveS(); segOn("#genreSeg", S.genre); loadStations(S.genre); });
 $("#stSearchBtn").addEventListener("click", () => { const v = $("#stSearch").value.trim(); if (v){ segOn("#genreSeg",""); loadStations("name=" + encodeURIComponent(v)); } });
@@ -3885,8 +3183,8 @@ document.addEventListener("keydown", e => {
   else if (k === "i"){ S.info = !S.info; saveS(); applyInfoVis(); }
   else if (k === "f"){ document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.().catch(()=>{}); }
   else if (k === "s") togglePanel();
-  else if (k === "m") toggleMpDisplay();
-  else if (k === "escape"){ togglePanel(false); toggleMpPanel(false); toggleMpDisplay(false); }
+  else if (k === "m") window.open("/deck", "_blank");
+  else if (k === "escape") togglePanel(false);
 });
 
 let cursorTimer = 0;
@@ -3900,7 +3198,6 @@ document.addEventListener("mousemove", () => { document.body.classList.remove("h
   $("#autoCh").checked = S.autoChannel;
   $("#vizRotSeg").querySelectorAll("input[type=checkbox]").forEach(cb => { cb.checked = S.vizRot[cb.dataset.v] !== false; });
   buildControls(); syncAll();
-  renderMacropad();
   loadFonts(); applyLook();
   applyInfoVis();
   setPalette(S.palette);

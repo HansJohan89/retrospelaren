@@ -37,6 +37,13 @@ Vägar:
   /api/tradfri-list GET: lista över Trådfri-grupper/scener, för inställnings-
                     panelens förslag. POST: monitor.py rapporterar in den
                     (gatewayen är bara nåbar lokalt, se monitor.py)
+  /deck             deck.html - konfiguratorn och emulatorn för Stream Controllern
+  /api/deck         GET/POST: Stream Controllerns konfiguration (profiler, sidor,
+                    knappar, rattar) med versionsnummer. POST kan också bära
+                    "faces": färdigritade knappbilder som den fysiska enheten visar
+  /api/deck/faces   GET: knappbilderna (?h=a,b för ett urval)
+  /api/deck/live    GET/POST: delat körläge mellan emulatorn och den fysiska enheten
+                    (aktuell sida/mapp, lägen, tryckhändelser, hubbens status)
 
 Bara Pythons standardbibliotek. Inget att installera.
 """
@@ -88,6 +95,159 @@ DATA_DIR = (os.environ.get("DATA_DIR") or os.environ.get("RAILWAY_VOLUME_MOUNT_P
 STATE_FILE = os.path.join(DATA_DIR, "state.json")
 STATE_KEYS = ("settings", "favs", "lastStation")
 STATE_LOCK = __import__("threading").Lock()
+# ---- Stream Controller (deck) ----
+# Konfigurationen (deck.json) och de färdigritade knappbilderna (deck-faces.json) sparas
+# var för sig i DATA_DIR, skilt från state.json: de är stora och ska inte följa med varje
+# gång sidan sparar en vanlig inställning. Körläget (vilken sida/mapp som visas, vilka
+# tvålägesknappar som står i läge 2) delas mellan emulatorn i webbläsaren och hubben på
+# Pi:n via DECK_LIVE; det sparas i deck-live.json så att det överlever en omstart.
+DECK_FILE = os.path.join(DATA_DIR, "deck.json")
+DECK_FACES_FILE = os.path.join(DATA_DIR, "deck-faces.json")
+DECK_LIVE_FILE = os.path.join(DATA_DIR, "deck-live.json")
+DECK_LOCK = __import__("threading").RLock()
+DECK_CACHE = {"loaded": False, "rev": 0, "deck": None, "faces": {}}
+DECK_LIVE = {"loaded": False, "nav": None, "navRev": 0, "st": {}, "stRev": 0, "vals": {}, "valsRev": 0,
+             "ev": [], "evId": 0, "hub": {"at": 0}}
+DECK_HUB_MAX_AGE_S = 8     # hubben räknas som frånkopplad om den inte hörts av på så här länge
+DECK_EV_KEEP = 80
+DECK_MAX_BYTES = 16 * 1024 * 1024
+
+
+def _read_json(fp, default):
+    try:
+        with open(fp, encoding="utf-8") as f:
+            d = json.load(f)
+        return d if isinstance(d, dict) else default
+    except (OSError, ValueError):
+        return default
+
+
+def _write_json(fp, obj):
+    os.makedirs(DATA_DIR, exist_ok=True)
+    tmp = fp + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(obj, f, ensure_ascii=False)
+    os.replace(tmp, fp)
+
+
+def _deck_load():
+    with DECK_LOCK:
+        if not DECK_CACHE["loaded"]:
+            d = _read_json(DECK_FILE, {})
+            DECK_CACHE["rev"] = int(d.get("rev") or 0)
+            DECK_CACHE["deck"] = d.get("deck") if isinstance(d.get("deck"), dict) else None
+            f = _read_json(DECK_FACES_FILE, {})
+            DECK_CACHE["faces"] = f.get("faces") if isinstance(f.get("faces"), dict) else {}
+            DECK_CACHE["loaded"] = True
+        if not DECK_LIVE["loaded"]:
+            l = _read_json(DECK_LIVE_FILE, {})
+            DECK_LIVE["nav"] = l.get("nav") if isinstance(l.get("nav"), dict) else None
+            DECK_LIVE["st"] = l.get("st") if isinstance(l.get("st"), dict) else {}
+            DECK_LIVE["vals"] = l.get("vals") if isinstance(l.get("vals"), dict) else {}
+            DECK_LIVE["loaded"] = True
+
+
+def get_deck():
+    _deck_load()
+    with DECK_LOCK:
+        return {"rev": DECK_CACHE["rev"], "deck": DECK_CACHE["deck"]}
+
+
+def save_deck(data):
+    """Sparar hela konfigurationen. "faces" (valfritt) ersätter knappbilderna - de är
+    nycklade på innehållets kontrollsumma, så samma bild lagras bara en gång."""
+    deck = data.get("deck")
+    if not isinstance(deck, dict):
+        return {"ok": False, "error": "deck saknas"}
+    _deck_load()
+    with DECK_LOCK:
+        DECK_CACHE["rev"] += 1
+        DECK_CACHE["deck"] = deck
+        try:
+            _write_json(DECK_FILE, {"rev": DECK_CACHE["rev"], "deck": deck})
+            faces = data.get("faces")
+            if isinstance(faces, dict):
+                faces = {str(k): v for k, v in faces.items()
+                         if isinstance(v, str) and v.startswith("data:image/") and len(v) < 400000}
+                DECK_CACHE["faces"] = faces
+                _write_json(DECK_FACES_FILE, {"rev": DECK_CACHE["rev"], "faces": faces})
+        except OSError as e:
+            return {"ok": False, "error": str(e)}
+        return {"ok": True, "rev": DECK_CACHE["rev"]}
+
+
+def get_deck_faces(want):
+    _deck_load()
+    with DECK_LOCK:
+        faces = DECK_CACHE["faces"]
+        if want:
+            faces = {h: faces[h] for h in want if h in faces}
+        return {"rev": DECK_CACHE["rev"], "faces": faces}
+
+
+def _deck_hub_public():
+    hub = DECK_LIVE["hub"]
+    age = time.time() - (hub.get("at") or 0)
+    online = age < DECK_HUB_MAX_AGE_S
+    return {"online": online, "device": bool(online and hub.get("device")), "age": round(age, 1) if hub.get("at") else None,
+            "sys": hub.get("sys") or [], "rooms": hub.get("rooms") or [], "ver": hub.get("ver") or "",
+            "name": hub.get("name") or ""}
+
+
+def get_deck_live(since_ev):
+    _deck_load()
+    with DECK_LOCK:
+        L = DECK_LIVE
+        return {"deckRev": DECK_CACHE["rev"], "nav": L["nav"], "navRev": L["navRev"], "st": L["st"], "stRev": L["stRev"],
+                "vals": L["vals"], "valsRev": L["valsRev"], "ev": [e for e in L["ev"] if e["id"] > since_ev],
+                "evLast": L["evId"], "hub": _deck_hub_public()}
+
+
+def patch_deck_live(data):
+    """Slår ihop en ändring av körläget. nav ersätts helt (den som trycker senast vinner),
+    st och vals slås ihop nyckel för nyckel (None tar bort), ev läggs till i händelseloggen
+    och hub är hubbens livstecken."""
+    _deck_load()
+    with DECK_LOCK:
+        L = DECK_LIVE
+        persist = False
+        if isinstance(data.get("nav"), dict):
+            L["nav"] = data["nav"]; L["navRev"] += 1; persist = True
+        if isinstance(data.get("st"), dict):
+            for k, v in data["st"].items():
+                if v is None:
+                    L["st"].pop(str(k), None)
+                else:
+                    L["st"][str(k)] = v
+            L["stRev"] += 1; persist = True
+        if data.get("stReset"):
+            L["st"] = {}; L["stRev"] += 1; persist = True
+        if isinstance(data.get("vals"), dict):
+            for k, v in data["vals"].items():
+                if v is None:
+                    L["vals"].pop(str(k), None)
+                else:
+                    L["vals"][str(k)] = v
+            L["valsRev"] += 1; persist = True
+        if isinstance(data.get("ev"), list):
+            for e in data["ev"][:40]:
+                if isinstance(e, dict):
+                    L["evId"] += 1
+                    e = dict(e); e["id"] = L["evId"]; e["t"] = round(time.time(), 2)
+                    L["ev"].append(e)
+            L["ev"] = L["ev"][-DECK_EV_KEEP:]
+        if isinstance(data.get("hub"), dict):
+            hub = dict(data["hub"]); hub["at"] = time.time()
+            L["hub"] = hub
+        if persist:
+            try:
+                _write_json(DECK_LIVE_FILE, {"nav": L["nav"], "st": L["st"], "vals": L["vals"]})
+            except OSError:
+                pass
+        return {"ok": True, "navRev": L["navRev"], "stRev": L["stRev"], "valsRev": L["valsRev"], "evLast": L["evId"],
+                "deckRev": DECK_CACHE["rev"]}
+
+
 SOUMAYAPP_URL = os.environ.get("SOUMAYAPP_BASE_URL", "https://soumayapp-production.up.railway.app").rstrip("/")
 
 
@@ -478,7 +638,7 @@ class Handler(SimpleHTTPRequestHandler):
     def do_HEAD(self):
         path = urllib.parse.urlparse(self.path).path
         name = path[len("/assets/"):] if path.startswith("/assets/") else ""
-        ok = path in ("/", "/callback", "/index.html", "/api/ping") or (
+        ok = path in ("/", "/callback", "/index.html", "/deck", "/deck.html", "/api/ping") or (
             name and "/" not in name and not name.startswith(".") and os.path.isfile(os.path.join(ROOT, "assets", name)))
         self.send_response(200 if ok else 404)
         self.end_headers()
@@ -491,6 +651,16 @@ class Handler(SimpleHTTPRequestHandler):
             if path in ("/", "/callback", "/index.html"):
                 self.path = "/index.html"
                 return super().do_GET()
+            if path in ("/deck", "/deck.html"):
+                self.path = "/deck.html"
+                return super().do_GET()
+            if path == "/api/deck":
+                return self._json(get_deck())
+            if path == "/api/deck/faces":
+                want = [h for h in (q.get("h", [""])[0] or "").split(",") if h]
+                return self._json(get_deck_faces(want))
+            if path == "/api/deck/live":
+                return self._json(get_deck_live(int(q.get("ev", ["0"])[0] or 0)))
             if path == "/api/stream":
                 return self.proxy_stream(q.get("url", [""])[0])
             if path == "/api/icy":
@@ -543,11 +713,12 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         path = urllib.parse.urlparse(self.path).path
-        if path not in ("/api/state", "/api/sonos-now", "/api/tradfri-list"):
+        if path not in ("/api/state", "/api/sonos-now", "/api/tradfri-list", "/api/deck", "/api/deck/live"):
             return self._json({"error": "hittades inte"}, 404)
+        limit = DECK_MAX_BYTES if path == "/api/deck" else 512 * 1024
         try:
             n = int(self.headers.get("Content-Length") or 0)
-            if n <= 0 or n > 512 * 1024:
+            if n <= 0 or n > limit:
                 return self._json({"error": "fel storlek"}, 400)
             data = json.loads(self.rfile.read(n).decode("utf-8"))
             if not isinstance(data, dict):
@@ -558,6 +729,10 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json(set_sonos_now(data))
         if path == "/api/tradfri-list":
             return self._json(set_tradfri_list(data))
+        if path == "/api/deck":
+            return self._json(save_deck(data))
+        if path == "/api/deck/live":
+            return self._json(patch_deck_live(data))
         return self._json(save_state(data))
 
     def asset(self, name):
@@ -1100,7 +1275,7 @@ class Handler(SimpleHTTPRequestHandler):
         with CMD_LOCK:
             CMD_STATE["id"] += 1
             CMD_STATE["list"].append({"id": CMD_STATE["id"], "c": c})
-            CMD_STATE["list"] = CMD_STATE["list"][-20:]
+            CMD_STATE["list"] = CMD_STATE["list"][-60:]
             cid = CMD_STATE["id"]
         return self._json({"ok": True, "id": cid})
 
