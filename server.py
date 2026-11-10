@@ -38,6 +38,8 @@ Vägar:
                     panelens förslag. POST: monitor.py rapporterar in den
                     (gatewayen är bara nåbar lokalt, se monitor.py)
   /deck             deck.html - konfiguratorn och emulatorn för Stream Controllern
+  /api/claim?id=&who=  den första sidan som frågar får köra kommandot (Spotify-kommandon ska
+                    bara utföras en gång även om flera flikar är öppna)
   /api/deck         GET/POST: Stream Controllerns konfiguration (profiler, sidor,
                     knappar, rattar) med versionsnummer. POST kan också bära
                     "faces": färdigritade knappbilder som den fysiska enheten visar
@@ -128,6 +130,20 @@ def _write_json(fp, obj):
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(obj, f, ensure_ascii=False)
     os.replace(tmp, fp)
+
+
+CLAIMS = {}
+
+
+def claim_cmd(cmd_id, who):
+    """Den första öppna sidan som gör anspråk på ett kommando får köra det. Används för
+    kommandon som bara får utföras en gång även om flera flikar har sidan öppen (Spotify)."""
+    with CMD_LOCK:
+        owner = CLAIMS.setdefault(cmd_id, who)
+        if len(CLAIMS) > 300:
+            for k in sorted(CLAIMS)[:150]:
+                del CLAIMS[k]
+        return {"ok": owner == who}
 
 
 def _deck_load():
@@ -693,6 +709,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.send_cmd(q.get("c", [""])[0])
             if path == "/api/cmd":
                 return self.poll_cmd(int(q.get("since", ["0"])[0] or 0))
+            if path == "/api/claim":
+                return self._json(claim_cmd(int(q.get("id", ["0"])[0] or 0), q.get("who", [""])[0]))
             if path == "/api/state":
                 return self._json(load_state())
             if path == "/api/sonos-now":

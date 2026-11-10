@@ -2542,7 +2542,7 @@ function radioToggle(){
 
 // ================= Spotify =================
 const SP = {
-  scope: "user-read-currently-playing user-read-playback-state user-modify-playback-state playlist-read-private playlist-read-collaborative",
+  scope: "user-read-currently-playing user-read-playback-state user-modify-playback-state playlist-read-private playlist-read-collaborative user-library-modify",
   redirect: location.origin + "/callback",
   timer: 0
 };
@@ -2939,11 +2939,18 @@ $("#start").addEventListener("click", start);
 
 // ================= styrning utifrån =================
 let cmdSince = -1;
+const PAGE_ID = Math.random().toString(36).slice(2, 10);
 async function pollCmd(){
   try{
     const r = await fetch("/api/cmd?since=" + Math.max(0, cmdSince)); const j = await r.json();
     if (cmdSince < 0){ cmdSince = j.last; return; }  // ignorera gamla kommandon vid sidladdning
-    for (const it of j.items){ cmdSince = Math.max(cmdSince, it.id); runCmd(it.c); }
+    for (const it of j.items){
+      cmdSince = Math.max(cmdSince, it.id);
+      // Spotify-kommandon får bara utföras av EN öppen sida (annars tar två flikar ut varandra,
+      // t.ex. spela/paus två gånger). Den som först gör anspråk på kommandot hos servern kör det.
+      if (it.c.startsWith("sp:")) fetch("/api/claim?id=" + it.id + "&who=" + PAGE_ID).then(r => r.json()).then(d => { if (d.ok) runCmd(it.c); }).catch(() => {});
+      else runCmd(it.c);
+    }
   }catch(e){}
 }
 function runCmd(c){
@@ -2967,6 +2974,60 @@ function runCmd(c){
   else if (c === "palette:next"){ const names = Object.keys(PALETTES); setPalette(names[(names.indexOf(S.palette) + 1) % names.length]); }
   else if (c.startsWith("palette:")) setPalette(c.slice(8));
   else if (c.startsWith("page:")) showIdlePage(c.slice(5));
+  else if (c.startsWith("sp:")){ try { spDeck(JSON.parse(c.slice(3))); } catch(e){} }
+}
+// "sp:{action,value,device}" från Stream Controllern: styr Spotify med den här sidans inloggning.
+// action: toggle | play | pause | next | prev | vol | vol-rel | seek-rel | shuffle | repeat |
+//         playlist (namn, länk eller spotify:-adress) | device (flytta uppspelningen) | like
+// device (valfritt): del av enhetens namn; annars den enhet som är aktiv just nu.
+async function spDeck(c){
+  const a = c.action, v = c.value, J = { "Content-Type":"application/json" };
+  const dev = c.device ? await spFindDevice(String(c.device)) : null;
+  if (c.device && !dev){ osd('Hittar inte Spotify-enheten "' + c.device + '"'); return; }
+  const q = dev ? "?device_id=" + dev.id : "", qa = dev ? "&device_id=" + dev.id : "";
+  const now = async () => (await spApi("/me/player")).data || {};
+  let r = { status: 204 };
+  if (a === "toggle"){ const st = await now(); r = await spApi("/me/player/" + (st.is_playing ? "pause" : "play") + q, { method:"PUT" }); }
+  else if (a === "play" || a === "pause") r = await spApi("/me/player/" + a + q, { method:"PUT" });
+  else if (a === "next" || a === "prev") r = await spApi("/me/player/" + (a === "next" ? "next" : "previous") + q, { method:"POST" });
+  else if (a === "vol" || a === "vol-rel"){
+    let n = Math.round(+v || 0);
+    if (a === "vol-rel"){ const st = await now(); n += (dev && typeof dev.volume_percent === "number") ? dev.volume_percent : (st.device && st.device.volume_percent) || 0; }
+    n = Math.max(0, Math.min(100, n));
+    r = await spApi("/me/player/volume?volume_percent=" + n + qa, { method:"PUT" });
+    if (r.status < 300) osd("Volym " + n);
+  }
+  else if (a === "seek-rel"){ const st = await now(); r = await spApi("/me/player/seek?position_ms=" + Math.max(0, (st.progress_ms || 0) + Math.round((+v || 0) * 1000)) + qa, { method:"PUT" }); }
+  else if (a === "shuffle"){ const st = await now(); r = await spApi("/me/player/shuffle?state=" + !st.shuffle_state + qa, { method:"PUT" }); if (r.status < 300) osd(st.shuffle_state ? "Blanda av" : "Blanda på"); }
+  else if (a === "repeat"){ const st = await now(), nx = { off:"context", context:"track", track:"off" }[st.repeat_state || "off"];
+    r = await spApi("/me/player/repeat?state=" + nx + qa, { method:"PUT" }); if (r.status < 300) osd({ off:"Upprepa av", context:"Upprepa listan", track:"Upprepa låten" }[nx]); }
+  else if (a === "playlist"){
+    let uri = String(v || "").trim();
+    const m = uri.match(/open\.spotify\.com\/(?:intl-[a-z]+\/)?(playlist|album|artist|show)\/([A-Za-z0-9]+)/);
+    if (m) uri = "spotify:" + m[1] + ":" + m[2];
+    if (uri && !uri.startsWith("spotify:")){
+      const pl = await spApi("/me/playlists?limit=50"), want = uri.toLowerCase();
+      const hit = ((pl.data && pl.data.items) || []).find(p => p && (p.name || "").toLowerCase() === want) || ((pl.data && pl.data.items) || []).find(p => p && (p.name || "").toLowerCase().includes(want));
+      if (!hit){ osd('Hittar ingen spellista som heter "' + v + '"'); return; }
+      uri = hit.uri;
+    }
+    if (!uri){ osd("Ingen spellista vald"); return; }
+    r = await spApi("/me/player/play" + q, { method:"PUT", headers:J, body: JSON.stringify({ context_uri: uri }) });
+  }
+  else if (a === "device"){
+    const d2 = await spFindDevice(String(v || ""));
+    if (!d2){ osd('Hittar inte Spotify-enheten "' + v + '"'); return; }
+    r = await spApi("/me/player", { method:"PUT", headers:J, body: JSON.stringify({ device_ids:[d2.id], play:true }) });
+    if (r.status < 300) osd("Spelar på " + d2.name);
+  }
+  else if (a === "like"){ const st = await now();
+    if (!st.item || !st.item.id){ osd("Inget spelas"); return; }
+    r = await spApi("/me/tracks?ids=" + st.item.id, { method:"PUT" });
+    if (r.status < 300) osd("Sparad i Gillade låtar"); else if (r.status === 403 || r.status === 401){ osd("Logga in på Spotify igen för att kunna gilla låtar"); return; } }
+  if (r.status === 401) osd("Inte inloggad på Spotify");
+  else if (r.status === 403) osd("Spotify säger nej (kräver Premium)");
+  else if (r.status === 404) osd("Ingen aktiv Spotify-enhet");
+  setTimeout(spPoll, 400);
 }
 // "page:wx" m.fl. från Stream Controllern: hoppa direkt till en av sidorna som visas när inget
 // spelas ("page:next" = nästa i tur). Bara sidor som är påslagna och har innehåll går att visa.

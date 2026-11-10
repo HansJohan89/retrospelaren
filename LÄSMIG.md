@@ -194,9 +194,15 @@ rattar. Den ställs in på en egen sida, **/deck** (`deck.html`), byggd som Stre
 - **Använd**: emulatorn. Klicka på knapparna, snurra rattarna med mushjulet. Den gör samma sak som
   den riktiga enheten, och de två följs åt: byter man sida eller trycker på den ena syns det på den andra.
 
-Åtgärder: Sonos (spela/paus, spår, volym, spellista, favorit), belysning (tänd, släck, växla,
+Åtgärder: Spotify (spela/paus, spår, volym, spellista på namn eller länk, flytta till enhet, blanda,
+upprepa, gilla, spola), Sonos (spela/paus, spår, volym, spellista, favorit), belysning (tänd, släck, växla,
 ljusstyrka, färgtemperatur, färg, scen), skärmen (öppna, stäng, kanal, färgläge, visa sida),
 Zigbee-enheter och MQTT, navigering, knapparnas ljusstyrka, HTTP-anrop och namngivna kommandon på Pi:n.
+
+Spotify-åtgärderna skickas som `sp:{"action","value","device"}` och utförs av Blaupunkt-sidan med dess
+egen Spotify-inloggning (den som finns i webbläsaren, på Pi:n alltså kioskens). Är sidan öppen i flera
+flikar gör den första anspråk på kommandot via `/api/claim`, så att det bara utförs en gång. Gilla
+kräver behörigheten `user-library-modify`: logga in på Spotify en gång till efter uppdateringen.
 
 Nya kommandon till skärmen: `viz:next`, `viz:prev`, `palette:next` och `page:<namn>` (`hem`, `wx`,
 `news`, `foto`, `fotboll`, `hockey`, `test` eller `next`), som hoppar till en av sidorna som visas när

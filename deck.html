@@ -346,8 +346,11 @@ const DeckCore = (() => {
 
   // ---- rattförval: fyller vrid vänster / vrid höger / tryck i ett svep ----
   const DIALS = {
-    volume:  { name: "Volym",            ccw: r => ({ t:"sonos", room:r.room, op:"vol-rel", value:-3 }),  cw: r => ({ t:"sonos", room:r.room, op:"vol-rel", value:3 }),   press: r => ({ t:"sonos", room:r.room, op:"mute" }) },
-    track:   { name: "Spår",             ccw: r => ({ t:"sonos", room:r.room, op:"prev" }),               cw: r => ({ t:"sonos", room:r.room, op:"next" }),               press: r => ({ t:"sonos", room:r.room, op:"toggle" }) },
+    spvol:   { name: "Spotify-volym",    ccw: () => ({ t:"sp", op:"vol-rel", value:-5 }),                  cw: () => ({ t:"sp", op:"vol-rel", value:5 }),                   press: () => ({ t:"sp", op:"toggle" }) },
+    sptrack: { name: "Spotify-spår",     ccw: () => ({ t:"sp", op:"prev" }),                               cw: () => ({ t:"sp", op:"next" }),                               press: () => ({ t:"sp", op:"toggle" }) },
+    spseek:  { name: "Spotify, spola",   ccw: () => ({ t:"sp", op:"seek-rel", value:-10 }),                cw: () => ({ t:"sp", op:"seek-rel", value:10 }),                 press: () => ({ t:"sp", op:"toggle" }) },
+    volume:  { name: "Sonos-volym",            ccw: r => ({ t:"sonos", room:r.room, op:"vol-rel", value:-3 }),  cw: r => ({ t:"sonos", room:r.room, op:"vol-rel", value:3 }),   press: r => ({ t:"sonos", room:r.room, op:"mute" }) },
+    track:   { name: "Sonos-spår",             ccw: r => ({ t:"sonos", room:r.room, op:"prev" }),               cw: r => ({ t:"sonos", room:r.room, op:"next" }),               press: r => ({ t:"sonos", room:r.room, op:"toggle" }) },
     dim:     { name: "Ljusstyrka",       ccw: r => ({ t:"light", group:r.group, op:"dim-rel", value:-8 }), cw: r => ({ t:"light", group:r.group, op:"dim-rel", value:8 }),  press: r => ({ t:"light", group:r.group, op:"toggle" }) },
     temp:    { name: "Färgtemperatur",   ccw: r => ({ t:"light", group:r.group, op:"temp-rel", value:-8 }), cw: r => ({ t:"light", group:r.group, op:"temp-rel", value:8 }), press: r => ({ t:"light", group:r.group, op:"temp", value:35 }) },
     hue:     { name: "Färghjul",         ccw: r => ({ t:"light", group:r.group, op:"hue-rel", value:-15 }), cw: r => ({ t:"light", group:r.group, op:"hue-rel", value:15 }), press: r => ({ t:"light", group:r.group, op:"temp", value:35 }) },
@@ -367,9 +370,9 @@ const DeckCore = (() => {
     const pg = prof.pages[0]; pg.name = "Hem";
     const G = "vardagsrum", R = "Vardagsrum";
     const scenes = uid(), screen = uid();
-    pg.keys[0] = newCtl({ t:"sonos", room:R, op:"toggle" });
-    pg.keys[1] = newCtl({ t:"sonos", room:R, op:"prev" });
-    pg.keys[2] = newCtl({ t:"sonos", room:R, op:"next" });
+    pg.keys[0] = newCtl({ t:"sp", op:"toggle" });
+    pg.keys[1] = newCtl({ t:"sp", op:"prev" });
+    pg.keys[2] = newCtl({ t:"sp", op:"next" });
     pg.keys[3] = { id: uid(), states: [ { a:{ t:"light", group:G, op:"on" }, look:{} }, { a:{ t:"light", group:G, op:"off" }, look:{} } ] };
     pg.keys[4] = newCtl({ t:"folder", fid: scenes }, { t:{ text:"Ljus" }, i:{ kind:"lib", id:"sparkles" } });
     pg.keys[5] = newCtl({ t:"folder", fid: screen }, { t:{ text:"Skärm" }, i:{ kind:"lib", id:"tv" } });
@@ -446,7 +449,7 @@ const DeckCore = (() => {
   }
 
   // ---- kommandosträngar: det som faktiskt skickas (till /api/send, eller körs direkt av hubben) ----
-  const REL_OPS = { light: ["dim-rel", "temp-rel", "hue-rel"], sonos: ["vol-rel"], deckdev: ["brightness-rel"], z2m: ["brightness-step"] };
+  const REL_OPS = { light: ["dim-rel", "temp-rel", "hue-rel"], sonos: ["vol-rel"], sp: ["vol-rel", "seek-rel"], deckdev: ["brightness-rel"], z2m: ["brightness-step"] };
   const isRel = a => !!(a && REL_OPS[a.t] && REL_OPS[a.t].includes(a.op));
   const num = (v, d) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
   function toCmd(a, mult){
@@ -473,6 +476,13 @@ const DeckCore = (() => {
         if (op === "vol-rel") value = Math.round(num(a.value, 0)) * k;
         else if (op === "playlist" || op === "fav") value = String(a.value || "");
         return "sonos:" + JSON.stringify({ room, action: op, value });
+      }
+      case "sp": {
+        const op = a.op || "toggle"; let value = null;
+        if (op === "vol") value = Math.max(0, Math.min(100, Math.round(num(a.value, 30))));
+        else if (op === "vol-rel" || op === "seek-rel") value = Math.round(num(a.value, 0)) * k;
+        else if (op === "playlist" || op === "device") value = String(a.value || "");
+        return "sp:" + JSON.stringify({ action: op, value, device: a.device || "" });
       }
       case "z2m": {
         const op = a.op || "toggle"; let p;
@@ -830,10 +840,11 @@ const PAGE_ICONS = { hem:"home", wx:"weather", news:"news", foto:"image", fotbol
 const BP_NAMES = { open:"Öppna", close:"Stäng", playpause:"Spela/paus", next:"Nästa", prev:"Föregående", wake:"Väckning" };
 const BP_ICONS = { open:"tv", close:"tv-off", playpause:"playpause", next:"next", prev:"prev", wake:"sunrise" };
 const LIGHT_OPS = [["on","Tänd"],["off","Släck"],["toggle","Tänd/släck (växla)"],["dim","Ljusstyrka"],["dim-rel","Ljusare/mörkare (steg)"],["temp","Färgtemperatur"],["temp-rel","Varmare/kallare (steg)"],["color","Färg"],["hue-rel","Färghjul (steg)"],["scene","Scen"]];
+const SP_OPS = [["toggle","Spela/paus"],["play","Spela"],["pause","Pausa"],["next","Nästa spår"],["prev","Föregående spår"],["vol","Volym (fast nivå)"],["vol-rel","Volym upp/ner (steg)"],["playlist","Spela spellista"],["device","Flytta till enhet"],["shuffle","Blanda av/på"],["repeat","Upprepa (växla)"],["like","Gilla låten"],["seek-rel","Spola (steg)"]];
 const SONOS_OPS = [["toggle","Spela/paus"],["play","Spela"],["pause","Pausa"],["next","Nästa spår"],["prev","Föregående spår"],["vol","Volym (fast nivå)"],["vol-rel","Volym upp/ner (steg)"],["mute","Ljud av/på"],["playlist","Spela spellista"],["fav","Spela Sonos-favorit"]];
 const Z2M_OPS = [["toggle","Växla"],["on","På"],["off","Av"],["brightness","Ljusstyrka"],["brightness-step","Ljusare/mörkare (steg)"],["color_temp","Färgtemperatur"]];
 const DECK_OPS = [["brightness","Ljusstyrka (fast nivå)"],["brightness-rel","Ljusare/mörkare (steg)"],["sleep","Släck knapparna"],["wake","Tänd knapparna"],["sleep-toggle","Släck/tänd knapparna"]];
-const CAT = { bp:"#5ac8fa", sonos:"#32d74b", light:"#ffd60a", z2m:"#ff9f0a", nav:"#a5b4fc", sys:"#c9ced6", deck:"#f48fb1" };
+const CAT = { sp:"#1ed760", bp:"#5ac8fa", sonos:"#66d4cf", light:"#ffd60a", z2m:"#ff9f0a", nav:"#a5b4fc", sys:"#c9ced6", deck:"#f48fb1" };
 const SWATCHES = ["#ffffff","#c9ced6","#5ac8fa","#4c8dff","#a5b4fc","#bf5af2","#f48fb1","#ff5a52","#ff9f0a","#ffd60a","#32d74b","#66d4cf"];
 const BG_SWATCHES = ["#272a31","#0b0c0e","#1d3557","#14532d","#7c2d12","#6b1d2a","#4a1d6b","#5b4a00","#0f4c5c","#3a3d44"];
 const FONTS = { sans:["Standard",'"Segoe UI",system-ui,Arial,sans-serif'], inter:["Inter",'"Inter",sans-serif'], cond:["Smal",'"Barlow Condensed",sans-serif'],
@@ -858,6 +869,13 @@ function autoLook(a){
         "temp-rel":[v < 0 ? "flame" : "snow", v < 0 ? "Varmare" : "Kallare"], color:["palette","Färg"], "hue-rel":["palette","Färghjul"], scene:["sparkles", a.value || "Scen"] }[a.op] || ["bulb","Ljus"];
       return { icon: m[0], color: a.op === "color" && a.value ? "#" + String(a.value).replace("#","") : CAT.light, title: m[1] };
     }
+    case "sp": {
+      const v = +a.value || 0;
+      const m = { toggle:["playpause","Spela/paus"], play:["play","Spela"], pause:["pause","Pausa"], next:["next","Nästa"], prev:["prev","Föregående"], vol:["vol-up","Volym " + (a.value ?? 30)],
+        "vol-rel":[v < 0 ? "vol-down" : "vol-up", "Volym " + signed(v)], playlist:["playlist", a.value && !/^spotify:|^https?:/.test(a.value) ? a.value : "Spellista"], device:["speaker", a.value || "Enhet"],
+        shuffle:["shuffle","Blanda"], repeat:["repeat","Upprepa"], like:["heart","Gilla"], "seek-rel":[v < 0 ? "prev" : "next", "Spola " + signed(v) + " s"] }[a.op] || ["note","Spotify"];
+      return { icon: m[0], color: CAT.sp, title: m[1] };
+    }
     case "sonos": {
       const v = +a.value || 0;
       const m = { toggle:["playpause","Spela/paus"], play:["play","Spela"], pause:["pause","Pausa"], next:["next","Nästa"], prev:["prev","Föregående"], vol:["vol-up","Volym " + (a.value ?? 30)],
@@ -880,7 +898,7 @@ function autoLook(a){
   }
   return { icon:"plus", color:"#888", title:"" };
 }
-const ACT_KIND = { bp:"Blaupunkt-skärmen", viz:"Blaupunkt-skärmen · Kanal", palette:"Blaupunkt-skärmen · Färgläge", page:"Blaupunkt-skärmen · Visa sida", light:"Belysning (Trådfri)",
+const ACT_KIND = { sp:"Spotify", bp:"Blaupunkt-skärmen", viz:"Blaupunkt-skärmen · Kanal", palette:"Blaupunkt-skärmen · Färgläge", page:"Blaupunkt-skärmen · Visa sida", light:"Belysning (Trådfri)",
   sonos:"Sonos", z2m:"Zigbee-enhet", mqtt:"MQTT-meddelande", http:"HTTP-anrop", sys:"Kommando på Pi:n", deckdev:"Stream Controllern", folder:"Mapp", back:"Tillbaka",
   home:"Överst i mappen", pagenav:"Byt sida", profile:"Byt profil", multi:"Flera åtgärder" };
 
@@ -902,6 +920,17 @@ function fieldsFor(a){
       if (a.op === "color") f.push({ k:"value", label:"Färg", type:"color", def:"ffcc88" });
       if (a.op === "hue-rel") f.push({ k:"value", label:"Steg", type:"num", min:-180, max:180, def:15, hint:"grader runt färghjulet" });
       if (a.op === "scene") f.push({ k:"value", label:"Scen", type:"suggest", sugg: () => GROUPS[a.group] || Object.values(GROUPS).flat(), re:true });
+      return f;
+    }
+    case "sp": {
+      const f = [{ k:"op", label:"Gör", type:"select", opts: SP_OPS, re:true, reset:"value" }];
+      if (a.op === "vol") f.push({ k:"value", label:"Volym", type:"range", min:0, max:100, def:30 });
+      if (a.op === "vol-rel") f.push({ k:"value", label:"Steg", type:"num", min:-50, max:50, def:5, hint:"minus = lägre" });
+      if (a.op === "seek-rel") f.push({ k:"value", label:"Sekunder", type:"num", min:-600, max:600, def:15, hint:"minus = bakåt" });
+      if (a.op === "playlist") f.push({ k:"value", label:"Spellista", type:"suggest", sugg: () => SPOTIFY.playlists, ph:"namn, Spotify-länk eller spotify:playlist:…", re:true });
+      if (a.op === "device") f.push({ k:"value", label:"Till enhet", type:"suggest", sugg: () => SPOTIFY.devices, ph:"del av enhetens namn", re:true });
+      if (a.op !== "device" && a.op !== "like") f.push({ k:"device", label:"På enhet", type:"suggest", sugg: () => SPOTIFY.devices, ph:"(tomt = den som spelar nu)" });
+      f.push({ type:"note", text:"Utförs av Blaupunkt-sidan med dess Spotify-inloggning, så sidan behöver vara öppen (på Pi:n är den alltid det)." + (a.op === "like" ? " Gilla kräver att du loggar in på Spotify en gång till i sidans inställningar." : "") });
       return f;
     }
     case "sonos": {
@@ -942,13 +971,26 @@ function fieldsFor(a){
   }
   return [];
 }
-const OP_DEFAULTS = { light:{ dim:100, "dim-rel":8, temp:35, "temp-rel":8, color:"ffcc88", "hue-rel":15, scene:"" }, sonos:{ vol:30, "vol-rel":3, playlist:"", fav:"" },
+const OP_DEFAULTS = { sp:{ vol:30, "vol-rel":5, "seek-rel":15, playlist:"", device:"" }, light:{ dim:100, "dim-rel":8, temp:35, "temp-rel":8, color:"ffcc88", "hue-rel":15, scene:"" }, sonos:{ vol:30, "vol-rel":3, playlist:"", fav:"" },
   z2m:{ brightness:60, "brightness-step":10, color_temp:35 }, deckdev:{ brightness:70, "brightness-rel":10 } };
 
 // Åtgärdsbiblioteket (högerspalten). make() ger en ny åtgärd; two = färdig tvålägesknapp; dial = rattförval.
 const R0 = "Vardagsrum";
 const defGroup = () => Object.keys(GROUPS).find(g => /vardag/i.test(g)) || Object.keys(GROUPS)[0] || "vardagsrum";
 const LIBRARY = [
+  { cat:"Spotify", items:[
+    { id:"p-toggle", name:"Spela/paus", make:() => ({ t:"sp", op:"toggle" }) },
+    { id:"p-next", name:"Nästa spår", make:() => ({ t:"sp", op:"next" }) },
+    { id:"p-prev", name:"Föregående spår", make:() => ({ t:"sp", op:"prev" }) },
+    { id:"p-pl", name:"Spela spellista", make:() => ({ t:"sp", op:"playlist", value:"" }) },
+    { id:"p-volup", name:"Volym upp", make:() => ({ t:"sp", op:"vol-rel", value:5 }) },
+    { id:"p-voldn", name:"Volym ner", make:() => ({ t:"sp", op:"vol-rel", value:-5 }) },
+    { id:"p-vol", name:"Volym, fast nivå", make:() => ({ t:"sp", op:"vol", value:30 }) },
+    { id:"p-dev", name:"Flytta till enhet", make:() => ({ t:"sp", op:"device", value:"" }) },
+    { id:"p-shuf", name:"Blanda av/på", make:() => ({ t:"sp", op:"shuffle" }) },
+    { id:"p-rep", name:"Upprepa", make:() => ({ t:"sp", op:"repeat" }) },
+    { id:"p-like", name:"Gilla låten", make:() => ({ t:"sp", op:"like" }) },
+    { id:"p-seek", name:"Spola framåt", make:() => ({ t:"sp", op:"seek-rel", value:15 }) } ] },
   { cat:"Sonos", items:[
     { id:"s-toggle", name:"Spela/paus", make:() => ({ t:"sonos", room:R0, op:"toggle" }) },
     { id:"s-next", name:"Nästa spår", make:() => ({ t:"sonos", room:R0, op:"next" }) },
@@ -1190,6 +1232,19 @@ async function loadDeck(){
     if (Array.isArray(s.macropad) && C.migrateOld(deck, s.macropad, s.mpFolders || {})) toast("Knapparna från den gamla macropaden ligger på egna sidor.", 5000);
   } catch(e){}
   return true;
+}
+// Förslag på spellistor och enheter, hämtade med samma Spotify-inloggning som Blaupunkt-sidan
+// har sparat i den här webbläsaren. Saknas inloggning går det att skriva för hand.
+const SPOTIFY = { playlists: [], devices: [] };
+async function loadSpotify(){
+  try {
+    const tk = JSON.parse(localStorage.getItem("rs.sp.token") || "null");
+    if (!tk || !tk.access || Date.now() > tk.exp - 30000) return;
+    const hd = { headers: { Authorization: "Bearer " + tk.access } };
+    const [pl, dv] = await Promise.all([fetch("https://api.spotify.com/v1/me/playlists?limit=50", hd), fetch("https://api.spotify.com/v1/me/player/devices", hd)]);
+    if (pl.ok) SPOTIFY.playlists = ((await pl.json()).items || []).filter(Boolean).map(p => p.name);
+    if (dv.ok) SPOTIFY.devices = ((await dv.json()).devices || []).map(d => d.name);
+  } catch(e){}
 }
 // Listan över grupper och scener ligger bara i serverns minne och är tom efter en ny version.
 // Be då den som har kontakt med gatewayen (hubben eller monitor.py) att skicka in den igen.
@@ -1643,7 +1698,7 @@ function renderLib(){
 
 // ---------- inspektorn ----------
 let prevCanvas = null, prevState = null;
-function refreshPreview(){ if (prevCanvas && prevState) paintKey(prevCanvas, effLook(prevState)); }
+function refreshPreview(){ if (prevCanvas && prevState) paintKey(prevCanvas, effLook(prevState)); cmdNotes.forEach(([el, a]) => { el.textContent = C.toCmd(a); }); }
 function field(lbl, ...ctl){ return h("div", { class:"fRow" }, h("label", { text: lbl, title: lbl }), h("div", { class:"ctl" }, ...ctl)); }
 let dlN = 0;
 // Fälten för en åtgärd. co = nyckel så att flera tangenttryck i samma fält blir ett ångra-steg.
@@ -1678,9 +1733,12 @@ function actHead(a){
   return h("div", { class:"actHead" }, h("span", { class:"sw", html: iconSvg(al.icon), style:{ color: al.color } }), h("div", { style:{ flex:1, minWidth:0 } }, h("b", { text: ACT_KIND[a.t] || "Åtgärd" }), h("small", { text:"Byt åtgärd genom att dra en ny hit från listan" })),
     h("button", { class:"sbtnS", title:"Kör åtgärden en gång nu", onclick: () => testAction(a) }, icon("play"), "Prova"));
 }
+let cmdNotes = [];
 function cmdNote(a){
   const cmd = a.t === "multi" || ["folder","back","home","pagenav","profile"].includes(a.t) ? "" : C.toCmd(a);
-  return cmd ? h("div", { class:"note" }, "Skickar: ", h("code", { text: cmd })) : null;
+  if (!cmd) return null;
+  const code = h("code", { text: cmd }); cmdNotes.push([code, a]);
+  return h("div", { class:"note" }, "Skickar: ", code);
 }
 const STEP_CHOICES = () => LIBRARY.filter(c => c.cat !== "Rattar").map(c => ({ cat: c.cat, items: c.items.filter(it => it.make && !["n-folder","y-multi"].includes(it.id)) })).filter(c => c.items.length);
 function multiEditor(a, co){
@@ -1747,7 +1805,7 @@ function lookEditor(st, co){
   return box;
 }
 function renderInspector(){
-  const ins = $("#inspector"); ins.innerHTML = ""; prevCanvas = prevState = null;
+  const ins = $("#inspector"); ins.innerHTML = ""; prevCanvas = prevState = null; cmdNotes = [];
   if (!deck || mode !== "edit") return;
   const v = editView();
   if (!sel){ ins.append(h("div", { class:"insEmpty", html:"<b>Markera en knapp, en liten knapp eller en ratt</b><br>så ställer du in den här. Dra åtgärder från listan till höger, precis som i Stream Deck-appen." })); return; }
@@ -1987,7 +2045,7 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) poll
   buildDevice();
   let fresh = false;
   try { fresh = await loadDeck(); } catch(e){ deck = C.defaultDeck(); toast("Kunde inte läsa konfigurationen från servern."); }
-  await loadGroups();
+  await loadGroups(); loadSpotify();
   editNav = C.normNav(deck, {}); engine.nav = C.normNav(deck, {});
   try { const j = await (await fetch("/api/deck/live?ev=0", { cache:"no-store" })).json();
     LIVE.navRev = j.navRev; LIVE.stRev = j.stRev; LIVE.valsRev = j.valsRev; LIVE.vals = j.vals || {}; LIVE.evLast = j.evLast; LIVE.hub = j.hub || LIVE.hub;
