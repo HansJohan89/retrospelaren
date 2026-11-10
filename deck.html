@@ -1191,8 +1191,15 @@ async function loadDeck(){
   } catch(e){}
   return true;
 }
+// Listan över grupper och scener ligger bara i serverns minne och är tom efter en ny version.
+// Be då den som har kontakt med gatewayen (hubben eller monitor.py) att skicka in den igen.
+let askedGroups = false;
 async function loadGroups(){
-  try { const d = await (await fetch("/api/tradfri-list", { cache:"no-store" })).json(); GROUPS = {}; (d.groups || []).forEach(g => { GROUPS[g.name] = g.moods || []; }); } catch(e){}
+  try {
+    const d = await (await fetch("/api/tradfri-list", { cache:"no-store" })).json();
+    GROUPS = {}; (d.groups || []).forEach(g => { GROUPS[g.name] = g.moods || []; });
+    if (!Object.keys(GROUPS).length && !askedGroups){ askedGroups = true; fetch("/api/send?c=tradfri-refresh").catch(() => {}); setTimeout(loadGroups, 7000); }
+  } catch(e){}
 }
 
 // ---------- delat körläge (emulatorn <-> den fysiska enheten) ----------
