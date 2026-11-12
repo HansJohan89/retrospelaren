@@ -71,6 +71,7 @@ RADIO_MIRRORS = [
 ]
 SSL_CTX = ssl.create_default_context()
 CMD_LOCK = __import__("threading").Lock()
+CMD_COND = __import__("threading").Condition(CMD_LOCK)   # väcker den som väntar på nästa kommando
 CMD_STATE = {"id": 0, "list": []}
 # Vad Sonos (Vardagsrum) spelar just nu - rapporteras in av monitor.py (som
 # styr Sonos lokalt, se den filens kommentarer för varför: Sonos syns aldrig
@@ -107,8 +108,9 @@ DECK_FILE = os.path.join(DATA_DIR, "deck.json")
 DECK_FACES_FILE = os.path.join(DATA_DIR, "deck-faces.json")
 DECK_LIVE_FILE = os.path.join(DATA_DIR, "deck-live.json")
 DECK_LOCK = __import__("threading").RLock()
+DECK_COND = __import__("threading").Condition(DECK_LOCK)
 DECK_CACHE = {"loaded": False, "rev": 0, "deck": None, "faces": {}}
-DECK_LIVE = {"loaded": False, "nav": None, "navRev": 0, "st": {}, "stRev": 0, "vals": {}, "valsRev": 0,
+DECK_LIVE = {"seq": 0, "loaded": False, "nav": None, "navRev": 0, "st": {}, "stRev": 0, "vals": {}, "valsRev": 0,
              "ev": [], "evId": 0, "hub": {"at": 0}}
 DECK_HUB_MAX_AGE_S = 8     # hubben räknas som frånkopplad om den inte hörts av på så här länge
 DECK_EV_KEEP = 80
@@ -179,6 +181,8 @@ def save_deck(data):
     with DECK_LOCK:
         DECK_CACHE["rev"] += 1
         DECK_CACHE["deck"] = deck
+        DECK_LIVE["seq"] += 1
+        DECK_COND.notify_all()
         try:
             _write_json(DECK_FILE, {"rev": DECK_CACHE["rev"], "deck": deck})
             faces = data.get("faces")
@@ -210,11 +214,14 @@ def _deck_hub_public():
             "name": hub.get("name") or ""}
 
 
-def get_deck_live(since_ev):
+def get_deck_live(since_ev, seq=-1, wait=0.0):
+    """seq + wait: håll kvar anropet tills något har ändrats sedan löpnumret seq."""
     _deck_load()
     with DECK_LOCK:
         L = DECK_LIVE
-        return {"deckRev": DECK_CACHE["rev"], "nav": L["nav"], "navRev": L["navRev"], "st": L["st"], "stRev": L["stRev"],
+        if wait > 0 and seq >= 0 and L["seq"] <= seq:
+            DECK_COND.wait(timeout=min(wait, 25.0))
+        return {"seq": L["seq"], "deckRev": DECK_CACHE["rev"], "nav": L["nav"], "navRev": L["navRev"], "st": L["st"], "stRev": L["stRev"],
                 "vals": L["vals"], "valsRev": L["valsRev"], "ev": [e for e in L["ev"] if e["id"] > since_ev],
                 "evLast": L["evId"], "hub": _deck_hub_public()}
 
@@ -255,6 +262,9 @@ def patch_deck_live(data):
         if isinstance(data.get("hub"), dict):
             hub = dict(data["hub"]); hub["at"] = time.time()
             L["hub"] = hub
+        if any(k in data for k in ("nav", "st", "stReset", "vals", "ev")):
+            L["seq"] += 1
+            DECK_COND.notify_all()
         if persist:
             try:
                 _write_json(DECK_LIVE_FILE, {"nav": L["nav"], "st": L["st"], "vals": L["vals"]})
@@ -676,7 +686,7 @@ class Handler(SimpleHTTPRequestHandler):
                 want = [h for h in (q.get("h", [""])[0] or "").split(",") if h]
                 return self._json(get_deck_faces(want))
             if path == "/api/deck/live":
-                return self._json(get_deck_live(int(q.get("ev", ["0"])[0] or 0)))
+                return self._json(get_deck_live(int(q.get("ev", ["0"])[0] or 0), int(q.get("seq", ["-1"])[0] or -1), float(q.get("wait", ["0"])[0] or 0)))
             if path == "/api/stream":
                 return self.proxy_stream(q.get("url", [""])[0])
             if path == "/api/icy":
@@ -708,7 +718,7 @@ class Handler(SimpleHTTPRequestHandler):
             if path == "/api/send":
                 return self.send_cmd(q.get("c", [""])[0])
             if path == "/api/cmd":
-                return self.poll_cmd(int(q.get("since", ["0"])[0] or 0))
+                return self.poll_cmd(int(q.get("since", ["0"])[0] or 0), float(q.get("wait", ["0"])[0] or 0))
             if path == "/api/claim":
                 return self._json(claim_cmd(int(q.get("id", ["0"])[0] or 0), q.get("who", [""])[0]))
             if path == "/api/state":
@@ -1295,10 +1305,15 @@ class Handler(SimpleHTTPRequestHandler):
             CMD_STATE["list"].append({"id": CMD_STATE["id"], "c": c})
             CMD_STATE["list"] = CMD_STATE["list"][-60:]
             cid = CMD_STATE["id"]
+            CMD_COND.notify_all()
         return self._json({"ok": True, "id": cid})
 
-    def poll_cmd(self, since):
+    def poll_cmd(self, since, wait=0.0):
+        """wait > 0: håll kvar anropet tills ett nytt kommando kommer (högst wait sekunder).
+        Hubben använder det, så att ett tryck når fram direkt i stället för vid nästa fråga."""
         with CMD_LOCK:
+            if wait > 0 and CMD_STATE["id"] <= since:
+                CMD_COND.wait(timeout=min(wait, 25.0))
             items = [x for x in CMD_STATE["list"] if x["id"] > since]
             last = CMD_STATE["id"]
         return self._json({"last": last, "items": items})
