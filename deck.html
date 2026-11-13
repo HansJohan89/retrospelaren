@@ -474,7 +474,7 @@ const DeckCore = (() => {
         if (op === "vol") return "sonos-vol:" + JSON.stringify({ room, value: Math.max(0, Math.min(100, Math.round(num(a.value, 30)))) });
         let value = null;
         if (op === "vol-rel") value = Math.round(num(a.value, 0)) * k;
-        else if (op === "playlist" || op === "fav") value = String(a.value || "");
+        else if (["playlist", "fav", "group", "group-toggle"].includes(op)) value = String(a.value || "");
         return "sonos:" + JSON.stringify({ room, action: op, value });
       }
       case "sp": {
@@ -679,6 +679,8 @@ const ICONS = {
   "play":       { n:"Spela", c:"Musik", d:["F M8.5 5.8v12.4l10-6.2z"] },
   "pause":      { n:"Paus", c:"Musik", d:["F M7.2 5.5h2.6v13H7.2z", "F M14.2 5.5h2.6v13h-2.6z"] },
   "playpause":  { n:"Spela/paus", c:"Musik", d:["F M4 6.5v11l8-5.5z", "F M14.6 6.5h1.6v11h-1.6z", "F M18.9 6.5h1.6v11h-1.6z"] },
+  "group":      { n:"Gruppera högtalare", c:"Musik", d:["M3.5 5.5h7v13h-7z", "M13.5 5.5h7v13h-7z", "M7 9.2v.01", "M17 9.2v.01", "M8.9 14a1.9 1.9 0 1 1-3.8 0 1.9 1.9 0 0 1 3.8 0z", "M18.9 14a1.9 1.9 0 1 1-3.8 0 1.9 1.9 0 0 1 3.8 0z"] },
+  "ungroup":    { n:"Dela upp högtalare", c:"Musik", d:["M2.5 5.5h7v13h-7z", "M14.5 5.5h7v13h-7z", "M7.9 14a1.9 1.9 0 1 1-3.8 0 1.9 1.9 0 0 1 3.8 0z", "M19.9 14a1.9 1.9 0 1 1-3.8 0 1.9 1.9 0 0 1 3.8 0z", "M12 3.5v3", "M12 10.5v3", "M12 17.5v3"] },
   "stop":       { n:"Stopp", c:"Musik", d:["F M7 7h10v10H7z"] },
   "next":       { n:"Nästa", c:"Musik", d:["F M5.5 6v12l9.5-6z", "M18.5 6v12"] },
   "prev":       { n:"Föregående", c:"Musik", d:["F M18.5 6v12L9 12z", "M5.5 6v12"] },
@@ -889,7 +891,8 @@ const BP_NAMES = { open:"Öppna", close:"Stäng", playpause:"Spela/paus", next:"
 const BP_ICONS = { open:"tv", close:"tv-off", playpause:"playpause", next:"next", prev:"prev", wake:"sunrise" };
 const LIGHT_OPS = [["on","Tänd"],["off","Släck"],["toggle","Tänd/släck (växla)"],["dim","Ljusstyrka"],["dim-rel","Ljusare/mörkare (steg)"],["temp","Färgtemperatur"],["temp-rel","Varmare/kallare (steg)"],["color","Färg"],["hue-rel","Färghjul (steg)"],["scene","Scen"]];
 const SP_OPS = [["toggle","Spela/paus"],["play","Spela"],["pause","Pausa"],["next","Nästa spår"],["prev","Föregående spår"],["vol","Volym (fast nivå)"],["vol-rel","Volym upp/ner (steg)"],["playlist","Spela spellista"],["device","Flytta till enhet"],["shuffle","Blanda av/på"],["repeat","Upprepa (växla)"],["like","Gilla låten"],["seek-rel","Spola (steg)"]];
-const SONOS_OPS = [["toggle","Spela/paus"],["play","Spela"],["pause","Pausa"],["next","Nästa spår"],["prev","Föregående spår"],["vol","Volym (fast nivå)"],["vol-rel","Volym upp/ner (steg)"],["mute","Ljud av/på"],["playlist","Spela spellista"],["fav","Spela Sonos-favorit"]];
+const SONOS_OPS = [["toggle","Spela/paus"],["play","Spela"],["pause","Pausa"],["next","Nästa spår"],["prev","Föregående spår"],["vol","Volym (fast nivå)"],["vol-rel","Volym upp/ner (steg)"],["mute","Ljud av/på"],["playlist","Spela spellista"],["fav","Spela Sonos-favorit"],
+  ["group","Gruppera: spela tillsammans med"],["ungroup","Lämna gruppen"],["group-toggle","Gruppera av/på"],["group-all","Alla högtalare tillsammans"],["ungroup-all","Dela upp gruppen"],["move","Flytta musiken hit"]];
 const Z2M_OPS = [["toggle","Växla"],["on","På"],["off","Av"],["brightness","Ljusstyrka"],["brightness-step","Ljusare/mörkare (steg)"],["color_temp","Färgtemperatur"]];
 const DECK_OPS = [["brightness","Ljusstyrka (fast nivå)"],["brightness-rel","Ljusare/mörkare (steg)"],["sleep","Släck knapparna"],["wake","Tänd knapparna"],["sleep-toggle","Släck/tänd knapparna"]];
 const CAT = { sp:"#1ed760", bp:"#5ac8fa", sonos:"#66d4cf", light:"#ffd60a", z2m:"#ff9f0a", nav:"#a5b4fc", sys:"#c9ced6", deck:"#f48fb1" };
@@ -927,7 +930,8 @@ function autoLook(a){
     case "sonos": {
       const v = +a.value || 0;
       const m = { toggle:["playpause","Spela/paus"], play:["play","Spela"], pause:["pause","Pausa"], next:["next","Nästa"], prev:["prev","Föregående"], vol:["vol-up","Volym " + (a.value ?? 30)],
-        "vol-rel":[v < 0 ? "vol-down" : "vol-up", "Volym " + signed(v)], mute:["mute","Ljud av/på"], playlist:["playlist","Spellista"], fav:["heart", a.value || "Favorit"] }[a.op] || ["note","Sonos"];
+        "vol-rel":[v < 0 ? "vol-down" : "vol-up", "Volym " + signed(v)], mute:["mute","Ljud av/på"], playlist:["playlist","Spellista"], fav:["heart", a.value || "Favorit"],
+        group:["group", "+ " + (a.room || "högtalare")], ungroup:["ungroup", "− " + (a.room || "högtalare")], "group-toggle":["group", a.room || "Gruppera"], "group-all":["group","Alla rum"], "ungroup-all":["ungroup","Dela upp"], move:["speaker", "Till " + (a.room || "rum")] }[a.op] || ["note","Sonos"];
       return { icon: m[0], color: CAT.sonos, title: m[1] };
     }
     case "z2m": return { icon: a.op === "on" ? "bulb-on" : a.op === "off" ? "bulb-off" : a.op === "toggle" ? "plug" : "sun", color: CAT.z2m, title: a.dev || "Zigbee" };
@@ -987,6 +991,11 @@ function fieldsFor(a){
       if (a.op === "vol-rel") f.push({ k:"value", label:"Steg", type:"num", min:-50, max:50, def:3, hint:"minus = lägre" });
       if (a.op === "playlist") f.push({ k:"value", label:"Spellista", type:"text", ph:"spotify:playlist:… eller en Spotify-länk", re:false });
       if (a.op === "fav") f.push({ k:"value", label:"Favorit", type:"text", ph:"Namnet som det står i Sonos-appen" });
+      if (a.op === "group" || a.op === "group-toggle") f.push({ k:"value", label:"Tillsammans med", type:"suggest", ph:"(tomt = den högtalare som spelar nu)", sugg: () => [...new Set(["Vardagsrum", ...(LIVE.hub.rooms || [])])] });
+      const gnote = { group:"Rummet ovan börjar spela samma sak som den andra högtalaren.", ungroup:"Rummet ovan lämnar sin grupp och tystnar. De andra spelar vidare.",
+        "group-toggle":"Första trycket lägger till rummet i gruppen, nästa tar bort det.", "group-all":"Alla högtalare i huset spelar det som rummet ovan spelar.",
+        "ungroup-all":"Alla högtalare som spelar tillsammans med rummet ovan lämnar gruppen. Rummet spelar vidare ensamt.", move:"Rummet ovan tar över det som spelas just nu, och högtalaren som spelade tystnar." }[a.op];
+      if (gnote) f.push({ type:"note", text: gnote });
       return f;
     }
     case "z2m": {
@@ -1048,7 +1057,11 @@ const LIBRARY = [
     { id:"s-vol", name:"Volym, fast nivå", make:() => ({ t:"sonos", room:R0, op:"vol", value:30 }) },
     { id:"s-mute", name:"Ljud av/på", make:() => ({ t:"sonos", room:R0, op:"mute" }) },
     { id:"s-pl", name:"Spela spellista", make:() => ({ t:"sonos", room:R0, op:"playlist", value:"" }) },
-    { id:"s-fav", name:"Spela Sonos-favorit", make:() => ({ t:"sonos", room:R0, op:"fav", value:"" }) } ] },
+    { id:"s-fav", name:"Spela Sonos-favorit", make:() => ({ t:"sonos", room:R0, op:"fav", value:"" }) },
+    { id:"s-group", name:"Gruppera högtalare av/på", make:() => ({ t:"sonos", room:"", op:"group-toggle", value:"" }) },
+    { id:"s-groupall", name:"Alla högtalare tillsammans", make:() => ({ t:"sonos", room:R0, op:"group-all" }) },
+    { id:"s-ungroupall", name:"Dela upp gruppen", make:() => ({ t:"sonos", room:R0, op:"ungroup-all" }) },
+    { id:"s-move", name:"Flytta musiken till rum", make:() => ({ t:"sonos", room:"", op:"move" }) } ] },
   { cat:"Belysning", items:[
     { id:"l-two", name:"Tänd/släck, två lägen", ico:"swap", two:() => [{ t:"light", group:defGroup(), op:"on" }, { t:"light", group:defGroup(), op:"off" }] },
     { id:"l-on", name:"Tänd", make:() => ({ t:"light", group:defGroup(), op:"on" }) },
