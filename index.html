@@ -3016,7 +3016,12 @@ async function spDeck(c){
   }
   else if (a === "device"){
     const d2 = await spFindDevice(String(v || ""));
-    if (!d2){ osd('Hittar inte Spotify-enheten "' + v + '"'); return; }
+    if (!d2){
+      // Sonos-högtalare syns ofta inte i Spotifys enhetslista när de står stilla. Låt då hubben
+      // flytta musiken på Sonos-sidan i stället (högtalaren tar över det som spelas just nu).
+      fetch("/api/send?c=" + encodeURIComponent("sonos:" + JSON.stringify({ room: String(v || ""), action: "move" }))).catch(() => {});
+      osd("Flyttar till " + v + " via Sonos"); setTimeout(spPoll, 2500); return;
+    }
     r = await spApi("/me/player", { method:"PUT", headers:J, body: JSON.stringify({ device_ids:[d2.id], play:true }) });
     if (r.status < 300) osd("Spelar på " + d2.name);
   }
