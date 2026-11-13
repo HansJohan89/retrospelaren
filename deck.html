@@ -91,6 +91,9 @@ button{cursor:pointer}
 .lampRow .nm{min-width:0}.lampRow .nm b{display:block;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lampRow .nm small{color:var(--dim);font-size:11px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lampRow input[type=range]{width:100%;min-width:0}
+.spk{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:14px;border:1px solid var(--line);background:var(--panel2);cursor:pointer}
+.spk.on{border-color:var(--acc);background:rgba(76,141,255,.16)}
+.fRow.top{align-items:start}
 .onoff{height:24px;border-radius:12px;border:1px solid var(--line2);background:#101114;color:var(--mut);font-size:11px;padding:0 8px}
 .onoff.on{background:#3a3210;border-color:#ffd60a;color:#ffd60a}
 #stageHint{height:30px;flex:none;text-align:center;color:var(--dim);font-size:12px;padding:0 12px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
@@ -1020,12 +1023,12 @@ function fieldsFor(a){
       return f;
     }
     case "sonos": {
-      const f = [{ k:"room", label:"Rum", type:"suggest", sugg: () => [...new Set(["Vardagsrum", ...(LIVE.hub.rooms || [])])] }, { k:"op", label:"Gör", type:"select", opts: SONOS_OPS, re:true, reset:"value" }];
+      const f = [{ k:"room", label:"Rum", type:"suggest", sugg: () => roomNames() }, { k:"op", label:"Gör", type:"select", opts: SONOS_OPS, re:true, reset:"value" }];
       if (a.op === "vol") f.push({ k:"value", label:"Volym", type:"range", min:0, max:100, def:30 });
       if (a.op === "vol-rel") f.push({ k:"value", label:"Steg", type:"num", min:-50, max:50, def:3, hint:"minus = lägre" });
       if (a.op === "playlist") f.push({ k:"value", label:"Spellista", type:"text", ph:"spotify:playlist:… eller en Spotify-länk", re:false });
       if (a.op === "fav") f.push({ k:"value", label:"Favorit", type:"text", ph:"Namnet som det står i Sonos-appen" });
-      if (a.op === "group" || a.op === "group-toggle") f.push({ k:"value", label:"Tillsammans med", type:"suggest", ph:"(tomt = den högtalare som spelar nu)", sugg: () => [...new Set(["Vardagsrum", ...(LIVE.hub.rooms || [])])] });
+      if (a.op === "group" || a.op === "group-toggle") f.push({ k:"value", label:"Tillsammans med", type:"suggest", ph:"(tomt = den högtalare som spelar nu)", sugg: () => roomNames() });
       const gnote = { group:"Rummet ovan börjar spela samma sak som den andra högtalaren.", ungroup:"Rummet ovan lämnar sin grupp och tystnar. De andra spelar vidare.",
         "group-toggle":"Första trycket lägger till rummet i gruppen, nästa tar bort det.", "group-all":"Alla högtalare i huset spelar det som rummet ovan spelar.",
         "ungroup-all":"Alla högtalare som spelar tillsammans med rummet ovan lämnar gruppen. Rummet spelar vidare ensamt.", move:"Rummet ovan tar över det som spelas just nu, och högtalaren som spelade tystnar." }[a.op];
@@ -1497,12 +1500,15 @@ async function loadSpotify(){
 // Listan över grupper och scener ligger bara i serverns minne och är tom efter en ny version.
 // Be då den som har kontakt med gatewayen (hubben eller monitor.py) att skicka in den igen.
 let askedGroups = false;
+let SPEAKERS = [];                // alla Sonos-högtalare, från hubben
+const roomNames = () => [...new Set(["Vardagsrum", ...SPEAKERS, ...((LIVE.hub && LIVE.hub.rooms) || [])])];
 let LAMPS = [];                   // alla enskilda lampor, från hubben: { id, name, model, room, color, temp, dim }
 async function loadGroups(){
   try {
     const d = await (await fetch("/api/tradfri-list", { cache:"no-store" })).json();
     GROUPS = {}; (d.groups || []).forEach(g => { GROUPS[g.name] = g.moods || []; });
     LAMPS = Array.isArray(d.lamps) ? d.lamps : [];
+    SPEAKERS = Array.isArray(d.speakers) ? d.speakers : [];
     if (!Object.keys(GROUPS).length && !askedGroups){ askedGroups = true; fetch("/api/send?c=tradfri-refresh").catch(() => {}); setTimeout(loadGroups, 7000); }
   } catch(e){}
 }
@@ -2196,7 +2202,6 @@ function sceneModal(openId){
   if (!sceneById(sceneSel)) sceneSel = (deck.scenes[0] || {}).id || null;
   const list = h("div", { class:"scList" }), ed = h("div", { class:"scEd" });
   const m = (fn, re, key) => { mutate(fn, { co:"scene:" + sceneSel + ":" + (key || ""), re:false }); if (re) draw(); else drawList(); };
-  const rooms = () => [...new Set(["Vardagsrum", ...(LIVE.hub.rooms || [])])];
   const drawList = () => {
     list.innerHTML = "";
     deck.scenes.forEach(s => list.append(h("button", { class: s.id === sceneSel ? "on" : "", onclick: () => { sceneSel = s.id; draw(); } },
@@ -2258,14 +2263,20 @@ function sceneModal(openId){
     ed.append(field("Gör", h("select", { class:"in", onchange: e => mset(x => { x.do = e.target.value; if (x.do === "play" && !x.src) x.src = "playlist"; }, true) },
       [["","Rör inte musiken"],["play","Spela"],["pause","Pausa"],["vol","Ändra bara volymen"]].map(([k, t]) => h("option", { value: k, text: t, selected: (mu.do || "") === k })))));
     if (mu.do){
-      ed.append(field("Rum", h("input", { class:"in w", list: dl, value: mu.room || "", placeholder:"(tomt = väckningsrummet på Pi:n)", oninput: e => mset(x => { x.room = e.target.value.trim(); }) }), h("datalist", { id: dl }, rooms().map(r => h("option", { value: r })))));
+      // högtalarna: den först valda styr uppspelningen, övriga spelar tillsammans med den
+      const chosen = [mu.room, ...(mu.with || [])].filter(Boolean), all = [...new Set([...roomNames(), ...chosen])];
+      const setRooms = list => mset(x => { x.room = list[0] || ""; x.with = list.slice(1); }, true);
+      ed.append(h("div", { class:"fRow top" }, h("label", { text:"Högtalare" }), h("div", { class:"ctl" },
+        ...all.map(r => h("label", { class:"spk" + (chosen.includes(r) ? " on" : ""), title: chosen[0] === r && chosen.length > 1 ? "Den här högtalaren styr uppspelningen, de andra spelar tillsammans med den" : "" },
+          h("input", { type:"checkbox", checked: chosen.includes(r), onchange: e => setRooms(e.target.checked ? [...chosen, r] : chosen.filter(x => x !== r)) }), r)),
+        h("button", { class:"lnk mut", title:"Hämta listan över högtalare från hubben igen", text:"uppdatera", onclick: () => { fetch("/api/send?c=lamps-read").catch(() => {}); toast("Ber hubben om högtalarna…"); setTimeout(async () => { await loadGroups(); draw(); }, 5000); } }))));
+      ed.append(h("div", { class:"note", style:{ margin:"-2px 0 8px 114px" }, text: chosen.length ? (chosen.length > 1 && mu.do === "play" ? "Högtalarna grupperas och spelar samma sak." : "") : "Ingen vald = väckningsrummet i hub_config.json på Pi:n." }));
     }
     if (mu.do === "play"){
       ed.append(field("Spela", h("select", { class:"in", onchange: e => mset(x => { x.src = e.target.value; x.value = ""; }, true) },
         [["playlist","Spellista"],["fav","Sonos-favorit"],["resume","Fortsätt där den var"]].map(([k, t]) => h("option", { value: k, text: t, selected: (mu.src || "playlist") === k })))));
       if ((mu.src || "playlist") !== "resume") ed.append(field((mu.src || "playlist") === "fav" ? "Favorit" : "Spellista",
         h("input", { class:"in w", value: mu.value || "", placeholder: mu.src === "fav" ? "Namnet som det står i Sonos-appen" : "Spotify-länk (tomt = väckningsspellistan på Pi:n)", oninput: e => mset(x => { x.value = e.target.value.trim(); }) })));
-      ed.append(field("Spela även i", h("input", { class:"in w", value: (mu.with || []).join(", "), placeholder:"fler rum, med komma emellan (t.ex. Kök, Badrum)", oninput: e => mset(x => { x.with = e.target.value.split(",").map(t => t.trim()).filter(Boolean); }) })));
     }
     if (mu.do === "play" || mu.do === "vol"){
       ed.append(field("Volym", h("input", { class:"in n", type:"number", min:0, max:100, value: mu.vol ?? "", placeholder:"–", style:{ width:"70px" }, oninput: e => mset(x => { x.vol = e.target.value === "" ? null : clamp(+e.target.value || 0, 0, 100); }) }),

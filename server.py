@@ -382,6 +382,8 @@ def set_tradfri_list(patch):
         # alla enskilda lampor (for egna scener under /deck) och deras lage just nu
         if isinstance(patch.get("lamps"), list) and len(patch["lamps"]) <= 300:
             TRADFRI_LIST["lamps"] = [l for l in patch["lamps"] if isinstance(l, dict)]
+        if isinstance(patch.get("speakers"), list) and len(patch["speakers"]) <= 100:
+            TRADFRI_LIST["speakers"] = [str(x)[:80] for x in patch["speakers"]]
         if isinstance(patch.get("states"), dict) and len(patch["states"]) <= 300:
             TRADFRI_LIST["states"] = {str(k): v for k, v in patch["states"].items() if isinstance(v, dict)}
             TRADFRI_LIST["statesAt"] = time.time()
