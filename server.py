@@ -171,6 +171,17 @@ def get_deck():
         return {"rev": DECK_CACHE["rev"], "deck": DECK_CACHE["deck"]}
 
 
+def _face_ok(v):
+    """En knappbild är en data-URL, eller för animerade knappar {"frames": [data-URL ...], "d": [ms ...]}."""
+    def img(x):
+        return isinstance(x, str) and x.startswith("data:image/") and len(x) < 400000
+    if isinstance(v, dict):
+        fr, d = v.get("frames"), v.get("d")
+        return (isinstance(fr, list) and isinstance(d, list) and 0 < len(fr) <= 120 and len(d) == len(fr)
+                and all(img(x) for x in fr) and all(isinstance(x, (int, float)) and 0 < x < 60000 for x in d))
+    return img(v)
+
+
 def save_deck(data):
     """Sparar hela konfigurationen. "faces" (valfritt) ersätter knappbilderna - de är
     nycklade på innehållets kontrollsumma, så samma bild lagras bara en gång."""
@@ -187,8 +198,7 @@ def save_deck(data):
             _write_json(DECK_FILE, {"rev": DECK_CACHE["rev"], "deck": deck})
             faces = data.get("faces")
             if isinstance(faces, dict):
-                faces = {str(k): v for k, v in faces.items()
-                         if isinstance(v, str) and v.startswith("data:image/") and len(v) < 400000}
+                faces = {str(k): v for k, v in faces.items() if _face_ok(v)}
                 DECK_CACHE["faces"] = faces
                 _write_json(DECK_FACES_FILE, {"rev": DECK_CACHE["rev"], "faces": faces})
         except OSError as e:

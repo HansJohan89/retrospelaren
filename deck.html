@@ -1058,8 +1058,8 @@ function effLook(st){
   const kind = b.kind || "grad", c1 = b.c1 || "#272a31";
   return {
     t: { text: t.text != null ? t.text : auto.title, show: t.show !== false, font: t.font || "sans", size: t.size || 17, color: t.color || "#ffffff", bold: t.bold !== false, italic: !!t.italic, pos: t.pos || "bottom" },
-    i: { kind: i.kind || "lib", id: i.id || auto.icon, data: i.data || "", ch: i.ch || "", color: i.color || auto.color, size: i.size || 50, dy: i.dy || 0, w: i.w || 1.8 },
-    b: { kind, c1, c2: kind === "solid" ? c1 : (b.c2 || shade(c1, 0.55)), data: b.data || "" }
+    i: { kind: i.kind || "lib", id: i.id || auto.icon, data: i.data || "", anim: i.anim || "", ch: i.ch || "", color: i.color || auto.color, size: i.size || 50, dy: i.dy || 0, w: i.w || 1.8 },
+    b: { kind, c1, c2: kind === "solid" ? c1 : (b.c2 || shade(c1, 0.55)), data: b.data || "", anim: b.anim || "" }
   };
 }
 const imgCache = {};
@@ -1075,15 +1075,40 @@ function drawCover(ctx, img, x, y, w, h, contain){
   const dw = img.naturalWidth * r, dh = img.naturalHeight * r;
   ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
-function drawFace(ctx, S, look){
+// ---------- animerade bilder (GIF) ----------
+// En uppladdad GIF sparas som ett ark med alla rutor bredvid varandra (deck.assets[id] =
+// { sheet, n, w, h, cols, d:[ms per ruta] }). Utseendet pekar på arket med "anim" och har
+// dessutom första rutan som vanlig stillbild i "data", som reserv.
+const animOf = id => (id && deck && deck.assets && deck.assets[id]) || null;
+const animTotal = a => a.d.reduce((x, y) => x + y, 0);
+function animIndex(a, t){
+  let r = ((t % animTotal(a)) + animTotal(a)) % animTotal(a);
+  for (let k = 0; k < a.n; k++){ if (r < a.d[k]) return k; r -= a.d[k]; }
+  return a.n - 1;
+}
+// Ritar ruta k ur arket i rutan x,y,w,h (täckande eller inpassad).
+function drawAnim(ctx, a, k, x, y, w, h, contain){
+  const sh = getImg(a.sheet); if (!sh) return false;
+  const r = contain ? Math.min(w / a.w, h / a.h) : Math.max(w / a.w, h / a.h), dw = a.w * r, dh = a.h * r;
+  ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+  ctx.drawImage(sh, (k % a.cols) * a.w, Math.floor(k / a.cols) * a.h, a.w, a.h, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+  ctx.restore(); return true;
+}
+const lookAnims = look => look ? [look.b.kind === "img" && animOf(look.b.anim), look.i.kind === "img" && animOf(look.i.anim)].filter(Boolean) : [];
+// Vilka rutor som visas vid tiden t, som en kort text: ändras den ska knappen ritas om.
+const animKey = (look, t) => lookAnims(look).map(a => animIndex(a, t)).join(",");
+
+function drawFace(ctx, S, look, tm){
+  tm = tm || 0;
   ctx.save();
   ctx.clearRect(0, 0, S, S);
   // bakgrund
-  const b = look.b, bgImg = b.kind === "img" ? getImg(b.data) : null;
+  const b = look.b, bgAnim = b.kind === "img" ? animOf(b.anim) : null, bgImg = b.kind === "img" && !bgAnim ? getImg(b.data) : null;
   if (b.kind === "grad"){ const g = ctx.createLinearGradient(0, 0, S * 0.35, S); g.addColorStop(0, b.c1); g.addColorStop(1, b.c2); ctx.fillStyle = g; }
   else ctx.fillStyle = b.kind === "img" ? "#000" : b.c1;
   ctx.fillRect(0, 0, S, S);
-  if (bgImg) drawCover(ctx, bgImg, 0, 0, S, S, false);
+  if (bgAnim){ if (!drawAnim(ctx, bgAnim, animIndex(bgAnim, tm), 0, 0, S, S, false)){ const st = getImg(b.data); if (st) drawCover(ctx, st, 0, 0, S, S, false); } }
+  else if (bgImg) drawCover(ctx, bgImg, 0, 0, S, S, false);
   // titelns rader och höjd bestämmer var ikonen hamnar
   const t = look.t, lines = t.show && t.text ? String(t.text).split("\n").slice(0, 4) : [];
   let fpx = S * t.size / 100;
@@ -1108,8 +1133,9 @@ function drawFace(ctx, S, look){
       ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = i.color;
       ctx.fillText(i.ch, S / 2, cy + isz * 0.04);
     } else if (i.kind === "img"){
-      const im = getImg(i.data);
-      if (im){ ctx.save(); ctx.beginPath(); ctx.roundRect(S / 2 - isz / 2, cy - isz / 2, isz, isz, isz * 0.14); ctx.clip(); drawCover(ctx, im, S / 2 - isz / 2, cy - isz / 2, isz, isz, true); ctx.restore(); }
+      const ia = animOf(i.anim), im = getImg(i.data);
+      if (ia && getImg(ia.sheet)){ ctx.save(); ctx.beginPath(); ctx.roundRect(S / 2 - isz / 2, cy - isz / 2, isz, isz, isz * 0.14); ctx.clip(); drawAnim(ctx, ia, animIndex(ia, tm), S / 2 - isz / 2, cy - isz / 2, isz, isz, true); ctx.restore(); }
+      else if (im){ ctx.save(); ctx.beginPath(); ctx.roundRect(S / 2 - isz / 2, cy - isz / 2, isz, isz, isz * 0.14); ctx.clip(); drawCover(ctx, im, S / 2 - isz / 2, cy - isz / 2, isz, isz, true); ctx.restore(); }
     }
   }
   if (lines.length){
@@ -1122,15 +1148,23 @@ function drawFace(ctx, S, look){
 }
 const scratch = document.createElement("canvas");
 // "Verklig skärpa": rita som enhetens 60x60-skärm faktiskt visar det och förstora.
+const ANIM = new Map();           // canvas -> { look, key }: knappar som just nu visar något animerat
 function paintKey(canvas, look){
   const ctx = canvas.getContext("2d");
-  if (!look){ ctx.clearRect(0, 0, canvas.width, canvas.height); return; }
-  if (!VIEW.real){ drawFace(ctx, canvas.width, look); return; }
-  scratch.width = scratch.height = FACE; drawFace(scratch.getContext("2d"), FACE, look);
+  if (!look){ ANIM.delete(canvas); ctx.clearRect(0, 0, canvas.width, canvas.height); return; }
+  const tm = performance.now();
+  if (lookAnims(look).length) ANIM.set(canvas, { look, key: animKey(look, tm) }); else ANIM.delete(canvas);
+  if (!VIEW.real){ drawFace(ctx, canvas.width, look, tm); return; }
+  scratch.width = scratch.height = FACE; drawFace(scratch.getContext("2d"), FACE, look, tm);
   const small = document.createElement("canvas"); small.width = small.height = 60;
   const sc = small.getContext("2d"); sc.imageSmoothingQuality = "high"; sc.drawImage(scratch, 0, 0, 60, 60);
   ctx.imageSmoothingEnabled = false; ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(small, 0, 0, canvas.width, canvas.height); ctx.imageSmoothingEnabled = true;
 }
+setInterval(() => {
+  if (!ANIM.size || document.hidden) return;
+  const tm = performance.now();
+  ANIM.forEach((e, cv) => { if (!cv.isConnected){ ANIM.delete(cv); return; } if (animKey(e.look, tm) !== e.key) paintKey(cv, e.look); });
+}, 40);
 function hashStr(s){ let h1 = 0x811c9dc5, h2 = 0x1b873593; for (let i = 0; i < s.length; i++){ const c = s.charCodeAt(i); h1 = Math.imul(h1 ^ c, 16777619); h2 = Math.imul(h2 + c, 2246822519) ^ (h2 >>> 13); } return (h1 >>> 0).toString(36) + (h2 >>> 0).toString(36); }
 
 // ---------- tillstånd ----------
@@ -1156,11 +1190,13 @@ const editView = () => { editNav = C.normNav(deck, editNav); return C.resolveVie
 const curNav = () => mode === "use" ? (engine.view(), engine.nav) : (editView(), editNav);
 const curView = () => mode === "use" ? engine.view() : editView();
 
+// Ångra-läget sparas utan de animerade bildarken: de är stora och ändras aldrig, bara läggs till.
+const snap = () => JSON.stringify(deck, (k, v) => k === "assets" ? undefined : v);
 // En ändring av konfigurationen: sparar ångra-läge, kör fn, ritar om och sparar strax efteråt.
 function mutate(fn, o){
   o = o || {};
   const now = Date.now();
-  if (!(o.co && o.co === lastCo && now - lastCoAt < 1500)){ undo.push(JSON.stringify(deck)); if (undo.length > 80) undo.shift(); redo.length = 0; }
+  if (!(o.co && o.co === lastCo && now - lastCoAt < 1500)){ undo.push(snap()); if (undo.length > 80) undo.shift(); redo.length = 0; }
   lastCo = o.co || ""; lastCoAt = now;
   fn();
   scheduleSave();
@@ -1169,7 +1205,8 @@ function mutate(fn, o){
 }
 function doUndo(from, to){
   if (!from.length) return;
-  to.push(JSON.stringify(deck)); deck = C.sanitize(JSON.parse(from.pop())); lastCo = "";
+  const assets = deck.assets;
+  to.push(snap()); deck = C.sanitize(JSON.parse(from.pop())); if (assets) deck.assets = assets; lastCo = "";
   scheduleSave(); renderAll();
 }
 
@@ -1179,6 +1216,7 @@ function scheduleSave(){ dirty = true; setSaveState("Sparar…"); clearTimeout(s
 async function ensureImages(){
   const all = new Set();
   C.eachCtl(deck, c => c.states.forEach(s => { const L = s.look || {}; if (L.i && L.i.data) all.add(L.i.data); if (L.b && L.b.data) all.add(L.b.data); }));
+  Object.values(deck.assets || {}).forEach(a => all.add(a.sheet));
   await Promise.all([...all].map(loadImg));
   if (document.fonts && document.fonts.ready){
     const used = new Set(["sans"]); C.eachCtl(deck, c => c.states.forEach(s => used.add((s.look && s.look.t && s.look.t.font) || "sans")));
@@ -1187,17 +1225,45 @@ async function ensureImages(){
 }
 // Ritar varje knappläge till en färdig bild som den fysiska enheten visar rakt av -
 // det enheten visar är alltså exakt det som syns här.
+const FACE_CACHE = {};            // färdigritade bilder från tidigare sparningar (animationer tar tid att rita)
+// Tidpunkterna då en animerad knapp byter bild, över ett helt varv (högst 80 bilder).
+function animTimeline(look){
+  const as = lookAnims(look), total = Math.min(8000, Math.max(...as.map(animTotal)));
+  const cuts = new Set([0]);
+  as.forEach(a => { let t = 0, k = 0; while (t < total){ cuts.add(Math.round(t)); t += a.d[k % a.n]; k++; } });
+  let ts = [...cuts].filter(t => t < total).sort((x, y) => x - y);
+  if (ts.length > 80) ts = Array.from({ length: 80 }, (_, k) => Math.round(k * total / 80));
+  return { ts, d: ts.map((t, k) => (k + 1 < ts.length ? ts[k + 1] : total) - t) };
+}
 function buildFaces(){
   const faces = {}, map = {}, cv = document.createElement("canvas"); cv.width = cv.height = 120;
   const ctx = cv.getContext("2d");
+  const small = document.createElement("canvas"); small.width = small.height = 96;
+  const sctx = small.getContext("2d");
   const add = (key, look) => {
     const hsh = hashStr(JSON.stringify(look));
-    if (!faces[hsh]){ drawFace(ctx, 120, look); faces[hsh] = cv.toDataURL("image/jpeg", 0.92); }
+    if (!faces[hsh]){
+      if (FACE_CACHE[hsh]) faces[hsh] = FACE_CACHE[hsh];
+      else if (lookAnims(look).length){
+        // animerad knapp: en färdig bild per ruta, som enheten spelar upp i tur och ordning
+        const tl = animTimeline(look);
+        faces[hsh] = { frames: tl.ts.map(t => { drawFace(sctx, 96, look, t + 1); return small.toDataURL("image/jpeg", 0.85); }), d: tl.d };
+      } else { drawFace(ctx, 120, look); faces[hsh] = cv.toDataURL("image/jpeg", 0.92); }
+      FACE_CACHE[hsh] = faces[hsh];
+    }
     map[key] = hsh;
   };
   C.eachCtl(deck, (c, info) => { if (info.kind === "key") c.states.forEach((st, si) => add(c.id + ":" + si, effLook(st))); });
   add("__back", effLook({ a: { t:"back" } }));
   return { faces, map };
+}
+// Animerade bildark som ingen knapp längre pekar på tas bort (görs när sidan läses in, så att
+// ångra alltid hittar sina bilder under tiden man arbetar).
+function gcAssets(){
+  if (!deck.assets) return;
+  const used = new Set();
+  C.eachCtl(deck, c => c.states.forEach(s => { const L = s.look || {}; if (L.i && L.i.anim) used.add(L.i.anim); if (L.b && L.b.anim) used.add(L.b.anim); }));
+  Object.keys(deck.assets).forEach(id => { if (!used.has(id)) delete deck.assets[id]; });
 }
 // Mappar som ingen knapp längre pekar på städas bort (utom den man står i).
 function gcFolders(){
@@ -1225,7 +1291,7 @@ async function publish(){
 async function loadDeck(){
   const j = await (await fetch("/api/deck", { cache:"no-store" })).json();
   myRev = j.rev || 0;
-  if (j.deck){ deck = C.sanitize(j.deck); return false; }
+  if (j.deck){ deck = C.sanitize(j.deck); gcAssets(); return false; }
   deck = C.defaultDeck();
   try {   // första gången: ta med knapparna från den gamla macropaden
     const st = await (await fetch("/api/state", { cache:"no-store" })).json(), s = (st && st.settings) || {};
@@ -1628,15 +1694,22 @@ function profileMenu(ev){
     { label:"Byt namn", ic:"list", fn: async () => { const n = await askText("Profilens namn", cur.name); if (n) mutate(() => { cur.name = n.trim(); }); } },
     { label:"Duplicera", ic:"pages", fn: () => mutate(() => { const p = clone(cur); p.id = C.uid(); p.name = cur.name + " (kopia)"; deck.profiles.push(p); editNav = { p: p.id, pg: 0, stack: [] }; sel = null; }) },
     { label:"Ta bort profilen", ic:"cross", dis: deck.profiles.length < 2, fn: () => mutate(() => { deck.profiles = deck.profiles.filter(p => p !== cur); editNav = { p: deck.profiles[0].id, pg: 0, stack: [] }; sel = null; }) },
-    "-", { label:"Exportera profilen…", ic:"arrow-down", fn: () => download(cur.name + ".deckprofil.json", JSON.stringify({ blaupunktDeck: 2, profile: cur }, null, 1)) },
+    "-", { label:"Exportera profilen…", ic:"arrow-down", fn: () => download(cur.name + ".deckprofil.json", JSON.stringify({ blaupunktDeck: 2, profile: cur, assets: profAssets(cur) }, null, 1)) },
     { label:"Importera profil…", ic:"arrow-up", fn: importProfile });
   openMenu(r.left, r.bottom + 4, items);
 }
 function download(name, text){ const a = h("a", { href: URL.createObjectURL(new Blob([text], { type:"application/json" })), download: name }); document.body.append(a); a.click(); a.remove(); }
 function pickFile(accept){ return new Promise(res => { const f = $("#filePick"); f.value = ""; f.accept = accept; f.onchange = () => res(f.files[0] || null); f.click(); }); }
+function profAssets(prof){
+  const out = {};
+  C.eachCtl({ profiles: [prof] }, c => c.states.forEach(s => { const L = s.look || {}; [L.i && L.i.anim, L.b && L.b.anim].forEach(id => { if (id && animOf(id)) out[id] = animOf(id); }); }));
+  return out;
+}
 async function importProfile(){
   const f = await pickFile(".json,application/json"); if (!f) return;
   try { const d = JSON.parse(await f.text()); const p = d.profile || (d.profiles && d.profiles[0]); if (!p || !Array.isArray(p.pages)) throw 0;
+    if (d.assets && typeof d.assets === "object") deck.assets = Object.assign(deck.assets || {}, d.assets);
+    await Promise.all(Object.values(deck.assets || {}).map(a => loadImg(a.sheet)));
     mutate(() => { const np = clone(p); np.id = C.uid(); deck.profiles.push(np); C.sanitize(deck); editNav = { p: np.id, pg: 0, stack: [] }; sel = null; }); toast("Profilen importerades."); }
   catch(e){ toast("Filen gick inte att läsa som en profil."); }
 }
@@ -1795,8 +1868,9 @@ function lookEditor(st, co){
   // bakgrund
   const bk = eff.b.kind;
   box.append(field("Bakgrund",
-    h("div", { class:"tg txt" }, [["grad","Toning"],["solid","Enfärgad"],["img","Bild"]].map(([v, l]) => h("button", { class: bk === v ? "on" : "", text: l, onclick: async () => {
-      if (v === "img"){ const f = await pickFile("image/*"); if (!f) return; const data = await fileToData(f, 240, true); m(() => { B().kind = "img"; B().data = data; }, true); }
+    h("div", { class:"tg txt" }, [["grad","Toning"],["solid","Enfärgad"],["img","Bild/GIF"]].map(([v, l]) => h("button", { class: bk === v ? "on" : "", text: l, onclick: async () => {
+      if (v === "img"){ const f = await pickFile("image/*"); if (!f) return; let img; try { img = await readImage(f, true); } catch(e){ return toast("Bilden gick inte att läsa."); }
+        m(() => { B().kind = "img"; B().data = img.data; if (img.anim) B().anim = img.anim; else delete B().anim; }, true); }
       else m(() => { B().kind = v; }, true); } }))),
     bk !== "img" ? h("input", { type:"color", value: eff.b.c1, title:"Färg", oninput: e => m(() => { B().c1 = e.target.value; delete B().c2; }) }) : null,
     bk === "grad" ? h("input", { type:"color", value: eff.b.c2, title:"Toningens andra färg", oninput: e => m(() => { B().c2 = e.target.value; }) }) : null,
@@ -1873,10 +1947,60 @@ async function fileToData(file, max, cover){
   URL.revokeObjectURL(url);
   return cover ? cv.toDataURL("image/jpeg", 0.9) : cv.toDataURL("image/png");
 }
+const MAX_FRAMES = 48;
+// Läser en GIF ruta för ruta och gör ett bildark av den. cover = bakgrund (beskärs till en
+// kvadrat), annars ikon (hela bilden, genomskinlighet behålls). Ger null om filen bara har en
+// ruta eller om webbläsaren inte kan läsa animationer.
+async function gifToAnim(file, cover){
+  if (!("ImageDecoder" in window)) { if (/gif/.test(file.type)) toast("Den här webbläsaren kan inte läsa animationer. Bilden blir stilla. Prova Chrome eller Edge."); return null; }
+  let dec;
+  try {
+    dec = new ImageDecoder({ data: await file.arrayBuffer(), type: file.type || "image/gif" });
+    await dec.tracks.ready;
+    const total = dec.tracks.selectedTrack.frameCount;
+    if (!(total > 1)) return null;
+    const step = Math.ceil(total / MAX_FRAMES), n = Math.ceil(total / step);
+    let W = 0, H = 0, cv = null, ctx = null, cols = Math.min(n, 8);
+    const d = [];
+    for (let k = 0; k < total; k++){
+      const { image } = await dec.decode({ frameIndex: k });
+      let ms = Math.round((image.duration || 0) / 1000); if (ms < 20) ms = 100;      // 0 betyder "så fort det går": samma som webbläsare gör
+      const slot = Math.floor(k / step);
+      d[slot] = (d[slot] || 0) + ms;
+      if (k % step === 0){
+        if (!cv){
+          const iw = image.displayWidth, ih = image.displayHeight;
+          if (cover) W = H = 120; else { const r = Math.min(1, 120 / Math.max(iw, ih)); W = Math.max(1, Math.round(iw * r)); H = Math.max(1, Math.round(ih * r)); }
+          cv = document.createElement("canvas"); cv.width = W * cols; cv.height = H * Math.ceil(n / cols); ctx = cv.getContext("2d"); ctx.imageSmoothingQuality = "high";
+        }
+        const x = (slot % cols) * W, y = Math.floor(slot / cols) * H, iw = image.displayWidth, ih = image.displayHeight;
+        const r = cover ? Math.max(W / iw, H / ih) : Math.min(W / iw, H / ih), dw = iw * r, dh = ih * r;
+        ctx.save(); ctx.beginPath(); ctx.rect(x, y, W, H); ctx.clip(); ctx.drawImage(image, x + (W - dw) / 2, y + (H - dh) / 2, dw, dh); ctx.restore();
+      }
+      image.close();
+    }
+    let sheet = cv.toDataURL("image/webp", 0.86);
+    if (!sheet.startsWith("data:image/webp")) sheet = cover ? cv.toDataURL("image/jpeg", 0.88) : cv.toDataURL("image/png");
+    const first = document.createElement("canvas"); first.width = W; first.height = H; first.getContext("2d").drawImage(cv, 0, 0, W, H, 0, 0, W, H);
+    return { asset: { sheet, n, w: W, h: H, cols, d }, first: cover ? first.toDataURL("image/jpeg", 0.9) : first.toDataURL("image/png"), cut: total > n ? total : 0 };
+  } catch(e){ return null; }
+  finally { try { dec && dec.close(); } catch(e){} }
+}
+// Läser in en bildfil till ett utseendefält (ikonen eller bakgrunden): { data, anim }.
+async function readImage(file, cover){
+  const out = { data: "", anim: "" };
+  const g = /gif|webp|apng|png/.test(file.type) ? await gifToAnim(file, cover) : null;
+  if (g){
+    const id = C.uid(); (deck.assets = deck.assets || {})[id] = g.asset; await loadImg(g.asset.sheet);
+    out.data = g.first; out.anim = id;
+    if (g.cut) toast("Animationen har " + g.cut + " rutor. Den kortades till " + g.asset.n + " med samma längd.", 4500);
+  } else out.data = await fileToData(file, cover ? 240 : 192, cover);
+  return out;
+}
 async function setIconFromFile(file, st){
   if (!file || !/^image\//.test(file.type)) return toast("Det där är ingen bild.");
-  try { const data = await fileToData(file, 192, false); const target = st || (getCtl(sel) && getCtl(sel).states[(sel.state | 0) % getCtl(sel).states.length]); if (!target) return;
-    mutate(() => { target.look = target.look || {}; Object.assign(target.look.i = target.look.i || {}, { kind:"img", data }); if (!target.look.i.size) target.look.i.size = 62; }); }
+  try { const img = await readImage(file, false); const target = st || (getCtl(sel) && getCtl(sel).states[(sel.state | 0) % getCtl(sel).states.length]); if (!target) return;
+    mutate(() => { target.look = target.look || {}; const I = target.look.i = target.look.i || {}; Object.assign(I, { kind:"img", data: img.data }); if (img.anim) I.anim = img.anim; else delete I.anim; if (!I.size) I.size = 62; }); }
   catch(e){ toast("Bilden gick inte att läsa."); }
 }
 function iconPicker(st, co){
@@ -1893,14 +2017,14 @@ function iconPicker(st, co){
       const grid = () => { holder.innerHTML = ""; const ql = q.trim().toLowerCase();
         ICON_CATS.forEach(cat => { const ids = Object.keys(ICONS).filter(id => ICONS[id].c === cat && (!ql || (ICONS[id].n + " " + id).toLowerCase().includes(ql))); if (!ids.length) return;
           holder.append(h("div", { class:"gcat", text: cat }), h("div", { class:"iconGrid" }, ids.map(id => h("button", { class: eff().i.kind === "lib" && eff().i.id === id ? "on" : "", title: ICONS[id].n,
-            onclick: () => { mutate(() => { Object.assign(I(), { kind:"lib", id }); delete I().data; }); closeModal(); } }, h("span", { html: iconSvg(id), style:{ display:"inline-flex" } }), h("small", { text: ICONS[id].n }))))); });
+            onclick: () => { mutate(() => { Object.assign(I(), { kind:"lib", id }); delete I().data; delete I().anim; }); closeModal(); } }, h("span", { html: iconSvg(id), style:{ display:"inline-flex" } }), h("small", { text: ICONS[id].n }))))); });
         if (!holder.children.length) holder.append(h("div", { class:"empty", text:"Ingen ikon matchar." })); };
       grid();
     } else if (tab === "img"){
       const dz = h("div", { class:"drop", ondragover: e => { e.preventDefault(); dz.classList.add("dragover"); }, ondragleave: () => dz.classList.remove("dragover"),
         ondrop: async e => { e.preventDefault(); dz.classList.remove("dragover"); if (e.dataTransfer.files[0]){ await setIconFromFile(e.dataTransfer.files[0], st); closeModal(); } } },
         h("div", { html:"<b>Släpp en bild här</b><br>eller" }), h("button", { class:"sbtnS pri", style:{ marginTop:"8px" }, text:"Välj bildfil…", onclick: async () => { const f = await pickFile("image/*"); if (f){ await setIconFromFile(f, st); closeModal(); } } }),
-        h("div", { class:"note", html:"PNG med genomskinlig bakgrund ger snyggast resultat. Bilden krymps till högst 192 punkter.<br>Du kan också släppa en bild direkt på en knapp på enheten." }));
+        h("div", { class:"note", html:"PNG med genomskinlig bakgrund ger snyggast resultat. Bilden krymps till högst 192 punkter.<br>En animerad GIF spelas upp på knappen, både här och på enheten.<br>Du kan också släppa en bild direkt på en knapp på enheten." }));
       body.append(dz);
     } else {
       const inp = h("input", { class:"in", style:{ width:"120px", fontSize:"18px", textAlign:"center" }, maxLength: 4, value: eff().i.kind === "emoji" ? eff().i.ch : "", placeholder:"A1" });
