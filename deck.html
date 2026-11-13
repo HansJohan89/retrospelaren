@@ -796,6 +796,54 @@ function drawIcon(ctx, id, cx, cy, size, color, weight){
   for (const it of paths){ if (it.fill) ctx.fill(it.p); ctx.stroke(it.p); }
   ctx.restore();
 }
+
+// ---------- animerade ikoner ----------
+// Ritas direkt på ytan i samma 24-rutors mått som biblioteket. p går från 0 till 1 över ett varv
+// och varje ikon börjar om utan skarv. col = färg, w = linjebredd.
+const AICONS = (() => {
+  const TAU = Math.PI * 2, sin = x => Math.sin(TAU * x), up = x => 0.5 + 0.5 * Math.sin(TAU * x);
+  const frac = x => x - Math.floor(x), bump = (p, c, wd) => Math.exp(-Math.pow((frac(p - c + 0.5) - 0.5) / wd, 2));
+  const line = (c, x1, y1, x2, y2) => { c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); };
+  const circ = (c, x, y, r, fill) => { c.beginPath(); c.arc(x, y, r, 0, TAU); fill ? c.fill() : c.stroke(); };
+  const arc = (c, x, y, r, a0, a1) => { c.beginPath(); c.arc(x, y, r, a0, a1); c.stroke(); };
+  const about = (c, x, y, fn) => { c.save(); c.translate(x, y); fn(); c.restore(); };
+  const P = {};
+  const path = d => P[d] || (P[d] = new Path2D(d));
+  const seq = (p, k, n) => 0.18 + 0.82 * Math.max(0, sin(p - k / (n + 1.5)));       // tänds i tur och ordning
+  return {
+    eq: { n: "Equalizer", d(c, p){ [[6, 1, 0], [10, 2, 0.3], [14, 1, 0.55], [18, 2, 0.8]].forEach(([x, m, f]) => line(c, x, 19, x, 19 - (3 + 11 * up(p * m + f)))); } },
+    wave: { n: "Ljudvåg", d(c, p){ c.beginPath(); for (let x = 3; x <= 21; x += 0.5){ const y = 12 + 5.5 * Math.sin(Math.PI * (x - 3) / 18) * Math.sin(TAU * (x / 9 - p)); x === 3 ? c.moveTo(x, y) : c.lineTo(x, y); } c.stroke(); } },
+    vinyl: { n: "Skiva", d(c, p){ circ(c, 12, 12, 9); circ(c, 12, 12, 2.6); circ(c, 12, 12, 0.6, true); const a = TAU * p; c.globalAlpha *= 0.75; arc(c, 12, 12, 5.8, a - 0.55, a + 0.55); arc(c, 12, 12, 5.8, a + Math.PI - 0.55, a + Math.PI + 0.55); } },
+    speaker: { n: "Högtalare", d(c, p){ c.fill(path("M3.5 9.5h3.2L11 6v12l-4.3-3.5H3.5z")); c.stroke(path("M3.5 9.5h3.2L11 6v12l-4.3-3.5H3.5z")); const ga = c.globalAlpha; [3.2, 6.4, 9.6].forEach((r, k) => { c.globalAlpha = ga * seq(p, k, 3); arc(c, 11.5, 12, r, -0.75, 0.75); }); } },
+    playpulse: { n: "Spela, puls", d(c, p){ const ga = c.globalAlpha; c.globalAlpha = ga * (1 - p); circ(c, 12, 12, 6.5 + 4.5 * p); c.globalAlpha = ga; about(c, 12, 12, () => { const s = 1 + 0.07 * sin(p); c.scale(s, s); c.translate(-12, -12); c.fill(path("M9.3 7.2v9.6l8-4.8z")); c.stroke(path("M9.3 7.2v9.6l8-4.8z")); }); } },
+    heart: { n: "Hjärtslag", d(c, p){ about(c, 12, 12.5, () => { const s = 0.88 + 0.2 * bump(p, 0.12, 0.07) + 0.12 * bump(p, 0.34, 0.07); c.scale(s, s); c.translate(-12, -12.5); const h = path("M12 20.2s-7.6-4.6-7.6-10.3A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.6 2.7c0 5.7-7.6 10.3-7.6 10.3z"); c.fill(h); c.stroke(h); }); } },
+    bulb: { n: "Lampa, strålar", d(c, p){ c.stroke(path("M9.5 17.5h5M10.3 20.3h3.4M9.2 14.6a5.6 5.6 0 1 1 5.6 0c-.5.4-.8 1-.8 1.7v1.2h-4v-1.2c0-.7-.3-1.3-.8-1.7z")); const ga = c.globalAlpha, k = up(p); c.globalAlpha = ga * (0.35 + 0.65 * k); [-150, -120, -90, -60, -30].forEach(deg => { const a = deg * Math.PI / 180, r0 = 8.2, r1 = 9.4 + 1.5 * k; line(c, 12 + r0 * Math.cos(a), 9.8 + r0 * Math.sin(a), 12 + r1 * Math.cos(a), 9.8 + r1 * Math.sin(a)); }); } },
+    sun: { n: "Sol", d(c, p){ circ(c, 12, 12, 3.8); for (let k = 0; k < 8; k++){ const a = TAU * (k + 2 * p) / 8, r1 = 8.2 + 1.3 * up(p * 2 + k / 2); line(c, 12 + 6.3 * Math.cos(a), 12 + 6.3 * Math.sin(a), 12 + r1 * Math.cos(a), 12 + r1 * Math.sin(a)); } } },
+    spinner: { n: "Laddar", d(c, p){ const ga = c.globalAlpha; c.globalAlpha = ga * 0.22; circ(c, 12, 12, 8); c.globalAlpha = ga; const a = TAU * p * 2 + 0.8 * sin(p), len = Math.PI * (0.55 + 0.4 * up(p)); arc(c, 12, 12, 8, a, a + len); } },
+    dots: { n: "Tre punkter", d(c, p){ [6, 12, 18].forEach((x, k) => circ(c, x, 14 - 5 * Math.max(0, sin(p - k * 0.14)), 1.9, true)); } },
+    bell: { n: "Klocka som ringer", d(c, p){ const a = 0.3 * sin(p * 2) * (0.35 + 0.65 * up(p - 0.25)); about(c, 12, 4, () => { c.rotate(a); c.translate(-12, -4); c.stroke(path("M6.2 16.5v-5.2a5.8 5.8 0 0 1 11.6 0v5.2l1.6 2H4.6z")); c.translate(1.6 * Math.sin(-a * 3), 0); c.stroke(path("M10 20.4a2 2 0 0 0 4 0")); }); } },
+    flame: { n: "Låga", d(c, p){ const fl = (w, sc, cx, cy) => about(c, cx, cy, () => { c.scale(sc, sc); c.beginPath(); c.moveTo(w, -9.3); c.bezierCurveTo(0.8, -4.5, 6, -2.6, 6, 2.2); c.bezierCurveTo(6, 6, 3.2, 8.2, 0, 8.2); c.bezierCurveTo(-3.2, 8.2, -6, 6, -6, 2.2); c.bezierCurveTo(-6, -1.6, -1.4, -3.2, w, -9.3); c.closePath(); c.stroke(); }); fl(1.3 * sin(p) + 0.6 * sin(p * 2 + 0.2), 1, 12, 12.6); const lw = c.lineWidth; c.lineWidth = lw / 0.45; fl(1.6 * sin(p * 2 + 0.4), 0.45, 12, 16.6); c.lineWidth = lw; } },
+    stars: { n: "Stjärnglitter", d(c, p){ [[8.5, 10, 5, 0], [17, 6.5, 3, 0.35], [16.5, 16.5, 3.6, 0.7]].forEach(([x, y, s0, f]) => about(c, x, y, () => { const s = s0 * (0.5 + 0.5 * up(p + f)); c.globalAlpha *= 0.45 + 0.55 * up(p + f); c.beginPath(); c.moveTo(0, -s); c.quadraticCurveTo(0, 0, s, 0); c.quadraticCurveTo(0, 0, 0, s); c.quadraticCurveTo(0, 0, -s, 0); c.quadraticCurveTo(0, 0, 0, -s); c.fill(); c.stroke(); })); } },
+    signal: { n: "Signal", d(c, p){ circ(c, 12, 18.5, 1.3, true); const ga = c.globalAlpha; [4.5, 8.5, 12.5].forEach((r, k) => { c.globalAlpha = ga * seq(p, k, 3); arc(c, 12, 18.5, r, -Math.PI * 0.76, -Math.PI * 0.24); }); } },
+    timer: { n: "Timer", d(c, p){ circ(c, 12, 13, 8); line(c, 10, 2.8, 14, 2.8); line(c, 12, 2.8, 12, 5); const a = TAU * p - Math.PI / 2; line(c, 12, 13, 12 + 5.3 * Math.cos(a), 13 + 5.3 * Math.sin(a)); circ(c, 12, 13, 0.7, true); } },
+    rain: { n: "Regn", d(c, p){ c.stroke(path("M7.2 13.4a3.9 3.9 0 0 1 .5-7.7 5.4 5.4 0 0 1 10.3 1.5 3.2 3.2 0 0 1-.4 6.2z")); const ga = c.globalAlpha; [[8.5, 0], [12.5, 0.4], [16.5, 0.75]].forEach(([x, f]) => { const q = frac(p + f); c.globalAlpha = ga * Math.sin(Math.PI * q); line(c, x - q * 1.2, 15.6 + q * 4.6, x - q * 1.2 - 0.5, 15.6 + q * 4.6 + 1.7); }); } },
+    notes: { n: "Noter", d(c, p){ const ga = c.globalAlpha; [[8.5, 0, 1], [15.5, 0.5, 0.82]].forEach(([x0, f, sc]) => { const q = frac(p + f); c.globalAlpha = ga * Math.sin(Math.PI * q); about(c, x0 + 1.4 * Math.sin(TAU * q), 18 - 10 * q, () => { c.scale(sc, sc); c.beginPath(); c.ellipse(-1.6, 2.6, 2.1, 1.6, -0.3, 0, TAU); c.fill(); c.stroke(); c.beginPath(); c.moveTo(0.4, 2.3); c.lineTo(0.4, -4.6); c.quadraticCurveTo(2.6, -3.8, 3.4, -1.6); c.stroke(); }); }); } },
+    power: { n: "Strömknapp, puls", d(c, p){ const k = up(p); c.shadowColor = c.strokeStyle; c.shadowBlur = 5 * k; c.globalAlpha *= 0.5 + 0.5 * k; arc(c, 12, 13, 7.2, -Math.PI / 2 + 0.72, -Math.PI / 2 - 0.72 + TAU); line(c, 12, 3.8, 12, 12); } },
+    chevrons: { n: "Pilar framåt", d(c, p){ const ga = c.globalAlpha; [5, 10.5, 16].forEach((x, k) => { c.globalAlpha = ga * seq(p, k, 3); c.beginPath(); c.moveTo(x, 7); c.lineTo(x + 4.6, 12); c.lineTo(x, 17); c.stroke(); }); } },
+    rec: { n: "Inspelning", d(c, p){ circ(c, 12, 12, 9); c.globalAlpha *= 0.2 + 0.8 * up(p + 0.25); circ(c, 12, 12, 4.6, true); } },
+    sleep: { n: "Sover", d(c, p){ const ga = c.globalAlpha; [[0, 3.4], [0.34, 2.6], [0.67, 2]].forEach(([f, s]) => { const q = frac(p + f); c.globalAlpha = ga * Math.sin(Math.PI * q); about(c, 7 + 9 * q, 18 - 12 * q, () => { c.beginPath(); c.moveTo(-s, -s); c.lineTo(s, -s); c.lineTo(-s, s); c.lineTo(s, s); c.stroke(); }); }); } }
+  };
+})();
+function drawAIcon(ctx, id, cx, cy, size, color, weight, p){
+  const ic = AICONS[id]; if (!ic) return;
+  const k = size / 24;
+  ctx.save();
+  ctx.translate(cx - size / 2, cy - size / 2); ctx.scale(k, k);
+  ctx.lineWidth = weight || 1.8; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.strokeStyle = color; ctx.fillStyle = color;
+  ic.d(ctx, ((p % 1) + 1) % 1);
+  ctx.restore();
+}
 </script>
 <script id="app">
 "use strict";
@@ -1057,8 +1105,8 @@ function effLook(st){
   const L = st.look || {}, t = L.t || {}, i = L.i || {}, b = L.b || {}, auto = autoLook(st.a);
   const kind = b.kind || "grad", c1 = b.c1 || "#272a31";
   return {
-    t: { text: t.text != null ? t.text : auto.title, show: t.show !== false, font: t.font || "sans", size: t.size || 17, color: t.color || "#ffffff", bold: t.bold !== false, italic: !!t.italic, pos: t.pos || "bottom" },
-    i: { kind: i.kind || "lib", id: i.id || auto.icon, data: i.data || "", anim: i.anim || "", ch: i.ch || "", color: i.color || auto.color, size: i.size || 50, dy: i.dy || 0, w: i.w || 1.8 },
+    t: { text: t.text != null ? t.text : auto.title, show: t.show !== false, font: t.font || "sans", size: t.size || 17, color: t.color || "#ffffff", bold: t.bold !== false, italic: !!t.italic, pos: t.pos || "bottom", fx: t.fx || "", sp: t.sp || "n" },
+    i: { kind: i.kind || "lib", id: i.id || auto.icon, data: i.data || "", anim: i.anim || "", ch: i.ch || "", color: i.color || auto.color, size: i.size || 50, dy: i.dy || 0, w: i.w || 1.8, fx: i.fx || "", sp: i.sp || "n" },
     b: { kind, c1, c2: kind === "solid" ? c1 : (b.c2 || shade(c1, 0.55)), data: b.data || "", anim: b.anim || "" }
   };
 }
@@ -1095,11 +1143,90 @@ function drawAnim(ctx, a, k, x, y, w, h, contain){
   ctx.restore(); return true;
 }
 const lookAnims = look => look ? [look.b.kind === "img" && animOf(look.b.anim), look.i.kind === "img" && animOf(look.i.anim)].filter(Boolean) : [];
-// Vilka rutor som visas vid tiden t, som en kort text: ändras den ska knappen ritas om.
-const animKey = (look, t) => lookAnims(look).map(a => animIndex(a, t)).join(",");
+// ---------- rörelse på ikon och text ----------
+const SPEEDS = { s: 2400, n: 1200, f: 600 };                       // ett varv i millisekunder
+const ICON_FX = { "": "Ingen", pulse: "Pulsera", beat: "Hjärtslag", spin: "Snurra", swing: "Gunga", bounce: "Studsa", float: "Sväva", shake: "Skaka", blink: "Blinka", glow: "Glöd" };
+const TEXT_FX = { "": "Ingen", marquee: "Rulla", wave: "Våg", bounce: "Studsa", pulse: "Pulsera", blink: "Blinka", rainbow: "Regnbåge", type: "Skrivmaskin", glow: "Glöd" };
+const fontOfLook = (t, px) => `${t.italic ? "italic " : ""}${t.bold ? "700" : "500"} ${px}px ${FONTS[t.font] ? FONTS[t.font][1] : FONTS.sans[1]}`;
+const mctx = document.createElement("canvas").getContext("2d");
+// Hur knappen rör sig: hur långt ett helt varv är (total, 0 = stilla) och varvtiden för ikonens och
+// textens rörelse. De sistnämnda jämkas så att de går jämnt upp i hela varvet, så att
+// uppspelningen på enheten kan börja om utan hack.
+function animPlan(look){
+  const t = look.t, i = look.i, gifs = lookAnims(look).map(animTotal);
+  const hasText = t.show && t.text, hasIcon = i.kind !== "none";
+  let ip = 0, tp = 0;
+  if (hasIcon && (i.kind === "anim" || i.fx)) ip = SPEEDS[i.sp] || SPEEDS.n;
+  if (hasText && t.fx){
+    tp = SPEEDS[t.sp] || SPEEDS.n;
+    if (t.fx === "marquee"){            // varvtiden följer textens längd, så att farten blir densamma för kort och lång text
+      mctx.font = fontOfLook(t, 120 * t.size / 100);
+      const wdt = mctx.measureText(String(t.text).replace(/\n/g, " ")).width + 120 * 0.4;
+      tp = Math.round(wdt / (120 * ({ s: 0.3, n: 0.5, f: 0.85 }[t.sp] || 0.5)) * 1000);
+    } else if (t.fx === "type") tp *= 2.5;
+    else if (t.fx === "rainbow") tp *= 2;
+  }
+  const total = Math.min(8000, Math.max(0, ip, tp, ...gifs));
+  const fit = p => p ? total / Math.max(1, Math.round(total / p)) : 0;
+  return { total, ip: fit(ip), tp: fit(tp), proc: !!(ip || tp), gifs: gifs.length > 0 };
+}
+const isAnimated = look => !!look && animPlan(look).total > 0;
+// Ändras den här texten ska knappen ritas om.
+const animKey = (look, t) => animPlan(look).proc ? String(Math.floor(t / 40)) : lookAnims(look).map(a => animIndex(a, t)).join(",");
+const TAU = Math.PI * 2;
+// Ikonens rörelse: flyttar, vrider eller tonar ritytan kring ikonens mitt.
+function iconFx(ctx, fx, p, cx, cy, isz, color){
+  const s = Math.sin(TAU * p), u = 0.5 + 0.5 * s;
+  const about = fn => { ctx.translate(cx, cy); fn(); ctx.translate(-cx, -cy); };
+  if (fx === "pulse") about(() => ctx.scale(1 + 0.12 * s, 1 + 0.12 * s));
+  else if (fx === "beat"){ const b = (c, w) => Math.exp(-Math.pow((((p - c + 1.5) % 1) - 0.5) / w, 2)), k = 0.92 + 0.2 * b(0.12, 0.07) + 0.12 * b(0.34, 0.07); about(() => ctx.scale(k, k)); }
+  else if (fx === "spin") about(() => ctx.rotate(TAU * p));
+  else if (fx === "swing") about(() => ctx.rotate(0.32 * s));
+  else if (fx === "bounce"){ const q = Math.abs(Math.sin(Math.PI * p)), sq = 1 - 0.1 * Math.pow(1 - q, 6); ctx.translate(0, -q * isz * 0.2 + isz * 0.06); about(() => ctx.scale(2 - sq, sq)); }
+  else if (fx === "float") ctx.translate(0, s * isz * 0.07);
+  else if (fx === "shake") ctx.translate(Math.sin(TAU * p * 5) * isz * 0.07 * Math.max(0, Math.sin(Math.PI * Math.min(1, p * 2))), 0);
+  else if (fx === "blink") ctx.globalAlpha *= 0.25 + 0.75 * (0.5 + 0.5 * Math.cos(TAU * p));
+  else if (fx === "glow"){ ctx.shadowColor = color; ctx.shadowBlur = isz * (0.08 + 0.3 * u); ctx.globalAlpha *= 0.75 + 0.25 * u; }
+}
+// Titelns rader med vald rörelse. lines = raderna, y0 = första radens mitt, lh = radhöjd.
+function drawTitle(ctx, S, t, lines, fpx, y0, lh, p){
+  const fx = t.fx, s = Math.sin(TAU * p), u = 0.5 + 0.5 * s;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = t.color;
+  ctx.shadowColor = "rgba(0,0,0,.8)"; ctx.shadowBlur = S * 0.035; ctx.shadowOffsetY = S * 0.008;
+  if (fx === "marquee"){
+    const txt = lines.join(" "), wdt = ctx.measureText(txt).width + S * 0.4, y = y0 + (lines.length - 1) * lh / 2;
+    ctx.textAlign = "left";
+    for (let x = S * 0.08 - p * wdt; x < S; x += wdt) ctx.fillText(txt, x, y);
+    return;
+  }
+  if (fx === "blink") ctx.globalAlpha *= 0.15 + 0.85 * (0.5 + 0.5 * Math.cos(TAU * p));
+  if (fx === "glow"){ ctx.shadowColor = t.color; ctx.shadowBlur = S * (0.02 + 0.12 * u); ctx.shadowOffsetY = 0; }
+  const count = lines.reduce((n, l) => n + l.length, 0), shown = fx === "type" ? Math.floor((count + 1) * Math.min(1, p / 0.62)) : count;
+  let idx = 0;
+  lines.forEach((l, n) => {
+    let y = y0 + n * lh;
+    if (fx === "bounce") y -= Math.abs(Math.sin(Math.PI * p)) * fpx * 0.45 - fpx * 0.1;
+    if (fx === "pulse"){ ctx.save(); ctx.translate(S / 2, y); ctx.scale(1 + 0.09 * s, 1 + 0.09 * s); ctx.fillText(l, 0, 0); ctx.restore(); return; }
+    if (fx === "wave" || fx === "rainbow" || fx === "type"){
+      // tecken för tecken, så att vart och ett kan få egen höjd, färg eller synlighet
+      const chars = Array.from(l), ws = chars.map(ch => ctx.measureText(ch).width), full = ctx.measureText(l).width, k = full / (ws.reduce((a, b) => a + b, 0) || 1);
+      let x = S / 2 - full / 2;
+      chars.forEach((ch, ci) => {
+        const wch = ws[ci] * k, id = idx++;
+        if (fx === "type" && id >= shown){ x += wch; return; }
+        if (fx === "rainbow") ctx.fillStyle = `hsl(${Math.round(360 * p + id * 26) % 360} 95% 66%)`;
+        ctx.fillText(ch, x + wch / 2, y + (fx === "wave" ? Math.sin(TAU * (p - id * 0.11)) * fpx * 0.2 : 0));
+        x += wch;
+      });
+      return;
+    }
+    ctx.fillText(l, S / 2, y);
+  });
+}
 
 function drawFace(ctx, S, look, tm){
   tm = tm || 0;
+  const plan = animPlan(look), ph = per => per ? (tm % per) / per : 0;
   ctx.save();
   ctx.clearRect(0, 0, S, S);
   // bakgrund
@@ -1110,10 +1237,12 @@ function drawFace(ctx, S, look, tm){
   if (bgAnim){ if (!drawAnim(ctx, bgAnim, animIndex(bgAnim, tm), 0, 0, S, S, false)){ const st = getImg(b.data); if (st) drawCover(ctx, st, 0, 0, S, S, false); } }
   else if (bgImg) drawCover(ctx, bgImg, 0, 0, S, S, false);
   // titelns rader och höjd bestämmer var ikonen hamnar
-  const t = look.t, lines = t.show && t.text ? String(t.text).split("\n").slice(0, 4) : [];
+  const t = look.t;
+  let lines = t.show && t.text ? String(t.text).split("\n").slice(0, 4) : [];
+  if (lines.length && t.fx === "marquee") lines = [lines.join(" ")];          // rullande text går på en rad
   let fpx = S * t.size / 100;
-  const fontOf = px => `${t.italic ? "italic " : ""}${t.bold ? "700" : "500"} ${px}px ${FONTS[t.font] ? FONTS[t.font][1] : FONTS.sans[1]}`;
-  if (lines.length){
+  const fontOf = px => fontOfLook(t, px);
+  if (lines.length && t.fx !== "marquee"){
     ctx.font = fontOf(fpx);
     const widest = Math.max(...lines.map(l => ctx.measureText(l).width));
     if (widest > S * 0.92) fpx = Math.max(S * 0.085, fpx * S * 0.92 / widest);
@@ -1127,7 +1256,10 @@ function drawFace(ctx, S, look, tm){
   let isz = S * i.size / 100;
   if (lines.length && t.pos !== "middle") isz = Math.min(isz, (S - th - S * 0.15));
   if (hasIcon){
+    ctx.save();
+    if (i.fx) iconFx(ctx, i.fx, ph(plan.ip), S / 2, cy, isz, i.color);
     if (i.kind === "lib") drawIcon(ctx, i.id, S / 2, cy, isz, i.color, i.w);
+    else if (i.kind === "anim") drawAIcon(ctx, i.id, S / 2, cy, isz, i.color, i.w, ph(plan.ip));
     else if (i.kind === "emoji"){
       ctx.font = `700 ${isz * 0.86}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji","Segoe UI",sans-serif`;
       ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = i.color;
@@ -1137,12 +1269,12 @@ function drawFace(ctx, S, look, tm){
       if (ia && getImg(ia.sheet)){ ctx.save(); ctx.beginPath(); ctx.roundRect(S / 2 - isz / 2, cy - isz / 2, isz, isz, isz * 0.14); ctx.clip(); drawAnim(ctx, ia, animIndex(ia, tm), S / 2 - isz / 2, cy - isz / 2, isz, isz, true); ctx.restore(); }
       else if (im){ ctx.save(); ctx.beginPath(); ctx.roundRect(S / 2 - isz / 2, cy - isz / 2, isz, isz, isz * 0.14); ctx.clip(); drawCover(ctx, im, S / 2 - isz / 2, cy - isz / 2, isz, isz, true); ctx.restore(); }
     }
+    ctx.restore();
   }
   if (lines.length){
-    ctx.font = fontOf(fpx); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = t.color;
-    ctx.shadowColor = "rgba(0,0,0,.8)"; ctx.shadowBlur = S * 0.035; ctx.shadowOffsetY = S * 0.008;
-    let y0 = t.pos === "bottom" ? S - S * 0.07 - th + lh / 2 : t.pos === "top" ? S * 0.07 + lh / 2 : (S - th) / 2 + lh / 2;
-    lines.forEach((l, n) => ctx.fillText(l, S / 2, y0 + n * lh));
+    ctx.font = fontOf(fpx);
+    const y0 = t.pos === "bottom" ? S - S * 0.07 - th + lh / 2 : t.pos === "top" ? S * 0.07 + lh / 2 : (S - th) / 2 + lh / 2;
+    drawTitle(ctx, S, t, lines, fpx, y0, lh, ph(plan.tp));
   }
   ctx.restore();
 }
@@ -1153,7 +1285,7 @@ function paintKey(canvas, look){
   const ctx = canvas.getContext("2d");
   if (!look){ ANIM.delete(canvas); ctx.clearRect(0, 0, canvas.width, canvas.height); return; }
   const tm = performance.now();
-  if (lookAnims(look).length) ANIM.set(canvas, { look, key: animKey(look, tm) }); else ANIM.delete(canvas);
+  if (isAnimated(look)) ANIM.set(canvas, { look, key: animKey(look, tm) }); else ANIM.delete(canvas);
   if (!VIEW.real){ drawFace(ctx, canvas.width, look, tm); return; }
   scratch.width = scratch.height = FACE; drawFace(scratch.getContext("2d"), FACE, look, tm);
   const small = document.createElement("canvas"); small.width = small.height = 60;
@@ -1228,9 +1360,10 @@ async function ensureImages(){
 const FACE_CACHE = {};            // färdigritade bilder från tidigare sparningar (animationer tar tid att rita)
 // Tidpunkterna då en animerad knapp byter bild, över ett helt varv (högst 80 bilder).
 function animTimeline(look){
-  const as = lookAnims(look), total = Math.min(8000, Math.max(...as.map(animTotal)));
+  const plan = animPlan(look), total = plan.total;
   const cuts = new Set([0]);
-  as.forEach(a => { let t = 0, k = 0; while (t < total){ cuts.add(Math.round(t)); t += a.d[k % a.n]; k++; } });
+  lookAnims(look).forEach(a => { let t = 0, k = 0; while (t < total){ cuts.add(Math.round(t)); t += a.d[k % a.n]; k++; } });
+  if (plan.proc){ const n = Math.min(80, Math.round(total / 83)); for (let k = 0; k < n; k++) cuts.add(Math.round(k * total / n)); }   // rörelse: cirka tolv bilder i sekunden
   let ts = [...cuts].filter(t => t < total).sort((x, y) => x - y);
   if (ts.length > 80) ts = Array.from({ length: 80 }, (_, k) => Math.round(k * total / 80));
   return { ts, d: ts.map((t, k) => (k + 1 < ts.length ? ts[k + 1] : total) - t) };
@@ -1244,10 +1377,10 @@ function buildFaces(){
     const hsh = hashStr(JSON.stringify(look));
     if (!faces[hsh]){
       if (FACE_CACHE[hsh]) faces[hsh] = FACE_CACHE[hsh];
-      else if (lookAnims(look).length){
+      else if (isAnimated(look)){
         // animerad knapp: en färdig bild per ruta, som enheten spelar upp i tur och ordning
         const tl = animTimeline(look);
-        faces[hsh] = { frames: tl.ts.map(t => { drawFace(sctx, 96, look, t + 1); return small.toDataURL("image/jpeg", 0.85); }), d: tl.d };
+        faces[hsh] = { frames: tl.ts.map(t => { drawFace(sctx, 96, look, t + 0.01); return small.toDataURL("image/jpeg", 0.85); }), d: tl.d };
       } else { drawFace(ctx, 120, look); faces[hsh] = cv.toDataURL("image/jpeg", 0.92); }
       FACE_CACHE[hsh] = faces[hsh];
     }
@@ -1854,17 +1987,23 @@ function lookEditor(st, co){
     h("div", { class:"tg txt" }, [["top","Uppe"],["middle","Mitt"],["bottom","Nere"]].map(([v, l]) => h("button", { class: eff.t.pos === v ? "on" : "", text: l, onclick: () => m(() => { T().pos = v; }, true) }))),
     h("input", { type:"color", value: eff.t.color, title:"Textfärg", oninput: e => m(() => { T().color = e.target.value; }) }),
     h("label", { style:{ display:"inline-flex", gap:"5px", alignItems:"center", color:"var(--mut)" } }, h("input", { type:"checkbox", checked: eff.t.show, onchange: e => m(() => { T().show = e.target.checked; }) }), "Visa")));
+  const fxRow = (label, list, cur, sp, showSp, setFx, setSp) => field(label,
+    h("select", { class:"in", onchange: e => m(() => setFx(e.target.value), true) }, Object.entries(list).map(([k, l]) => h("option", { value: k, text: l, selected: cur === k }))),
+    showSp ? h("div", { class:"tg txt" }, [["s","Långsam"],["n","Normal"],["f","Snabb"]].map(([v, l]) => h("button", { class: (sp || "n") === v ? "on" : "", text: l, onclick: () => m(() => setSp(v), true) }))) : null);
+  box.append(fxRow("Textrörelse", TEXT_FX, eff.t.fx, eff.t.sp, !!eff.t.fx, v => { if (v) T().fx = v; else delete T().fx; }, v => { T().sp = v; }));
   // ikon
   const ib = h("button", { class:"iconBtn", title:"Välj ikon", onclick: () => iconPicker(st, co) });
   if (eff.i.kind === "img" && eff.i.data) ib.append(h("img", { src: eff.i.data }));
   else if (eff.i.kind === "emoji") ib.append(h("span", { text: eff.i.ch, style:{ fontSize:"24px", color: eff.i.color } }));
   else if (eff.i.kind === "none") ib.append(h("span", { text:"–", style:{ color:"var(--dim)" } }));
+  else if (eff.i.kind === "anim") ib.append(aiconCanvas(eff.i.id, eff.i.color, 30));
   else ib.append(h("span", { html: iconSvg(eff.i.id), style:{ color: eff.i.color, display:"inline-flex" } }));
   box.append(field("Ikon", ib,
     h("div", {}, h("div", { class:"swatches", style:{ marginBottom:"5px" } }, SWATCHES.map(c => h("button", { style:{ background: c }, title: c, onclick: () => m(() => { I().color = c; }, true) })), h("input", { type:"color", value: /^#[0-9a-f]{6}$/i.test(eff.i.color) ? eff.i.color : "#ffffff", title:"Egen färg", style:{ width:"22px", height:"20px" }, oninput: e => m(() => { I().color = e.target.value; }) })),
       h("div", { style:{ display:"flex", gap:"8px", alignItems:"center" } }, h("span", { class:"note", style:{ margin:0 }, text:"Storlek" }), h("input", { type:"range", min:20, max:100, value: eff.i.size, style:{ width:"92px", flex:"none" }, oninput: e => m(() => { I().size = +e.target.value; }) }),
         h("span", { class:"note", style:{ margin:0 }, text:"Höjd" }), h("input", { type:"range", min:-30, max:30, value: eff.i.dy, style:{ width:"72px", flex:"none" }, oninput: e => m(() => { I().dy = +e.target.value; }) }),
         h("span", { class:"note", style:{ margin:0 }, text:"Linje" }), h("input", { type:"range", min:1, max:3, step:0.1, value: eff.i.w, style:{ width:"60px", flex:"none" }, oninput: e => m(() => { I().w = +e.target.value; }) })))));
+  if (eff.i.kind !== "none") box.append(fxRow("Ikonrörelse", ICON_FX, eff.i.fx, eff.i.sp, !!eff.i.fx || eff.i.kind === "anim", v => { if (v) I().fx = v; else delete I().fx; }, v => { I().sp = v; }));
   // bakgrund
   const bk = eff.b.kind;
   box.append(field("Bakgrund",
@@ -2003,13 +2142,28 @@ async function setIconFromFile(file, st){
     mutate(() => { target.look = target.look || {}; const I = target.look.i = target.look.i || {}; Object.assign(I, { kind:"img", data: img.data }); if (img.anim) I.anim = img.anim; else delete I.anim; if (!I.size) I.size = 62; }); }
   catch(e){ toast("Bilden gick inte att läsa."); }
 }
+// En liten levande förhandsvisning av en animerad ikon (i ikonväljaren och på ikonknappen).
+const AICON_LIVE = new Set();
+function aiconCanvas(id, color, px){
+  const cv = h("canvas", { width: px * 2, height: px * 2, style:{ width: px + "px", height: px + "px" } });
+  cv._ai = { id, color }; AICON_LIVE.add(cv); return cv;
+}
+setInterval(() => {
+  if (!AICON_LIVE.size || document.hidden) return;
+  const p = (performance.now() % 1200) / 1200;
+  AICON_LIVE.forEach(cv => {
+    if (!cv.isConnected){ if (cv._seen) AICON_LIVE.delete(cv); return; }
+    cv._seen = true;
+    const c = cv.getContext("2d"); c.clearRect(0, 0, cv.width, cv.height); drawAIcon(c, cv._ai.id, cv.width / 2, cv.height / 2, cv.width * 0.92, cv._ai.color, 1.8, p);
+  });
+}, 50);
 function iconPicker(st, co){
   let tab = "lib", q = "";
   const eff = () => effLook(st), I = () => { st.look = st.look || {}; return (st.look.i = st.look.i || {}); };
   const body = h("div", { class:"bd", style:{ height:"440px" } });
   const tabs = h("div", { class:"tabs" });
   const draw = () => {
-    tabs.innerHTML = ""; [["lib","Bibliotek"],["img","Egen bild"],["emoji","Symbol eller text"]].forEach(([k, l]) => tabs.append(h("button", { class: tab === k ? "on" : "", text: l, onclick: () => { tab = k; draw(); } })));
+    tabs.innerHTML = ""; [["lib","Bibliotek"],["anim","Animerade"],["img","Egen bild"],["emoji","Symbol eller text"]].forEach(([k, l]) => tabs.append(h("button", { class: tab === k ? "on" : "", text: l, onclick: () => { tab = k; draw(); } })));
     body.innerHTML = "";
     if (tab === "lib"){
       body.append(h("div", { class:"search", style:{ marginBottom:"12px" } }, icon("search"), h("input", { placeholder:"Sök ikon", value: q, oninput: e => { q = e.target.value; grid(); } })));
@@ -2020,6 +2174,10 @@ function iconPicker(st, co){
             onclick: () => { mutate(() => { Object.assign(I(), { kind:"lib", id }); delete I().data; delete I().anim; }); closeModal(); } }, h("span", { html: iconSvg(id), style:{ display:"inline-flex" } }), h("small", { text: ICONS[id].n }))))); });
         if (!holder.children.length) holder.append(h("div", { class:"empty", text:"Ingen ikon matchar." })); };
       grid();
+    } else if (tab === "anim"){
+      body.append(h("div", { class:"note", style:{ margin:"0 0 12px" }, text:"Ikoner som rör sig, både här och på enheten. Färg, storlek och fart ställs in som för andra ikoner. Vilken ikon som helst kan dessutom få en rörelse under Ikonrörelse." }),
+        h("div", { class:"iconGrid" }, Object.keys(AICONS).map(id => h("button", { class: eff().i.kind === "anim" && eff().i.id === id ? "on" : "", title: AICONS[id].n,
+          onclick: () => { mutate(() => { Object.assign(I(), { kind:"anim", id }); delete I().data; delete I().anim; }); closeModal(); } }, aiconCanvas(id, "#e8eaf0", 30), h("small", { text: AICONS[id].n })))));
     } else if (tab === "img"){
       const dz = h("div", { class:"drop", ondragover: e => { e.preventDefault(); dz.classList.add("dragover"); }, ondragleave: () => dz.classList.remove("dragover"),
         ondrop: async e => { e.preventDefault(); dz.classList.remove("dragover"); if (e.dataTransfer.files[0]){ await setIconFromFile(e.dataTransfer.files[0], st); closeModal(); } } },
