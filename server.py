@@ -213,7 +213,8 @@ def get_scenes():
     with DECK_LOCK:
         deck = DECK_CACHE["deck"] if isinstance(DECK_CACHE.get("deck"), dict) else {}
         return {"rev": DECK_CACHE["rev"], "scenes": deck.get("scenes") if isinstance(deck.get("scenes"), list) else [],
-                "sensors": deck.get("sensors") if isinstance(deck.get("sensors"), dict) else {}}
+                "sensors": deck.get("sensors") if isinstance(deck.get("sensors"), dict) else {},
+                "inputs": deck.get("inputs") if isinstance(deck.get("inputs"), dict) else {}}
 
 
 def get_deck_faces(want):
@@ -382,6 +383,8 @@ def set_tradfri_list(patch):
         # alla enskilda lampor (for egna scener under /deck) och deras lage just nu
         if isinstance(patch.get("lamps"), list) and len(patch["lamps"]) <= 300:
             TRADFRI_LIST["lamps"] = [l for l in patch["lamps"] if isinstance(l, dict)]
+        if isinstance(patch.get("inputs"), list) and len(patch["inputs"]) <= 200:
+            TRADFRI_LIST["inputs"] = [i for i in patch["inputs"] if isinstance(i, dict)]
         if isinstance(patch.get("speakers"), list) and len(patch["speakers"]) <= 100:
             TRADFRI_LIST["speakers"] = [str(x)[:80] for x in patch["speakers"]]
         if isinstance(patch.get("states"), dict) and len(patch["states"]) <= 300:

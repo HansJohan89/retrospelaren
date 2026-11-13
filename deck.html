@@ -85,12 +85,22 @@ button{cursor:pointer}
 .scEd h4{margin:16px 0 8px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
 .scRoom{display:flex;align-items:center;gap:8px;margin:10px 0 4px;font-weight:600}
 .scRoom .lnk{font-weight:400}
-.lampRow{display:grid;grid-template-columns:22px minmax(110px,1.3fr) 62px minmax(90px,1fr) 92px minmax(90px,1fr);align-items:center;gap:8px;padding:4px 6px;border-radius:8px}
+.lampRow{display:grid;grid-template-columns:22px minmax(110px,1.3fr) 62px minmax(90px,1fr) 92px minmax(90px,1fr) 30px;align-items:center;gap:8px;padding:4px 6px;border-radius:8px}
 .lampRow:hover{background:var(--panel2)}
 .lampRow.off>*:not(:first-child):not(.nm){opacity:.35;pointer-events:none}
+.lampRow .try{width:28px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:7px;border:1px solid var(--line);background:var(--panel2);color:var(--mut)}
+.lampRow .try:hover{color:#fff;border-color:var(--acc);background:var(--acc-d)}
 .lampRow .nm{min-width:0}.lampRow .nm b{display:block;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lampRow .nm small{color:var(--dim);font-size:11px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lampRow input[type=range]{width:100%;min-width:0}
+.inCard{border:1px solid var(--line);border-radius:12px;background:var(--panel2);padding:12px 14px;margin-bottom:12px}
+.inCard .hd{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.inCard .hd b{font-size:14px}.inCard .hd small{color:var(--mut)}
+.inCard .hd .bat{margin-left:auto;color:var(--mut);font-size:12px;white-space:nowrap}
+.inCard .hd .bat.low{color:var(--bad)}
+.evRow{display:grid;grid-template-columns:150px minmax(0,1fr);gap:6px 10px;align-items:start;padding:6px 0;border-top:1px solid var(--line)}
+.evRow>label{color:var(--mut);font-size:12px;padding-top:7px}
+.evRow .sub{margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--panel)}
 .spk{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:14px;border:1px solid var(--line);background:var(--panel2);cursor:pointer}
 .spk.on{border-color:var(--acc);background:rgba(76,141,255,.16)}
 .fRow.top{align-items:start}
@@ -324,6 +334,7 @@ input[type=checkbox]{accent-color:var(--acc);width:15px;height:15px;margin:0}
     <span class="chip" id="hubChip" title="Hubben på Raspberry Pi:n och den fysiska enheten"><i></i><span id="hubTxt">Hubb: söker…</span></span>
     <button class="tbtn icon" id="undoBtn" title="Ångra (Ctrl+Z)"></button>
     <button class="tbtn icon" id="redoBtn" title="Gör om (Ctrl+Y)"></button>
+    <button class="tbtn" id="inputsBtn" title="Fjärrkontroller, rörelsesensorer och jalusisensorn"><span id="inputsIc"></span>Sensorer</button>
     <button class="tbtn" id="scenesBtn" title="Bygg egna scener med lampor och musik"><span id="scenesIc"></span>Scener</button>
     <button class="tbtn icon" id="deviceBtn" title="Enhetsinställningar"></button>
     <span id="saveState"></span>
@@ -507,6 +518,11 @@ const DeckCore = (() => {
       case "sonos": {
         const op = a.op || "toggle", room = a.room || "";
         if (op === "vol") return "sonos-vol:" + JSON.stringify({ room, value: Math.max(0, Math.min(100, Math.round(num(a.value, 30)))) });
+        if (["group", "group-toggle", "ungroup"].includes(op) && Array.isArray(a.rooms) && a.rooms.length){
+          // ikryssade högtalare: den första som rum, resten som lista
+          const rs = a.rooms.map(String);
+          return "sonos:" + JSON.stringify({ room: rs[0], action: op, value: rs.slice(1) });
+        }
         let value = null;
         if (op === "vol-rel") value = Math.round(num(a.value, 0)) * k;
         else if (["playlist", "fav", "group", "group-toggle"].includes(op)) value = String(a.value || "");
@@ -967,7 +983,7 @@ function autoLook(a){
       const v = +a.value || 0;
       const m = { toggle:["playpause","Spela/paus"], play:["play","Spela"], pause:["pause","Pausa"], next:["next","Nästa"], prev:["prev","Föregående"], vol:["vol-up","Volym " + (a.value ?? 30)],
         "vol-rel":[v < 0 ? "vol-down" : "vol-up", "Volym " + signed(v)], mute:["mute","Ljud av/på"], playlist:["playlist","Spellista"], fav:["heart", a.value || "Favorit"],
-        group:["group", "+ " + (a.room || "högtalare")], ungroup:["ungroup", "− " + (a.room || "högtalare")], "group-toggle":["group", a.room || "Gruppera"], "group-all":["group","Alla rum"], "ungroup-all":["ungroup","Dela upp"], move:["speaker", "Till " + (a.room || "rum")] }[a.op] || ["note","Sonos"];
+        group:["group", "+ " + (grpName(a) || "högtalare")], ungroup:["ungroup", "− " + (grpName(a) || "högtalare")], "group-toggle":["group", grpName(a) || "Gruppera"], "group-all":["group","Alla rum"], "ungroup-all":["ungroup","Dela upp"], move:["speaker", "Till " + (a.room || "rum")] }[a.op] || ["note","Sonos"];
       return { icon: m[0], color: CAT.sonos, title: m[1] };
     }
     case "z2m": return { icon: a.op === "on" ? "bulb-on" : a.op === "off" ? "bulb-off" : a.op === "toggle" ? "plug" : "sun", color: CAT.z2m, title: a.dev || "Zigbee" };
@@ -986,6 +1002,7 @@ function autoLook(a){
   }
   return { icon:"plus", color:"#888", title:"" };
 }
+const grpName = a => { const r = Array.isArray(a.rooms) && a.rooms.length ? a.rooms : [a.room].filter(Boolean); return r.length > 2 ? r.length + " rum" : r.join(" + "); };
 const sceneById = id => (deck && Array.isArray(deck.scenes) ? deck.scenes.find(s => s.id === id) : null) || null;
 const ACT_KIND = { scene:"Egen scen", sp:"Spotify", bp:"Blaupunkt-skärmen", viz:"Blaupunkt-skärmen · Kanal", palette:"Blaupunkt-skärmen · Färgläge", page:"Blaupunkt-skärmen · Visa sida", light:"Belysning (Trådfri)",
   sonos:"Sonos", z2m:"Zigbee-enhet", mqtt:"MQTT-meddelande", http:"HTTP-anrop", sys:"Kommando på Pi:n", deckdev:"Stream Controllern", folder:"Mapp", back:"Tillbaka",
@@ -1023,14 +1040,17 @@ function fieldsFor(a){
       return f;
     }
     case "sonos": {
-      const f = [{ k:"room", label:"Rum", type:"suggest", sugg: () => roomNames() }, { k:"op", label:"Gör", type:"select", opts: SONOS_OPS, re:true, reset:"value" }];
+      const multi = ["group", "group-toggle", "ungroup"].includes(a.op);
+      const f = [multi ? { k:"rooms", label:"Högtalare", type:"rooms", legacy: [a.room, typeof a.value === "string" ? a.value : ""].filter(Boolean) }
+                       : { k:"room", label: a.op === "move" ? "Till högtalare" : "Rum", type:"suggest", sugg: () => roomNames() },
+        { k:"op", label:"Gör", type:"select", opts: SONOS_OPS, re:true, reset:"value" }];
       if (a.op === "vol") f.push({ k:"value", label:"Volym", type:"range", min:0, max:100, def:30 });
       if (a.op === "vol-rel") f.push({ k:"value", label:"Steg", type:"num", min:-50, max:50, def:3, hint:"minus = lägre" });
       if (a.op === "playlist") f.push({ k:"value", label:"Spellista", type:"text", ph:"spotify:playlist:… eller en Spotify-länk", re:false });
       if (a.op === "fav") f.push({ k:"value", label:"Favorit", type:"text", ph:"Namnet som det står i Sonos-appen" });
-      if (a.op === "group" || a.op === "group-toggle") f.push({ k:"value", label:"Tillsammans med", type:"suggest", ph:"(tomt = den högtalare som spelar nu)", sugg: () => roomNames() });
-      const gnote = { group:"Rummet ovan börjar spela samma sak som den andra högtalaren.", ungroup:"Rummet ovan lämnar sin grupp och tystnar. De andra spelar vidare.",
-        "group-toggle":"Första trycket lägger till rummet i gruppen, nästa tar bort det.", "group-all":"Alla högtalare i huset spelar det som rummet ovan spelar.",
+      const gnote = { group:"De ikryssade högtalarna spelar tillsammans. Den av dem som spelar får leda. Kryssar du bara i en går den med i den högtalare som spelar just nu.",
+        ungroup:"De ikryssade högtalarna lämnar sin grupp och tystnar. Den som leder gruppen spelar vidare.",
+        "group-toggle":"Första trycket grupperar de ikryssade högtalarna, nästa delar upp dem igen. Kryssar du bara i en går den med i, eller lämnar, den högtalare som spelar just nu.", "group-all":"Alla högtalare i huset spelar det som rummet ovan spelar.",
         "ungroup-all":"Alla högtalare som spelar tillsammans med rummet ovan lämnar gruppen. Rummet spelar vidare ensamt.", move:"Rummet ovan tar över det som spelas just nu, och högtalaren som spelade tystnar." }[a.op];
       if (gnote) f.push({ type:"note", text: gnote });
       return f;
@@ -1095,7 +1115,7 @@ const LIBRARY = [
     { id:"s-mute", name:"Ljud av/på", make:() => ({ t:"sonos", room:R0, op:"mute" }) },
     { id:"s-pl", name:"Spela spellista", make:() => ({ t:"sonos", room:R0, op:"playlist", value:"" }) },
     { id:"s-fav", name:"Spela Sonos-favorit", make:() => ({ t:"sonos", room:R0, op:"fav", value:"" }) },
-    { id:"s-group", name:"Gruppera högtalare av/på", make:() => ({ t:"sonos", room:"", op:"group-toggle", value:"" }) },
+    { id:"s-group", name:"Gruppera högtalare av/på", make:() => ({ t:"sonos", room:"", op:"group-toggle", rooms:[] }) },
     { id:"s-groupall", name:"Alla högtalare tillsammans", make:() => ({ t:"sonos", room:R0, op:"group-all" }) },
     { id:"s-ungroupall", name:"Dela upp gruppen", make:() => ({ t:"sonos", room:R0, op:"ungroup-all" }) },
     { id:"s-move", name:"Flytta musiken till rum", make:() => ({ t:"sonos", room:"", op:"move" }) } ] },
@@ -1386,7 +1406,9 @@ function mutate(fn, o){
   scheduleSave();
   renderTop(); renderDevice(); renderCrumb();
   if (o.re !== false) renderInspector(); else refreshPreview();
+  if (o.re !== false && modalRedraw && $("#modal").classList.contains("open")) modalRedraw();
 }
+let modalRedraw = null;           // sätts av dialoger som visar åtgärdsfält och behöver ritas om när de ändras
 function doUndo(from, to){
   if (!from.length) return;
   const assets = deck.assets;
@@ -1500,6 +1522,7 @@ async function loadSpotify(){
 // Listan över grupper och scener ligger bara i serverns minne och är tom efter en ny version.
 // Be då den som har kontakt med gatewayen (hubben eller monitor.py) att skicka in den igen.
 let askedGroups = false;
+let INPUTS = [];                  // fjärrkontroller och sensorer, från hubben: { key, src, name, model, battery, kind, groups, events }
 let SPEAKERS = [];                // alla Sonos-högtalare, från hubben
 const roomNames = () => [...new Set(["Vardagsrum", ...SPEAKERS, ...((LIVE.hub && LIVE.hub.rooms) || [])])];
 let LAMPS = [];                   // alla enskilda lampor, från hubben: { id, name, model, room, color, temp, dim }
@@ -1509,6 +1532,7 @@ async function loadGroups(){
     GROUPS = {}; (d.groups || []).forEach(g => { GROUPS[g.name] = g.moods || []; });
     LAMPS = Array.isArray(d.lamps) ? d.lamps : [];
     SPEAKERS = Array.isArray(d.speakers) ? d.speakers : [];
+    INPUTS = Array.isArray(d.inputs) ? d.inputs : [];
     if (!Object.keys(GROUPS).length && !askedGroups){ askedGroups = true; fetch("/api/send?c=tradfri-refresh").catch(() => {}); setTimeout(loadGroups, 7000); }
   } catch(e){}
 }
@@ -1980,6 +2004,13 @@ function actionFields(a, co){
     if (f.type === "select") ctl = [h("select", { class:"in w", onchange: e => set(f.numeric ? +e.target.value : e.target.value, true) }, f.opts.map(([v, l]) => h("option", { value: v, text: l, selected: String(cur) === String(v) })))];
     else if (f.type === "suggest"){ const id = "dl" + (++dlN);
       ctl = [h("input", { class:"in w", value: cur || "", list: id, placeholder: f.ph || "", oninput: e => set(e.target.value, false), onchange: e => set(e.target.value, !!f.re) }), h("datalist", { id }, (f.sugg() || []).map(s => h("option", { value: s })))]; }
+    else if (f.type === "rooms"){
+      // kryssrutor för högtalare (äldre knappar hade rummen som text: de kryssas i från början)
+      const chosen = Array.isArray(cur) && cur.length ? cur : (f.legacy || []), all = [...new Set([...roomNames(), ...chosen])];
+      ctl = all.map(r => h("label", { class:"spk" + (chosen.includes(r) ? " on" : "") }, h("input", { type:"checkbox", checked: chosen.includes(r),
+        onchange: e => mutate(() => { a.rooms = e.target.checked ? [...chosen, r] : chosen.filter(x => x !== r); a.room = a.rooms[0] || ""; delete a.value; }, { co: co + "rooms", re:true }) }), r));
+      if (!SPEAKERS.length) ctl.push(h("button", { class:"lnk mut", text:"hämta högtalarna", onclick: () => { fetch("/api/send?c=lamps-read").catch(() => {}); toast("Ber hubben om högtalarna…"); setTimeout(async () => { await loadGroups(); renderInspector(); }, 5000); } }));
+    }
     else if (f.type === "text") ctl = [h("input", { class:"in w", value: cur || "", placeholder: f.ph || "", oninput: e => set(e.target.value, false) })];
     else if (f.type === "textarea") ctl = [h("textarea", { class:"in", rows: 2, placeholder: f.ph || "", oninput: e => set(e.target.value, false) }, cur || "")];
     else if (f.type === "num") ctl = [h("input", { class:"in n", type:"number", min: f.min, max: f.max, value: cur, oninput: e => set(clamp(+e.target.value || 0, f.min, f.max), false) }), f.hint ? h("span", { class:"note", style:{ margin:0 }, text: f.hint }) : null];
@@ -2195,8 +2226,62 @@ function sceneSummary(sc){
   if (sc.screen) parts.push({ wake:"väckning på skärmen", open:"tänder skärmen", close:"släcker skärmen" }[sc.screen]);
   return parts.length ? "Scenen: " + parts.join(", ") + "." : "Scenen är tom än.";
 }
+// ---------- fjärrkontroller och sensorer ----------
+// deck.inputs = { "<nyckel>": { name, events: { "<händelse>": ctl } } }. Nyckeln är "tradfri:<id>" för
+// givare hos Trådfri-gatewayen och "z2m:<namn>" för givare parade med Zigbee2MQTT.
+const EV_LABEL = ev => ({ on:"När den tänder lamporna", off:"När den släcker lamporna", "motion:on":"Rörelse upptäckt", "motion:off":"Ingen rörelse längre",
+  "contact:open":"Öppnas", "contact:close":"Stängs" }[ev]) || (ev.startsWith("action:") ? "Knapp: " + ev.slice(7).replace(/_/g, " ") : ev);
+function inputsModal(){
+  const body = h("div", { class:"bd", style:{ maxHeight:"72vh", overflow:"auto" } });
+  // väljaren: inget, en scen eller en åtgärd ur listan
+  const picker = (ctl, setCtl, co) => {
+    const a = ctl && ctl.states[0].a, val = !a ? "" : a.t === "scene" && sceneById(a.id) ? "scene:" + a.id : "cur";
+    const sel = h("select", { class:"in w", onchange: e => {
+      const v = e.target.value; if (v === "cur") return;
+      mutate(() => setCtl(!v ? null : v.startsWith("scene:") ? C.newCtl({ t:"scene", id: v.slice(6) }) : libCtl(LIB_BY_ID[v.slice(4)])), { co });
+    } }, [h("option", { value:"", text:"(inget)", selected: !a })]);
+    if (val === "cur") sel.append(h("option", { value:"cur", selected: true, text: (ACT_KIND[a.t] || a.t) + (ctlTitle(ctl) ? ": " + ctlTitle(ctl) : "") }));
+    if ((deck.scenes || []).length) sel.append(h("optgroup", { label:"Scener" }, deck.scenes.map(s => h("option", { value:"scene:" + s.id, text: s.name, selected: val === "scene:" + s.id }))));
+    LIBRARY.forEach(c => { const its = c.items.filter(it => !it.dial && !it.two && it.id !== "c-scene" && !["folder","back","home","pagenav","profile"].includes(it.make().t));
+      if (its.length) sel.append(h("optgroup", { label: c.cat }, its.map(it => h("option", { value:"lib:" + it.id, text: it.name })))); });
+    const box = h("div", {}, sel);
+    if (a && a.t === "scene") box.append(h("div", { style:{ marginTop:"6px" } }, h("button", { class:"lnk", text:"Redigera scenen", onclick: () => sceneModal(a.id) })));
+    else if (a) box.append(h("div", { class:"sub" }, a.t === "multi" ? multiEditor(a, co) : actionFields(a, co)));
+    return box;
+  };
+  const card = (title, sub, icn, bat, rows, note) => h("div", { class:"inCard" },
+    h("div", { class:"hd" }, h("span", { html: iconSvg(icn), style:{ display:"inline-flex", color:"#c4a7ff" } }), h("div", {}, h("b", { text: title }), sub ? h("small", { text:"  " + sub }) : null),
+      bat != null ? h("span", { class:"bat" + (bat <= 15 ? " low" : ""), text:"Batteri " + bat + " %" }) : null),
+    ...rows.map(([lbl, el]) => h("div", { class:"evRow" }, h("label", { text: lbl }), el)), note ? h("div", { class:"note", style:{ marginTop:"6px" }, text: note }) : null);
+  const draw = () => {
+    const top = body.scrollTop; body.innerHTML = "";
+    const J = (deck.sensors = deck.sensors || {}).jalusi = deck.sensors.jalusi || {};
+    body.append(card("Jalusisensorn", "Shelly BLU Door/Window, läses av Pi:n över Bluetooth", "jalusi", null,
+      [["Jalusin öppnas", picker(J.open, c => { J.open = c; }, "in:jalusi:open")], ["Jalusin stängs", picker(J.close, c => { J.close = c; }, "in:jalusi:close")]]));
+    const known = new Set(INPUTS.map(i => i.key)), cfg = deck.inputs = deck.inputs || {};
+    const all = [...INPUTS, ...Object.keys(cfg).filter(k => !known.has(k)).map(k => ({ key: k, src: k.split(":")[0], name: cfg[k].name || k, gone: true, events: Object.keys(cfg[k].events || {}), groups: [] }))];
+    let noted = 0;
+    all.forEach(i => {
+      const evs = i.src === "tradfri" ? ["on", "off"] : (i.events || []);
+      const get = ev => ((cfg[i.key] || {}).events || {})[ev];
+      const set = (ev, c) => { const o = cfg[i.key] = cfg[i.key] || { name: i.name, events: {} }; o.name = i.name; if (c) o.events[ev] = c; else delete o.events[ev]; if (!Object.keys(o.events).length) delete cfg[i.key]; };
+      const sub = [i.model, i.groups && i.groups.length ? "styr " + i.groups.join(", ") : "", i.gone ? "finns inte längre hos hubben" : "", i.reachable === false ? "svarar inte" : ""].filter(Boolean).join(" · ");
+      body.append(card(i.name, sub, i.kind === "motion" ? "eye" : "sliders", i.battery, evs.map(ev => [EV_LABEL(ev), picker(get(ev), c => set(ev, c), "in:" + i.key + ":" + ev)]),
+        i.src === "tradfri" && !(noted++) ? "Den här är parad med Trådfri-gatewayen. Gatewayen berättar inte vilken knapp som trycks, och vad knapparna gör med lamporna bestäms av parningen i IKEA-appen. Hubben kan däremot märka när lamporna i gruppen tänds eller släcks utan att den själv gjorde det, och då köra något extra här."
+          + " Det gäller alla givare som är parade med gatewayen." : (i.src === "tradfri" && !(i.groups && i.groups.length) ? "Hör inte till någon grupp, så det finns inget att bevaka." : "")));
+    });
+    if (!INPUTS.length) body.append(h("div", { class:"note" }, "Listan över fjärrkontroller och rörelsesensorer kommer från hubben och har inte kommit än. ",
+      h("button", { class:"lnk", text:"Hämta den nu", onclick: () => { fetch("/api/send?c=tradfri-refresh").catch(() => {}); toast("Ber hubben läsa av gatewayen…"); setTimeout(async () => { await loadGroups(); draw(); }, 9000); } })));
+    body.append(h("div", { class:"note", style:{ marginTop:"4px" } }, "Vill du kunna ställa in varje knapp på en fjärrkontroll för sig, eller få rörelse och ingen rörelse som egna händelser, behöver den paras med Zigbee2MQTT på Pi:n i stället för Trådfri-gatewayen. Då dyker den upp här med en rad per knapp."));
+    setTimeout(() => { body.scrollTop = top; }, 0);
+  };
+  openModal("Sensorer och fjärrkontroller", [body], [h("button", { class:"sbtnS", text:"Klar", onclick: () => { closeModal(); renderAll(); } })], true);
+  $("#dlg").style.width = "min(820px,100%)";
+  modalRedraw = draw; draw();
+}
 let sceneSel = null;
 function sceneModal(openId){
+  modalRedraw = null;
   deck.scenes = Array.isArray(deck.scenes) ? deck.scenes : [];
   if (openId) sceneSel = openId;
   if (!sceneById(sceneSel)) sceneSel = (deck.scenes[0] || {}).id || null;
@@ -2208,9 +2293,14 @@ function sceneModal(openId){
       h("span", { html: iconSvg(JALUSI_IDS.includes(s.id) ? "jalusi" : "sparkles"), style:{ display:"inline-flex", color:"#c4a7ff" } }), h("span", { class:"nm", text: s.name }))));
     list.append(h("button", { style:{ color:"var(--mut)", marginTop:"6px" }, onclick: () => { const sc = newScene(); m(() => { deck.scenes.push(sc); }); sceneSel = sc.id; draw(); } }, icon("plus"), h("span", { class:"nm", text:"Ny scen" })));
   };
+  // Skickar lampornas läge i scenen direkt till lamporna, utan att röra musik eller annat.
+  const tryLamps = (sc, ids) => { const o = {}; ids.forEach(id => { if (sc.lights[id] && sc.lights[id].use !== false) o[id] = sc.lights[id]; });
+    if (Object.keys(o).length) fetch("/api/send?c=" + encodeURIComponent("lamps-set:" + JSON.stringify(o))).catch(() => {}); return Object.keys(o).length; };
+  const liveT = {};
+  const liveTry = (sc, id) => { if (!prefs.get("sceneLive", true)) return; clearTimeout(liveT[id]); liveT[id] = setTimeout(() => tryLamps(sc, [id]), 280); };
   const lampRow = (sc, l) => {
     const cur = sc.lights[l.id], on = !!cur && cur.use !== false, v = cur || {};
-    const set = (fn, re) => m(() => { const o = sc.lights[l.id] = sc.lights[l.id] || { use:true, on:true, dim:60, kind:"" }; fn(o); }, re, "l" + l.id);
+    const set = (fn, re) => { m(() => { const o = sc.lights[l.id] = sc.lights[l.id] || { use:true, on:true, dim:60, kind:"" }; fn(o); }, re, "l" + l.id); liveTry(sc, l.id); };
     const kinds = [["","Behåll färg"]]; if (l.temp || l.color) kinds.push(["white","Vitt"]); if (l.color) kinds.push(["color","Färg"]);
     const row = h("div", { class:"lampRow" + (on ? "" : " off") },
       h("input", { type:"checkbox", checked: on, title:"Ta med lampan i scenen", onchange: e => m(() => { if (e.target.checked) sc.lights[l.id] = Object.assign({ on:true, dim:60, kind:"" }, sc.lights[l.id] || {}, { use:true }); else delete sc.lights[l.id]; }, true) }),
@@ -2219,7 +2309,8 @@ function sceneModal(openId){
       v.on !== false ? h("input", { type:"range", min:1, max:100, value: v.dim ?? 60, title:"Ljusstyrka " + (v.dim ?? 60) + " %", oninput: e => { e.target.title = "Ljusstyrka " + e.target.value + " %"; set(o => { o.dim = +e.target.value; }); } }) : h("span"),
       v.on !== false && kinds.length > 1 ? h("select", { class:"in", onchange: e => set(o => { o.kind = e.target.value; if (o.kind === "white" && o.temp == null) o.temp = 35; if (o.kind === "color" && !o.color) o.color = "#ff8a3d"; }, true) }, kinds.map(([k, t]) => h("option", { value: k, text: t, selected: (v.kind || "") === k }))) : h("span"),
       v.on !== false && v.kind === "white" ? h("input", { type:"range", min:0, max:100, value: v.temp ?? 35, title:"Varmt till kallt", oninput: e => set(o => { o.temp = +e.target.value; }) })
-        : v.on !== false && v.kind === "color" ? h("input", { type:"color", value: /^#[0-9a-f]{6}$/i.test(v.color || "") ? v.color : "#ff8a3d", oninput: e => set(o => { o.color = e.target.value; }) }) : h("span"));
+        : v.on !== false && v.kind === "color" ? h("input", { type:"color", value: /^#[0-9a-f]{6}$/i.test(v.color || "") ? v.color : "#ff8a3d", oninput: e => set(o => { o.color = e.target.value; }) }) : h("span"),
+      h("button", { class:"try", title:"Prova på lampan nu", onclick: () => { tryLamps(sc, [l.id]); toast("Skickar till " + l.name + "…", 1500); } }, icon("play")));
     return row;
   };
   let lastShown = null;
@@ -2238,13 +2329,18 @@ function sceneModal(openId){
     if (isJ) ed.append(h("div", { class:"note", text:"Den här scenen körs av jalusisensorn (" + (sc.id === "jalusi-open" ? "när jalusin öppnas" : "när jalusin stängs") + "). Tomma musikfält betyder väckningsinställningarna i hub_config.json på Pi:n." }));
     // --- belysning ---
     ed.append(h("h4", { text:"Belysning, lampa för lampa" }));
+    ed.append(h("div", { style:{ display:"flex", alignItems:"center", gap:"14px", flexWrap:"wrap", margin:"0 0 4px" } },
+      h("label", { style:{ display:"inline-flex", alignItems:"center", gap:"6px", cursor:"pointer" }, title:"Varje ändring du gör på en lampa här skickas direkt till lampan, så att du ser resultatet" },
+        h("input", { type:"checkbox", checked: prefs.get("sceneLive", true), onchange: e => prefs.set("sceneLive", e.target.checked) }), "Visa ändringar direkt på lamporna"),
+      h("button", { class:"sbtnS", title:"Skickar alla lampor i scenen till lamporna, utan musik och skärm", onclick: () => { const n = tryLamps(sc, Object.keys(sc.lights)); toast(n ? "Skickar " + n + " lampor…" : "Inga lampor är med i scenen än.", 2000); } }, icon("play"), "Prova belysningen")));
     if (!LAMPS.length) ed.append(h("div", { class:"note" }, "Lamplistan kommer från hubben och har inte kommit än. ", h("button", { class:"lnk", text:"Hämta den nu", onclick: () => { fetch("/api/send?c=tradfri-refresh").catch(() => {}); toast("Ber hubben läsa av lamporna…"); setTimeout(async () => { await loadGroups(); draw(); }, 8000); } })));
     const byRoom = {}; LAMPS.forEach(l => { (byRoom[l.room || "Övrigt"] = byRoom[l.room || "Övrigt"] || []).push(l); });
     Object.keys(byRoom).forEach(room => {
       ed.append(h("div", { class:"scRoom" }, room,
         h("button", { class:"lnk", text:"alla", onclick: () => m(() => { byRoom[room].forEach(l => { sc.lights[l.id] = Object.assign({ on:true, dim:60, kind:"" }, sc.lights[l.id] || {}, { use:true }); }); }, true) }),
         h("button", { class:"lnk mut", text:"ingen", onclick: () => m(() => { byRoom[room].forEach(l => { delete sc.lights[l.id]; }); }, true) }),
-        h("button", { class:"lnk mut", text:"släck alla", onclick: () => m(() => { byRoom[room].forEach(l => { sc.lights[l.id] = Object.assign({ dim:60, kind:"" }, sc.lights[l.id] || {}, { use:true, on:false }); }); }, true) })));
+        h("button", { class:"lnk mut", text:"släck alla", onclick: () => m(() => { byRoom[room].forEach(l => { sc.lights[l.id] = Object.assign({ dim:60, kind:"" }, sc.lights[l.id] || {}, { use:true, on:false }); }); }, true) }),
+        h("button", { class:"lnk", text:"prova rummet", onclick: () => { const n = tryLamps(sc, byRoom[room].map(l => String(l.id))); toast(n ? "Skickar " + n + " lampor…" : "Inga lampor i rummet är med i scenen.", 2000); } })));
       byRoom[room].forEach(l => ed.append(lampRow(sc, l)));
     });
     const gone = Object.keys(sc.lights).filter(id => !LAMPS.some(l => String(l.id) === String(id)));
@@ -2485,7 +2581,7 @@ function openModal(title, body, foot, wide){
   if (foot) d.append(h("footer", {}, ...foot));
   $("#modal").classList.add("open");
 }
-function closeModal(){ $("#modal").classList.remove("open"); if (calib){ calib = null; } if (askRes){ const r = askRes; askRes = null; r(null); } }
+function closeModal(){ modalRedraw = null; $("#modal").classList.remove("open"); if (calib){ calib = null; } if (askRes){ const r = askRes; askRes = null; r(null); } }
 let askRes = null;
 function askText(title, value, ph){
   return new Promise(res => {
@@ -2590,6 +2686,7 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) poll
   $("#brandIc").innerHTML = iconSvg("back"); $("#profIc").innerHTML = iconSvg("layers");
   $("#undoBtn").innerHTML = iconSvg("up-level"); $("#redoBtn").innerHTML = iconSvg("up-level"); $("#redoBtn").firstChild.style.transform = "scaleX(-1)";
   $("#deviceBtn").innerHTML = iconSvg("gear"); $("#scenesIc").innerHTML = iconSvg("sparkles"); $("#scenesBtn").onclick = () => sceneModal();
+  $("#inputsIc").innerHTML = iconSvg("antenna"); $("#inputsBtn").onclick = inputsModal;
   $("#undoBtn").onclick = () => doUndo(undo, redo); $("#redoBtn").onclick = () => doUndo(redo, undo);
   $("#deviceBtn").onclick = deviceModal; $("#hubChip").onclick = deviceModal; $("#profileBtn").onclick = profileMenu;
   $("#modeSeg").addEventListener("click", ev => { const b = ev.target.closest("button"); if (b) setMode(b.dataset.m); });
