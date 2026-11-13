@@ -206,6 +206,16 @@ def save_deck(data):
         return {"ok": True, "rev": DECK_CACHE["rev"]}
 
 
+def get_scenes():
+    """Egna scener och sensorernas atgarder ur deck-konfigurationen. Hamtas av hubben nar en
+    scen ska koras, sa att den alltid kor den senast sparade versionen."""
+    _deck_load()
+    with DECK_LOCK:
+        deck = DECK_CACHE["deck"] if isinstance(DECK_CACHE.get("deck"), dict) else {}
+        return {"rev": DECK_CACHE["rev"], "scenes": deck.get("scenes") if isinstance(deck.get("scenes"), list) else [],
+                "sensors": deck.get("sensors") if isinstance(deck.get("sensors"), dict) else {}}
+
+
 def get_deck_faces(want):
     _deck_load()
     with DECK_LOCK:
@@ -369,6 +379,12 @@ def set_tradfri_list(patch):
     with TRADFRI_LOCK:
         if "groups" in patch and isinstance(patch["groups"], list):
             TRADFRI_LIST["groups"] = patch["groups"]
+        # alla enskilda lampor (for egna scener under /deck) och deras lage just nu
+        if isinstance(patch.get("lamps"), list) and len(patch["lamps"]) <= 300:
+            TRADFRI_LIST["lamps"] = [l for l in patch["lamps"] if isinstance(l, dict)]
+        if isinstance(patch.get("states"), dict) and len(patch["states"]) <= 300:
+            TRADFRI_LIST["states"] = {str(k): v for k, v in patch["states"].items() if isinstance(v, dict)}
+            TRADFRI_LIST["statesAt"] = time.time()
         TRADFRI_LIST["at"] = time.time()
         d = dict(TRADFRI_LIST)
     return {"ok": True, "now": d}
@@ -692,6 +708,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return super().do_GET()
             if path == "/api/deck":
                 return self._json(get_deck())
+            if path == "/api/scenes":
+                return self._json(get_scenes())
             if path == "/api/deck/faces":
                 want = [h for h in (q.get("h", [""])[0] or "").split(",") if h]
                 return self._json(get_deck_faces(want))

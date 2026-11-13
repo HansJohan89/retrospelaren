@@ -64,6 +64,35 @@ button{cursor:pointer}
 #crumb .sp{flex:1}
 #crumb label{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
 #deviceWrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+#sensors{flex:none;display:flex;align-items:center;justify-content:center;gap:10px;padding:2px 12px 8px;color:var(--mut);font-size:12px;flex-wrap:wrap}
+#sensors .sLab{display:inline-flex;align-items:center;gap:6px;color:var(--tx);font-weight:600}
+#sensors .sLab i{width:8px;height:8px;border-radius:50%;background:var(--dim)}
+#sensors .sLab i.open{background:var(--ok)}
+.sensChip{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 11px;border-radius:15px;background:var(--panel2);border:1px solid var(--line);color:var(--tx);cursor:pointer;max-width:260px}
+.sensChip:hover{border-color:var(--line2);background:var(--panel3)}
+.sensChip.sel{border-color:var(--acc);box-shadow:0 0 0 2px rgba(76,141,255,.35)}
+.sensChip.dragover{border-color:var(--acc);background:var(--acc-d)}
+.sensChip.unset{color:var(--dim);border-style:dashed}
+.sensChip small{color:var(--mut)}
+.sensChip b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scWrap{display:grid;grid-template-columns:190px minmax(0,1fr);gap:0;height:min(640px,72vh)}
+.scList{border-right:1px solid var(--line);padding:10px;overflow:auto}
+.scList button{display:flex;align-items:center;gap:7px;width:100%;text-align:left;padding:7px 9px;border-radius:8px;border:1px solid transparent;background:none;color:var(--tx);margin-bottom:3px}
+.scList button:hover{background:var(--panel2)}
+.scList button.on{background:var(--panel3);border-color:var(--line2)}
+.scList button span.nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.scEd{padding:14px 18px;overflow:auto}
+.scEd h4{margin:16px 0 8px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
+.scRoom{display:flex;align-items:center;gap:8px;margin:10px 0 4px;font-weight:600}
+.scRoom .lnk{font-weight:400}
+.lampRow{display:grid;grid-template-columns:22px minmax(110px,1.3fr) 62px minmax(90px,1fr) 92px minmax(90px,1fr);align-items:center;gap:8px;padding:4px 6px;border-radius:8px}
+.lampRow:hover{background:var(--panel2)}
+.lampRow.off>*:not(:first-child):not(.nm){opacity:.35;pointer-events:none}
+.lampRow .nm{min-width:0}.lampRow .nm b{display:block;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lampRow .nm small{color:var(--dim);font-size:11px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lampRow input[type=range]{width:100%;min-width:0}
+.onoff{height:24px;border-radius:12px;border:1px solid var(--line2);background:#101114;color:var(--mut);font-size:11px;padding:0 8px}
+.onoff.on{background:#3a3210;border-color:#ffd60a;color:#ffd60a}
 #stageHint{height:30px;flex:none;text-align:center;color:var(--dim);font-size:12px;padding:0 12px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 
 /* ---------- enheten (uppifrån, som den står på bordet) ---------- */
@@ -292,6 +321,7 @@ input[type=checkbox]{accent-color:var(--acc);width:15px;height:15px;margin:0}
     <span class="chip" id="hubChip" title="Hubben på Raspberry Pi:n och den fysiska enheten"><i></i><span id="hubTxt">Hubb: söker…</span></span>
     <button class="tbtn icon" id="undoBtn" title="Ångra (Ctrl+Z)"></button>
     <button class="tbtn icon" id="redoBtn" title="Gör om (Ctrl+Y)"></button>
+    <button class="tbtn" id="scenesBtn" title="Bygg egna scener med lampor och musik"><span id="scenesIc"></span>Scener</button>
     <button class="tbtn icon" id="deviceBtn" title="Enhetsinställningar"></button>
     <span id="saveState"></span>
   </header>
@@ -299,6 +329,7 @@ input[type=checkbox]{accent-color:var(--acc);width:15px;height:15px;margin:0}
     <main id="stage">
       <div id="crumb"></div>
       <div id="deviceWrap"><div id="device"></div></div>
+      <div id="sensors"></div>
       <div id="stageHint"></div>
     </main>
     <aside id="side">
@@ -469,6 +500,7 @@ const DeckCore = (() => {
         else if (op === "scene") value = String(a.value || "");
         return "light:" + JSON.stringify({ group: a.group || "", action: op, value });
       }
+      case "scene": return a.id ? "scene:" + String(a.id) : "";
       case "sonos": {
         const op = a.op || "toggle", room = a.room || "";
         if (op === "vol") return "sonos-vol:" + JSON.stringify({ room, value: Math.max(0, Math.min(100, Math.round(num(a.value, 30)))) });
@@ -927,6 +959,7 @@ function autoLook(a){
         shuffle:["shuffle","Blanda"], repeat:["repeat","Upprepa"], like:["heart","Gilla"], "seek-rel":[v < 0 ? "prev" : "next", "Spola " + signed(v) + " s"] }[a.op] || ["note","Spotify"];
       return { icon: m[0], color: CAT.sp, title: m[1] };
     }
+    case "scene": { const sc = sceneById(a.id); return { icon: a.id === "jalusi-open" || a.id === "jalusi-close" ? "jalusi" : "sparkles", color: "#c4a7ff", title: sc ? sc.name : "Scen" }; }
     case "sonos": {
       const v = +a.value || 0;
       const m = { toggle:["playpause","Spela/paus"], play:["play","Spela"], pause:["pause","Pausa"], next:["next","Nästa"], prev:["prev","Föregående"], vol:["vol-up","Volym " + (a.value ?? 30)],
@@ -950,7 +983,8 @@ function autoLook(a){
   }
   return { icon:"plus", color:"#888", title:"" };
 }
-const ACT_KIND = { sp:"Spotify", bp:"Blaupunkt-skärmen", viz:"Blaupunkt-skärmen · Kanal", palette:"Blaupunkt-skärmen · Färgläge", page:"Blaupunkt-skärmen · Visa sida", light:"Belysning (Trådfri)",
+const sceneById = id => (deck && Array.isArray(deck.scenes) ? deck.scenes.find(s => s.id === id) : null) || null;
+const ACT_KIND = { scene:"Egen scen", sp:"Spotify", bp:"Blaupunkt-skärmen", viz:"Blaupunkt-skärmen · Kanal", palette:"Blaupunkt-skärmen · Färgläge", page:"Blaupunkt-skärmen · Visa sida", light:"Belysning (Trådfri)",
   sonos:"Sonos", z2m:"Zigbee-enhet", mqtt:"MQTT-meddelande", http:"HTTP-anrop", sys:"Kommando på Pi:n", deckdev:"Stream Controllern", folder:"Mapp", back:"Tillbaka",
   home:"Överst i mappen", pagenav:"Byt sida", profile:"Byt profil", multi:"Flera åtgärder" };
 
@@ -1073,6 +1107,8 @@ const LIBRARY = [
     { id:"l-temp", name:"Färgtemperatur", make:() => ({ t:"light", group:defGroup(), op:"temp", value:35 }) },
     { id:"l-color", name:"Färg", make:() => ({ t:"light", group:defGroup(), op:"color", value:"ff8a3d" }) },
     { id:"l-scene", name:"Scen", make:() => ({ t:"light", group:defGroup(), op:"scene", value:(GROUPS[defGroup()] || [])[0] || "" }) } ] },
+  { cat:"Scener", note:"lampor och musik", items:[
+    { id:"c-scene", name:"Kör egen scen", make:() => ({ t:"scene", id: (deck && deck.scenes && deck.scenes[0] || {}).id || "" }) } ] },
   { cat:"Blaupunkt-skärmen", items:[
     { id:"b-open", name:"Öppna (tänd bild, spela)", make:() => ({ t:"bp", c:"open" }) },
     { id:"b-close", name:"Stäng (pausa, släck bild)", make:() => ({ t:"bp", c:"close" }) },
@@ -1461,10 +1497,12 @@ async function loadSpotify(){
 // Listan över grupper och scener ligger bara i serverns minne och är tom efter en ny version.
 // Be då den som har kontakt med gatewayen (hubben eller monitor.py) att skicka in den igen.
 let askedGroups = false;
+let LAMPS = [];                   // alla enskilda lampor, från hubben: { id, name, model, room, color, temp, dim }
 async function loadGroups(){
   try {
     const d = await (await fetch("/api/tradfri-list", { cache:"no-store" })).json();
     GROUPS = {}; (d.groups || []).forEach(g => { GROUPS[g.name] = g.moods || []; });
+    LAMPS = Array.isArray(d.lamps) ? d.lamps : [];
     if (!Object.keys(GROUPS).length && !askedGroups){ askedGroups = true; fetch("/api/send?c=tradfri-refresh").catch(() => {}); setTimeout(loadGroups, 7000); }
   } catch(e){}
 }
@@ -1654,6 +1692,7 @@ function renderDevice(){
     updateKnob(i);
   }
   applyDeviceLight();
+  renderSensors();
 }
 function pressFx(kind, i, down, remote){
   const node = kind === "key" ? el.keys[i] : kind === "btn" ? el.btns[i] : el.encs[i];
@@ -1684,10 +1723,14 @@ function useRotate(i, dir){
 let clip = prefs.get("clip", null);
 function select(s){ sel = s; renderDevice(); renderInspector(); }
 function slotsOf(kind){ const v = editView(); return kind === "key" ? v.keys : v.page.btns; }
-function getCtl(s){ if (!s) return null; const v = editView(); return s.kind === "key" ? v.keys[s.i] : s.kind === "btn" ? v.page.btns[s.i] : null; }
-function setSlot(kind, i, ctl){ slotsOf(kind)[i] = ctl; }
+function getCtl(s){ if (!s) return null; if (s.kind === "sens") return (deck.sensors && deck.sensors.jalusi && deck.sensors.jalusi[s.i]) || null; const v = editView(); return s.kind === "key" ? v.keys[s.i] : s.kind === "btn" ? v.page.btns[s.i] : null; }
+function setSlot(kind, i, ctl){ if (kind === "sens"){ ((deck.sensors = deck.sensors || {}).jalusi = deck.sensors.jalusi || {})[i] = ctl; return; } slotsOf(kind)[i] = ctl; }
 function dropLib(it, target){   // target = { kind, i, slot? }
   const v = editView();
+  if (target.kind === "sens"){
+    if (it.dial || it.two || ["folder","back","home","pagenav","profile"].includes(it.make().t)) return toast("En sensor kan köra åtgärder och scener, men inte navigering eller rattförval.");
+    mutate(() => setSlot("sens", target.i, libCtl(it))); select({ kind:"sens", i: target.i }); return;
+  }
   if (target.kind === "key" && target.i === v.backKey){ toast("Platsen är upptagen av Tillbaka när man är i en mapp."); return; }
   if (it.dial){
     if (target.kind !== "enc"){ toast("Rattförval släpps på en ratt."); return; }
@@ -1981,6 +2024,7 @@ function actionEditor(st, co){
   const a = st.a, box = h("div", {}, actHead(a));
   if (a.t === "folder") box.append(h("button", { class:"sbtnS pri", onclick: () => openFolder(a.fid) }, icon("folder"), "Öppna mappen"), h("div", { class:"note", text:"En mapp är en egen uppsättning knappar. Dubbelklick på knappen öppnar den också." }));
   else if (a.t === "multi") box.append(multiEditor(a, co));
+  else if (a.t === "scene") box.append(sceneFields(a, co));
   else box.append(actionFields(a, co));
   const cn = cmdNote(a); if (cn) box.append(cn);
   return box;
@@ -2036,6 +2080,7 @@ function renderInspector(){
   const v = editView();
   if (!sel){ ins.append(h("div", { class:"insEmpty", html:"<b>Markera en knapp, en liten knapp eller en ratt</b><br>så ställer du in den här. Dra åtgärder från listan till höger, precis som i Stream Deck-appen." })); return; }
   if (sel.kind === "enc") return renderEncInspector(ins, v);
+  if (sel.kind === "sens") return renderSensInspector(ins);
   const ctl = getCtl(sel), isKey = sel.kind === "key";
   if (!ctl){ ins.append(h("div", { class:"insEmpty", html: (isKey ? "<b>Tom knapp</b>" : "<b>Den lilla knappen har ingen åtgärd</b>") + "<br>Dra en åtgärd hit från listan, eller klicka på en åtgärd i listan." + (clip ? "<br>Ctrl+V klistrar in den kopierade knappen." : "") })); return; }
   const si = (sel.state | 0) % ctl.states.length, st = ctl.states[si], co = ctl.id + ":" + si + ":";
@@ -2061,6 +2106,206 @@ function renderInspector(){
     h("div", { class:"note", text:"Etiketten syns bara här i emulatorn, som stöd för minnet." })));
   ins.append(h("div", { class:"insCol colAct" }, h("h4", { text:"Åtgärd" + (two ? " · läge " + (si + 1) : "") }), actionEditor(st, co)));
   refreshPreview();
+}
+// ---------- egna scener: lampor, musik och skärm i ett tryck ----------
+// deck.scenes = [{ id, name, lights: { lampId: { use, on, dim, kind: "" | "white" | "color", temp, color } },
+//   moods: [{ group, mood }], music: { do: "" | "play" | "pause" | "vol", room, src, value, vol, fade, with: [] }, screen: "" | "wake" | "open" | "close" }]
+// Hubben hämtar scenen från servern när den ska köras och sätter varje lampa för sig.
+const newScene = name => ({ id: C.uid(), name: name || "Ny scen", lights: {}, moods: [], music: { do:"" }, screen:"" });
+const JALUSI_IDS = ["jalusi-open", "jalusi-close"];
+// Första gången: lägg upp jalusisensorn med de två scener som hubben hittills haft inbyggda,
+// så att de syns och kan ändras. Väckningsscenen hämtas från sidans inställningar.
+async function ensureSensors(){
+  if (deck.sensors && deck.sensors.jalusi && Array.isArray(deck.scenes)) return;
+  let s = {};
+  try { s = ((await (await fetch("/api/state", { cache:"no-store" })).json()) || {}).settings || {}; } catch(e){}
+  const grp = (s.tradfriGroupName || "").trim(), wake = (s.tradfriMoodName || "").trim(), sleep = (s.tradfriSleepMoodName || "").trim();
+  deck.scenes = Array.isArray(deck.scenes) ? deck.scenes : [];
+  if (!sceneById("jalusi-open")) deck.scenes.push(Object.assign(newScene("Jalusin öppnas"), { id:"jalusi-open", screen:"wake",
+    music: { do:"play", room:"", src:"playlist", value:"", vol:null, fade:null }, moods: grp ? [{ group: grp, mood: wake }] : [] }));
+  if (!sceneById("jalusi-close")) deck.scenes.push(Object.assign(newScene("Jalusin stängs"), { id:"jalusi-close", screen:"close",
+    music: { do:"pause", room:"" }, moods: grp && sleep ? [{ group: grp, mood: sleep }] : [] }));
+  deck.sensors = deck.sensors || {};
+  if (!deck.sensors.jalusi) deck.sensors.jalusi = { open: C.newCtl({ t:"scene", id:"jalusi-open" }), close: C.newCtl({ t:"scene", id:"jalusi-close" }) };
+  scheduleSave();
+}
+// Kör en åtgärd som inte sitter på en knapp (sensorn i emulatorn).
+function runLoose(ctl, label){
+  const a = ctl && ctl.states[0].a; if (!a) return toast("Inget är inställt där.");
+  lastSent = "";
+  if (a.t === "multi") engine.runMulti(a.steps || [], 0); else { const cmd = C.toCmd(a); if (cmd) sendCmd(cmd, a); }
+  logEvent("me", label, lastSent || (a.t === "multi" ? "(flera steg)" : ""));
+}
+function renderSensors(){
+  const box = $("#sensors"); if (!box || !deck) return; box.innerHTML = "";
+  const j = (deck.sensors && deck.sensors.jalusi) || {}, use = mode === "use", state = LIVE.vals && LIVE.vals.jalusi;
+  box.append(h("span", { class:"sLab", title:"Sensorn på jalusin. Det som ställs in här körs av hubben när jalusin öppnas och stängs." },
+    h("i", { class: state === "open" ? "open" : "" }), "Jalusisensor", state ? h("small", { style:{ color:"var(--mut)", fontWeight:400 }, text: state === "open" ? "(öppen)" : "(stängd)" }) : null));
+  [["open","Öppnas"],["close","Stängs"]].forEach(([slot, lbl]) => {
+    const c = j[slot];
+    const chip = h("button", { class:"sensChip" + (c ? "" : " unset") + (!use && sel && sel.kind === "sens" && sel.i === slot ? " sel" : ""),
+      title: use ? "Kör det som händer när jalusin " + lbl.toLowerCase() : "Klicka för att ställa in. Dra en åtgärd eller scen hit från listan.",
+      onclick: () => use ? runLoose(c, "Jalusisensor: " + lbl.toLowerCase()) : select({ kind:"sens", i: slot }),
+      ondragover: ev => { if (mode !== "edit") return; ev.preventDefault(); chip.classList.add("dragover"); }, ondragleave: () => chip.classList.remove("dragover"),
+      ondrop: ev => { chip.classList.remove("dragover"); if (mode !== "edit") return; ev.preventDefault(); const lib = ev.dataTransfer.getData("text/deck-lib"); if (lib && LIB_BY_ID[lib]) dropLib(LIB_BY_ID[lib], { kind:"sens", i: slot }); } },
+      h("small", { text: lbl + ":" }), c ? h("span", { html: iconSvg(autoLook(c.states[0].a).icon), style:{ display:"inline-flex", color: autoLook(c.states[0].a).color } }) : null, h("b", { text: c ? ctlTitle(c) : "inget" }));
+    box.append(chip);
+  });
+}
+function renderSensInspector(ins){
+  const slot = sel.i, lbl = slot === "open" ? "öppnas" : "stängs", ctl = getCtl(sel);
+  const left = h("div", { class:"insCol colPrev" }, h("div", { style:{ margin:"14px 0 8px", color:"#c4a7ff" }, html: iconSvg("jalusi") }), h("b", { text:"Jalusin " + lbl }),
+    h("div", { class:"note", style:{ textAlign:"center" }, text:"Körs av hubben när sensorn märker att jalusin " + lbl + ". Prova i läget Använd genom att klicka på rutan." }));
+  if (ctl) left.append(h("button", { class:"lnk mut", text:"Ta bort", onclick: delSel }));
+  ins.append(left);
+  if (!ctl){ ins.append(h("div", { class:"insEmpty", html:"<b>Inget händer när jalusin " + lbl + "</b><br>Dra en åtgärd eller en scen hit från listan, eller klicka på en i listan." },
+    h("div", { style:{ marginTop:"10px" } }, h("button", { class:"sbtnS pri", text:"Använd scenen Jalusin " + lbl, onclick: async () => { await ensureJalusiScene(slot); mutate(() => setSlot("sens", slot, C.newCtl({ t:"scene", id:"jalusi-" + slot }))); } })))); return; }
+  const st = ctl.states[0];
+  ins.append(h("div", { class:"insCol colAct", style:{ flex:"1 1 420px" } }, h("h4", { text:"Åtgärd när jalusin " + lbl }), actionEditor(st, ctl.id + ":0:")));
+}
+async function ensureJalusiScene(slot){
+  if (sceneById("jalusi-" + slot)) return;
+  mutate(() => { (deck.scenes = deck.scenes || []).push(Object.assign(newScene(slot === "open" ? "Jalusin öppnas" : "Jalusin stängs"), { id:"jalusi-" + slot })); });
+}
+// Fälten för åtgärden "Kör egen scen" i inspektören.
+function sceneFields(a, co){
+  const list = deck.scenes || [], box = h("div");
+  box.append(field("Scen", h("select", { class:"in w", onchange: e => mutate(() => { a.id = e.target.value; }, { re:true }) },
+    [h("option", { value:"", text: list.length ? "(välj scen)" : "(inga scener än)", selected: !a.id }), ...list.map(s => h("option", { value: s.id, text: s.name, selected: s.id === a.id }))])));
+  box.append(h("div", { style:{ display:"flex", gap:"8px", margin:"4px 0 6px" } },
+    h("button", { class:"sbtnS pri", disabled: !sceneById(a.id), onclick: () => sceneModal(a.id) }, icon("sliders"), "Redigera scenen"),
+    h("button", { class:"sbtnS", onclick: () => { const sc = newScene(); mutate(() => { (deck.scenes = deck.scenes || []).push(sc); a.id = sc.id; }, { re:true }); sceneModal(sc.id); } }, icon("plus"), "Ny scen")));
+  const sc = sceneById(a.id);
+  if (sc) box.append(h("div", { class:"note", text: sceneSummary(sc) }));
+  return box;
+}
+function sceneSummary(sc){
+  const n = Object.values(sc.lights || {}).filter(l => l && l.use !== false).length, parts = [];
+  if (n) parts.push(n + (n === 1 ? " lampa" : " lampor"));
+  (sc.moods || []).forEach(m => { if (m.group) parts.push(m.mood ? "Trådfri-scenen " + m.mood + " i " + m.group : "tänder " + m.group); });
+  const mu = sc.music || {};
+  if (mu.do === "play") parts.push("spelar " + (mu.src === "fav" ? "favoriten " + (mu.value || "") : mu.src === "resume" ? "vidare" : mu.value ? "en spellista" : "väckningsspellistan") + (mu.room ? " i " + mu.room : ""));
+  else if (mu.do === "pause") parts.push("pausar musiken"); else if (mu.do === "vol") parts.push("volym " + (mu.vol ?? ""));
+  if (sc.screen) parts.push({ wake:"väckning på skärmen", open:"tänder skärmen", close:"släcker skärmen" }[sc.screen]);
+  return parts.length ? "Scenen: " + parts.join(", ") + "." : "Scenen är tom än.";
+}
+let sceneSel = null;
+function sceneModal(openId){
+  deck.scenes = Array.isArray(deck.scenes) ? deck.scenes : [];
+  if (openId) sceneSel = openId;
+  if (!sceneById(sceneSel)) sceneSel = (deck.scenes[0] || {}).id || null;
+  const list = h("div", { class:"scList" }), ed = h("div", { class:"scEd" });
+  const m = (fn, re, key) => { mutate(fn, { co:"scene:" + sceneSel + ":" + (key || ""), re:false }); if (re) draw(); else drawList(); };
+  const rooms = () => [...new Set(["Vardagsrum", ...(LIVE.hub.rooms || [])])];
+  const drawList = () => {
+    list.innerHTML = "";
+    deck.scenes.forEach(s => list.append(h("button", { class: s.id === sceneSel ? "on" : "", onclick: () => { sceneSel = s.id; draw(); } },
+      h("span", { html: iconSvg(JALUSI_IDS.includes(s.id) ? "jalusi" : "sparkles"), style:{ display:"inline-flex", color:"#c4a7ff" } }), h("span", { class:"nm", text: s.name }))));
+    list.append(h("button", { style:{ color:"var(--mut)", marginTop:"6px" }, onclick: () => { const sc = newScene(); m(() => { deck.scenes.push(sc); }); sceneSel = sc.id; draw(); } }, icon("plus"), h("span", { class:"nm", text:"Ny scen" })));
+  };
+  const lampRow = (sc, l) => {
+    const cur = sc.lights[l.id], on = !!cur && cur.use !== false, v = cur || {};
+    const set = (fn, re) => m(() => { const o = sc.lights[l.id] = sc.lights[l.id] || { use:true, on:true, dim:60, kind:"" }; fn(o); }, re, "l" + l.id);
+    const kinds = [["","Behåll färg"]]; if (l.temp || l.color) kinds.push(["white","Vitt"]); if (l.color) kinds.push(["color","Färg"]);
+    const row = h("div", { class:"lampRow" + (on ? "" : " off") },
+      h("input", { type:"checkbox", checked: on, title:"Ta med lampan i scenen", onchange: e => m(() => { if (e.target.checked) sc.lights[l.id] = Object.assign({ on:true, dim:60, kind:"" }, sc.lights[l.id] || {}, { use:true }); else delete sc.lights[l.id]; }, true) }),
+      h("div", { class:"nm", title: l.model }, h("b", { text: l.name }), h("small", { text: l.color ? "färg" : l.temp ? "vitt spektrum" : "bara ljusstyrka" })),
+      h("button", { class:"onoff" + (v.on !== false ? " on" : ""), text: v.on !== false ? "Tänd" : "Släckt", onclick: () => set(o => { o.on = o.on === false; }, true) }),
+      v.on !== false ? h("input", { type:"range", min:1, max:100, value: v.dim ?? 60, title:"Ljusstyrka " + (v.dim ?? 60) + " %", oninput: e => { e.target.title = "Ljusstyrka " + e.target.value + " %"; set(o => { o.dim = +e.target.value; }); } }) : h("span"),
+      v.on !== false && kinds.length > 1 ? h("select", { class:"in", onchange: e => set(o => { o.kind = e.target.value; if (o.kind === "white" && o.temp == null) o.temp = 35; if (o.kind === "color" && !o.color) o.color = "#ff8a3d"; }, true) }, kinds.map(([k, t]) => h("option", { value: k, text: t, selected: (v.kind || "") === k }))) : h("span"),
+      v.on !== false && v.kind === "white" ? h("input", { type:"range", min:0, max:100, value: v.temp ?? 35, title:"Varmt till kallt", oninput: e => set(o => { o.temp = +e.target.value; }) })
+        : v.on !== false && v.kind === "color" ? h("input", { type:"color", value: /^#[0-9a-f]{6}$/i.test(v.color || "") ? v.color : "#ff8a3d", oninput: e => set(o => { o.color = e.target.value; }) }) : h("span"));
+    return row;
+  };
+  let lastShown = null;
+  const draw = () => {
+    const keep = lastShown === sceneSel ? ed.scrollTop : 0; lastShown = sceneSel;
+    setTimeout(() => { ed.scrollTop = keep; }, 0);
+    drawList(); ed.innerHTML = "";
+    const sc = sceneById(sceneSel);
+    if (!sc){ ed.append(h("div", { class:"insEmpty", html:"<b>Inga scener än</b><br>En scen ställer in lampor, musik och skärmen i ett enda tryck. Skapa en med Ny scen till vänster." })); return; }
+    const isJ = JALUSI_IDS.includes(sc.id);
+    ed.append(h("div", { style:{ display:"flex", gap:"8px", alignItems:"center", flexWrap:"wrap" } },
+      h("input", { class:"in", style:{ flex:"1 1 180px", fontSize:"15px", fontWeight:600 }, value: sc.name, oninput: e => m(() => { sc.name = e.target.value || "Scen"; }, false, "name") }),
+      h("button", { class:"sbtnS pri", title:"Kör scenen nu", onclick: async () => { clearTimeout(saveT); await publish(); fetch("/api/send?c=" + encodeURIComponent("scene:" + sc.id)).catch(() => {}); toast(LIVE.hub.online ? "Kör scenen…" : "Skickad. Scener körs av hubben, och ingen hubb är ansluten just nu.", 3500); } }, icon("play"), "Prova"),
+      h("button", { class:"sbtnS", title:"Ställ in lamporna som du vill ha dem, och hämta sedan in läget hit", onclick: () => captureLamps(sc, draw) }, icon("refresh"), "Hämta lampornas läge nu"),
+      isJ ? null : h("button", { class:"sbtnS", title:"Ta bort scenen", onclick: () => { if (!confirmDel(sc)) return; m(() => { deck.scenes.splice(deck.scenes.indexOf(sc), 1); }); sceneSel = null; sceneModal(); } }, icon("cross"), "Ta bort")));
+    if (isJ) ed.append(h("div", { class:"note", text:"Den här scenen körs av jalusisensorn (" + (sc.id === "jalusi-open" ? "när jalusin öppnas" : "när jalusin stängs") + "). Tomma musikfält betyder väckningsinställningarna i hub_config.json på Pi:n." }));
+    // --- belysning ---
+    ed.append(h("h4", { text:"Belysning, lampa för lampa" }));
+    if (!LAMPS.length) ed.append(h("div", { class:"note" }, "Lamplistan kommer från hubben och har inte kommit än. ", h("button", { class:"lnk", text:"Hämta den nu", onclick: () => { fetch("/api/send?c=tradfri-refresh").catch(() => {}); toast("Ber hubben läsa av lamporna…"); setTimeout(async () => { await loadGroups(); draw(); }, 8000); } })));
+    const byRoom = {}; LAMPS.forEach(l => { (byRoom[l.room || "Övrigt"] = byRoom[l.room || "Övrigt"] || []).push(l); });
+    Object.keys(byRoom).forEach(room => {
+      ed.append(h("div", { class:"scRoom" }, room,
+        h("button", { class:"lnk", text:"alla", onclick: () => m(() => { byRoom[room].forEach(l => { sc.lights[l.id] = Object.assign({ on:true, dim:60, kind:"" }, sc.lights[l.id] || {}, { use:true }); }); }, true) }),
+        h("button", { class:"lnk mut", text:"ingen", onclick: () => m(() => { byRoom[room].forEach(l => { delete sc.lights[l.id]; }); }, true) }),
+        h("button", { class:"lnk mut", text:"släck alla", onclick: () => m(() => { byRoom[room].forEach(l => { sc.lights[l.id] = Object.assign({ dim:60, kind:"" }, sc.lights[l.id] || {}, { use:true, on:false }); }); }, true) })));
+      byRoom[room].forEach(l => ed.append(lampRow(sc, l)));
+    });
+    const gone = Object.keys(sc.lights).filter(id => !LAMPS.some(l => String(l.id) === String(id)));
+    if (gone.length && LAMPS.length) ed.append(h("div", { class:"note" }, gone.length + " lampor i scenen finns inte längre hos gatewayen. ", h("button", { class:"lnk", text:"Ta bort dem ur scenen", onclick: () => m(() => { gone.forEach(id => delete sc.lights[id]); }, true) })));
+    // --- Trådfri-scener ---
+    ed.append(h("h4", { text:"Färdiga Trådfri-scener (från IKEA-appen)" }));
+    (sc.moods || []).forEach((mo, n) => ed.append(h("div", { class:"fRow" }, h("label", { text:"Grupp och scen" }), h("div", { class:"ctl" },
+      h("select", { class:"in", onchange: e => m(() => { mo.group = e.target.value; mo.mood = ""; }, true) }, [...new Set([mo.group, ...Object.keys(GROUPS)])].filter(Boolean).map(g => h("option", { value: g, text: g, selected: g === mo.group }))),
+      h("select", { class:"in", onchange: e => m(() => { mo.mood = e.target.value; }) }, [h("option", { value:"", text:"(bara tänd gruppen)", selected: !mo.mood }), ...[...new Set([mo.mood, ...(GROUPS[mo.group] || [])])].filter(Boolean).map(x => h("option", { value: x, text: x, selected: x === mo.mood }))]),
+      h("button", { class:"mini", title:"Ta bort", onclick: () => m(() => { sc.moods.splice(n, 1); }, true) }, icon("cross"))))));
+    ed.append(h("button", { class:"sbtnS", disabled: !Object.keys(GROUPS).length, onclick: () => m(() => { (sc.moods = sc.moods || []).push({ group: defGroup(), mood: (GROUPS[defGroup()] || [])[0] || "" }); }, true) }, icon("plus"), "Lägg till Trådfri-scen"));
+    // --- musik ---
+    ed.append(h("h4", { text:"Musik (Sonos)" }));
+    const mu = sc.music = sc.music || { do:"" }, dl = "dlr" + (++dlN);
+    const mset = (fn, re) => m(() => fn(sc.music), re, "mu");
+    ed.append(field("Gör", h("select", { class:"in", onchange: e => mset(x => { x.do = e.target.value; if (x.do === "play" && !x.src) x.src = "playlist"; }, true) },
+      [["","Rör inte musiken"],["play","Spela"],["pause","Pausa"],["vol","Ändra bara volymen"]].map(([k, t]) => h("option", { value: k, text: t, selected: (mu.do || "") === k })))));
+    if (mu.do){
+      ed.append(field("Rum", h("input", { class:"in w", list: dl, value: mu.room || "", placeholder:"(tomt = väckningsrummet på Pi:n)", oninput: e => mset(x => { x.room = e.target.value.trim(); }) }), h("datalist", { id: dl }, rooms().map(r => h("option", { value: r })))));
+    }
+    if (mu.do === "play"){
+      ed.append(field("Spela", h("select", { class:"in", onchange: e => mset(x => { x.src = e.target.value; x.value = ""; }, true) },
+        [["playlist","Spellista"],["fav","Sonos-favorit"],["resume","Fortsätt där den var"]].map(([k, t]) => h("option", { value: k, text: t, selected: (mu.src || "playlist") === k })))));
+      if ((mu.src || "playlist") !== "resume") ed.append(field((mu.src || "playlist") === "fav" ? "Favorit" : "Spellista",
+        h("input", { class:"in w", value: mu.value || "", placeholder: mu.src === "fav" ? "Namnet som det står i Sonos-appen" : "Spotify-länk (tomt = väckningsspellistan på Pi:n)", oninput: e => mset(x => { x.value = e.target.value.trim(); }) })));
+      ed.append(field("Spela även i", h("input", { class:"in w", value: (mu.with || []).join(", "), placeholder:"fler rum, med komma emellan (t.ex. Kök, Badrum)", oninput: e => mset(x => { x.with = e.target.value.split(",").map(t => t.trim()).filter(Boolean); }) })));
+    }
+    if (mu.do === "play" || mu.do === "vol"){
+      ed.append(field("Volym", h("input", { class:"in n", type:"number", min:0, max:100, value: mu.vol ?? "", placeholder:"–", style:{ width:"70px" }, oninput: e => mset(x => { x.vol = e.target.value === "" ? null : clamp(+e.target.value || 0, 0, 100); }) }),
+        h("span", { class:"note", style:{ margin:0 }, text: mu.do === "play" ? "tomt = behåll (eller väckningsvolymen, om spellistan är tom)" : "0 till 100" })));
+    }
+    if (mu.do === "play") ed.append(field("Tona in", h("input", { class:"in n", type:"number", min:0, max:120, value: mu.fade ?? "", placeholder:"–", style:{ width:"70px" }, oninput: e => mset(x => { x.fade = e.target.value === "" ? null : clamp(+e.target.value || 0, 0, 120); }) }),
+      h("span", { class:"note", style:{ margin:0 }, text:"sekunder från tyst till vald volym (kräver att Volym är ifylld)" })));
+    // --- skärmen ---
+    ed.append(h("h4", { text:"Blaupunkt-skärmen" }));
+    ed.append(field("Gör", h("select", { class:"in", onchange: e => m(() => { sc.screen = e.target.value; }, false, "screen") },
+      [["","Rör inte skärmen"],["wake","Väckning (animationen)"],["open","Öppna (tänd bild, spela)"],["close","Stäng (pausa, släck bild)"]].map(([k, t]) => h("option", { value: k, text: t, selected: (sc.screen || "") === k })))));
+    ed.append(h("div", { class:"note", style:{ marginTop:"14px" }, text:"Lägg scenen på en knapp med åtgärden Kör egen scen i listan Scener. Scener körs av hubben, så den behöver vara igång." }));
+  };
+  openModal("Scener", h("div", { class:"scWrap" }, list, ed), [h("button", { class:"sbtnS", text:"Klar", onclick: () => { closeModal(); renderAll(); } })], true);
+  $("#dlg").style.width = "min(980px,100%)";
+  draw();
+}
+function confirmDel(sc){
+  let used = 0; C.eachCtl(deck, c => c.states.forEach(s => { if (s.a.t === "scene" && s.a.id === sc.id) used++; }));
+  ["open","close"].forEach(k => { const c = deck.sensors && deck.sensors.jalusi && deck.sensors.jalusi[k]; if (c && c.states[0].a.t === "scene" && c.states[0].a.id === sc.id) used++; });
+  if (used){ toast("Scenen används på " + used + " ställe" + (used > 1 ? "n" : "") + ". Byt scen där först."); return false; }
+  return true;
+}
+// Läser av hur lamporna står just nu (via hubben) och lägger in det i scenen.
+async function captureLamps(sc, redraw){
+  const t0 = Date.now() / 1000 - 1;
+  fetch("/api/send?c=lamps-read").catch(() => {});
+  toast("Läser av lamporna…", 6000);
+  for (let k = 0; k < 14; k++){
+    await new Promise(r => setTimeout(r, 700));
+    try {
+      const d = await (await fetch("/api/tradfri-list", { cache:"no-store" })).json();
+      if (d.statesAt && d.statesAt >= t0 && d.states){
+        if (Array.isArray(d.lamps)) LAMPS = d.lamps;
+        mutate(() => { Object.entries(d.states).forEach(([id, s]) => { sc.lights[id] = Object.assign({ use:true, kind:"" }, s); }); });
+        toast("Scenen har nu lampornas läge (" + Object.keys(d.states).length + " lampor)."); redraw(); return;
+      }
+    } catch(e){}
+  }
+  toast("Fick inget svar från hubben. Är den igång?", 4000);
 }
 function renderEncInspector(ins, v){
   const e = v.page.encs[sel.i], nm = ["Stora ratten", "Lilla ratten till vänster", "Lilla ratten till höger"][sel.i];
@@ -2333,7 +2578,7 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) poll
 (async function init(){
   $("#brandIc").innerHTML = iconSvg("back"); $("#profIc").innerHTML = iconSvg("layers");
   $("#undoBtn").innerHTML = iconSvg("up-level"); $("#redoBtn").innerHTML = iconSvg("up-level"); $("#redoBtn").firstChild.style.transform = "scaleX(-1)";
-  $("#deviceBtn").innerHTML = iconSvg("gear");
+  $("#deviceBtn").innerHTML = iconSvg("gear"); $("#scenesIc").innerHTML = iconSvg("sparkles"); $("#scenesBtn").onclick = () => sceneModal();
   $("#undoBtn").onclick = () => doUndo(undo, redo); $("#redoBtn").onclick = () => doUndo(redo, undo);
   $("#deviceBtn").onclick = deviceModal; $("#hubChip").onclick = deviceModal; $("#profileBtn").onclick = profileMenu;
   $("#modeSeg").addEventListener("click", ev => { const b = ev.target.closest("button"); if (b) setMode(b.dataset.m); });
@@ -2341,6 +2586,7 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) poll
   let fresh = false;
   try { fresh = await loadDeck(); } catch(e){ deck = C.defaultDeck(); toast("Kunde inte läsa konfigurationen från servern."); }
   await loadGroups(); loadSpotify();
+  await ensureSensors();
   editNav = C.normNav(deck, {}); engine.nav = C.normNav(deck, {});
   try { const j = await (await fetch("/api/deck/live?ev=0", { cache:"no-store" })).json();
     LIVE.navRev = j.navRev; LIVE.stRev = j.stRev; LIVE.valsRev = j.valsRev; LIVE.vals = j.vals || {}; LIVE.evLast = j.evLast; LIVE.hub = j.hub || LIVE.hub;
