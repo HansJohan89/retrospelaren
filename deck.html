@@ -515,6 +515,11 @@ const DeckCore = (() => {
         return "light:" + JSON.stringify({ group: a.group || "", action: op, value });
       }
       case "scene": return a.id ? "scene:" + String(a.id) : "";
+      case "screen": {
+        const o = {};
+        for (const k of ["anim", "pic", "music", "viz", "palette", "page"]) if (a[k] != null && a[k] !== "") o[k] = String(a[k]);
+        return Object.keys(o).length ? "screen:" + JSON.stringify(o) : "";
+      }
       case "plug": return a.id ? "plug:" + JSON.stringify({ id: String(a.id), action: ["on", "off", "toggle"].includes(a.op) ? a.op : "toggle" }) : "";
       case "sonos": {
         const op = a.op || "toggle", room = a.room || "";
@@ -979,6 +984,7 @@ function autoLook(a){
         shuffle:["shuffle","Blanda"], repeat:["repeat","Upprepa"], like:["heart","Gilla"], "seek-rel":[v < 0 ? "prev" : "next", "Spola " + signed(v) + " s"] }[a.op] || ["note","Spotify"];
       return { icon: m[0], color: CAT.sp, title: m[1] };
     }
+    case "screen": { const o = screenObj(a); return { icon: o.pic === "off" || o.anim === "off" ? "tv-off" : o.anim === "wake" ? "sunrise" : "tv", color: CAT.bp, title: o.pic === "off" ? "Skärm av" : o.pic === "on" ? "Skärm på" : o.anim === "wake" ? "Väckning" : "Skärmen" }; }
     case "plug": { const o = LAMPS.find(l => l.outlet && String(l.id) === String(a.id));
       return { icon: a.op === "off" ? "power" : "plug", color: CAT.light, title: (o ? o.name : "Uttag") + (a.op === "on" ? " på" : a.op === "off" ? " av" : "") }; }
     case "scene": { const sc = sceneById(a.id); return { icon: a.id === "jalusi-open" || a.id === "jalusi-close" ? "jalusi" : "sparkles", color: "#c4a7ff", title: sc ? sc.name : "Scen" }; }
@@ -1006,8 +1012,20 @@ function autoLook(a){
   return { icon:"plus", color:"#888", title:"" };
 }
 const grpName = a => { const r = Array.isArray(a.rooms) && a.rooms.length ? a.rooms : [a.room].filter(Boolean); return r.length > 2 ? r.length + " rum" : r.join(" + "); };
+// Blaupunkt-skärmen, steg för steg (scener och åtgärden "Skärmen, eget").
+const SCREEN_FIELDS = [
+  ["anim", "Animation", [["","Ingen"],["warm","Bilden tänds (som ett gammalt TV)"],["wake","Väckning (söker signal, testbild)"],["noise","Kanalbrus"],["off","Bilden krymper och slocknar"]]],
+  ["pic", "Bild", [["","Rör inte"],["on","Visa bilden"],["off","Svart skärm"]]],
+  ["music", "Musik", [["","Rör inte"],["play","Spela"],["pause","Pausa"],["toggle","Spela/paus"]]],
+  ["viz", "Kanal", [["","Rör inte"],["next","Nästa kanal"],["prev","Föregående kanal"], ...Object.entries(VIZ_NAMES).map(([v, l]) => [v, v + " · " + l])]],
+  ["palette", "Färgläge", [["","Rör inte"],["next","Nästa färgläge"], ...Object.entries(PALETTE_NAMES)]],
+  ["page", "Visa sida", [["","Rör inte"],["next","Nästa sida"], ...Object.entries(PAGE_NAMES)]]];
+// De gamla färdiga valen, uttryckta som steg (så syns vad de gjorde, och de kan ändras).
+const SCREEN_LEGACY = { wake:{ anim:"wake", pic:"on", music:"play" }, open:{ anim:"warm", pic:"on", music:"play" }, close:{ anim:"off", pic:"off", music:"pause" }, playpause:{ music:"toggle" } };
+const screenObj = v => { const o = typeof v === "string" ? { power: v } : Object.assign({}, v || {}); const L = SCREEN_LEGACY[o.power]; delete o.power; return L ? Object.assign({}, L, o) : o; };
+const screenText = o => SCREEN_FIELDS.map(([k, , opts]) => o[k] ? (opts.find(x => String(x[0]) === String(o[k])) || [, o[k]])[1].toLowerCase() : "").filter(Boolean).join(", ");
 const sceneById = id => (deck && Array.isArray(deck.scenes) ? deck.scenes.find(s => s.id === id) : null) || null;
-const ACT_KIND = { plug:"Smart uttag (Trådfri)", scene:"Egen scen", sp:"Spotify", bp:"Blaupunkt-skärmen", viz:"Blaupunkt-skärmen · Kanal", palette:"Blaupunkt-skärmen · Färgläge", page:"Blaupunkt-skärmen · Visa sida", light:"Belysning (Trådfri)",
+const ACT_KIND = { screen:"Blaupunkt-skärmen · Egna steg", plug:"Smart uttag (Trådfri)", scene:"Egen scen", sp:"Spotify", bp:"Blaupunkt-skärmen", viz:"Blaupunkt-skärmen · Kanal", palette:"Blaupunkt-skärmen · Färgläge", page:"Blaupunkt-skärmen · Visa sida", light:"Belysning (Trådfri)",
   sonos:"Sonos", z2m:"Zigbee-enhet", mqtt:"MQTT-meddelande", http:"HTTP-anrop", sys:"Kommando på Pi:n", deckdev:"Stream Controllern", folder:"Mapp", back:"Tillbaka",
   home:"Överst i mappen", pagenav:"Byt sida", profile:"Byt profil", multi:"Flera åtgärder" };
 
@@ -1018,6 +1036,8 @@ function fieldsFor(a){
     case "bp": return [{ k:"c", label:"Gör", type:"select", opts: opt(BP_NAMES) }];
     case "viz": return [{ k:"n", label:"Kanal", type:"select", opts: [["next","Nästa kanal"],["prev","Föregående kanal"], ...opt(VIZ_NAMES).map(([v,l]) => [v, v + " · " + l])] }];
     case "palette": return [{ k:"p", label:"Färgläge", type:"select", opts: [["next","Nästa färgläge"], ...opt(PALETTE_NAMES)] }];
+    case "screen": return [...SCREEN_FIELDS.map(([k, label, opts]) => ({ k, label, type:"select", opts, re:true })),
+      { type:"note", text:"Stegen körs uppifrån och ned. Lämna det du inte vill ändra på Rör inte." }];
     case "page": return [{ k:"p", label:"Sida", type:"select", opts: [["next","Nästa sida i tur"], ...opt(PAGE_NAMES)] },
       { type:"note", text:"Sidorna visas på skärmen när inget spelas och bara de som är påslagna under När inget spelar." }];
     case "plug": {
@@ -1145,6 +1165,7 @@ const LIBRARY = [
   { cat:"Scener", note:"lampor och musik", items:[
     { id:"c-scene", name:"Kör egen scen", make:() => ({ t:"scene", id: (deck && deck.scenes && deck.scenes[0] || {}).id || "" }) } ] },
   { cat:"Blaupunkt-skärmen", items:[
+    { id:"b-screen", name:"Skärmen, egna steg", ico:"sliders", make:() => ({ t:"screen", anim:"warm", pic:"on", music:"play" }) },
     { id:"b-open", name:"Öppna (tänd bild, spela)", make:() => ({ t:"bp", c:"open" }) },
     { id:"b-close", name:"Stäng (pausa, släck bild)", make:() => ({ t:"bp", c:"close" }) },
     { id:"b-pp", name:"Spela/paus", make:() => ({ t:"bp", c:"playpause" }) },
@@ -2235,11 +2256,8 @@ function sceneSummary(sc){
   const mu = sc.music || {};
   if (mu.do === "play") parts.push("spelar " + (mu.src === "fav" ? "favoriten " + (mu.value || "") : mu.src === "resume" ? "vidare" : mu.value ? "en spellista" : "väckningsspellistan") + (mu.room ? " i " + mu.room : ""));
   else if (mu.do === "pause") parts.push("pausar musiken"); else if (mu.do === "vol") parts.push("volym " + (mu.vol ?? ""));
-  const scr = typeof sc.screen === "string" ? { power: sc.screen } : (sc.screen || {});
-  if (scr.power) parts.push({ wake:"väckning på skärmen", open:"tänder skärmen", close:"släcker skärmen", playpause:"spela/paus på skärmen" }[scr.power]);
-  if (scr.viz) parts.push(scr.viz === "next" ? "nästa kanal" : "kanal " + (VIZ_NAMES[scr.viz] || scr.viz));
-  if (scr.palette) parts.push(scr.palette === "next" ? "nästa färgläge" : "färgläge " + (PALETTE_NAMES[scr.palette] || scr.palette));
-  if (scr.page) parts.push(scr.page === "next" ? "nästa sida" : "sidan " + (PAGE_NAMES[scr.page] || scr.page));
+  const st = screenText(screenObj(sc.screen));
+  if (st) parts.push("skärmen: " + st);
   return parts.length ? "Scenen: " + parts.join(", ") + "." : "Scenen är tom än.";
 }
 // ---------- fjärrkontroller och sensorer ----------
@@ -2399,16 +2417,12 @@ function sceneModal(openId){
       h("span", { class:"note", style:{ margin:0 }, text:"sekunder från tyst till vald volym (kräver att Volym är ifylld)" })));
     // --- skärmen ---
     ed.append(h("h4", { text:"Blaupunkt-skärmen" }));
-    // äldre scener har bara ett ord här; görs om till fälten nedan
-    const scr = typeof sc.screen === "string" ? { power: sc.screen } : (sc.screen || {});
-    const sset = (k, v) => m(() => { const o = typeof sc.screen === "string" ? { power: sc.screen } : Object.assign({}, sc.screen || {}); if (v) o[k] = v; else delete o[k]; sc.screen = o; }, false, "screen-" + k);
-    const ssel = (label, k, opts) => ed.append(field(label, h("select", { class:"in", onchange: e => sset(k, e.target.value) },
-      opts.map(([v, t]) => h("option", { value: v, text: t, selected: String(scr[k] || "") === String(v) })))));
-    ssel("Gör", "power", [["","Rör inte"],["wake","Väckning (animationen)"],["open","Slå på (tänd bild, spela)"],["close","Stäng av (pausa, släck bild)"],["playpause","Spela/paus"]]);
-    ssel("Kanal", "viz", [["","Rör inte"],["next","Nästa kanal"], ...Object.entries(VIZ_NAMES).map(([v, l]) => [v, v + " · " + l])]);
-    ssel("Färgläge", "palette", [["","Rör inte"],["next","Nästa färgläge"], ...Object.entries(PALETTE_NAMES)]);
-    ssel("Visa sida", "page", [["","Rör inte"],["next","Nästa sida"], ...Object.entries(PAGE_NAMES)]);
-    ed.append(h("div", { class:"note", text:"Visa sida gäller när inget spelas. Kanal är visualiseringen som visas medan musik spelar." }));
+    // äldre scener har ett färdigt val här (väckning, öppna, stäng); det visas som stegen det motsvarar
+    const scr = screenObj(sc.screen);
+    const sset = (k, v) => m(() => { const o = screenObj(sc.screen); if (v) o[k] = v; else delete o[k]; sc.screen = o; }, false, "screen-" + k);
+    SCREEN_FIELDS.forEach(([k, label, opts]) => ed.append(field(label, h("select", { class:"in", onchange: e => sset(k, e.target.value) },
+      opts.map(([v, t]) => h("option", { value: v, text: t, selected: String(scr[k] || "") === String(v) }))))));
+    ed.append(h("div", { class:"note", text:"Stegen körs uppifrån och ned. Musik gäller det som spelas på skärmen (radion eller Spotify). Visa sida gäller när inget spelas, och kanal är visualiseringen medan musik spelar." }));
     ed.append(h("div", { class:"note", style:{ marginTop:"14px" }, text:"Lägg scenen på en knapp med åtgärden Kör egen scen i listan Scener. Scener körs av hubben, så den behöver vara igång." }));
   };
   openModal("Scener", h("div", { class:"scWrap" }, list, ed), [h("button", { class:"sbtnS", text:"Klar", onclick: () => { closeModal(); renderAll(); } })], true);

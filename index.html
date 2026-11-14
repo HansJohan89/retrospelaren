@@ -1573,8 +1573,8 @@ function fxFrame(now){
 }
 
 // uppvärmning och avstängning
-function warmUp(){
-  if (!S.warm || !elPower.animate) return;
+function warmUp(force){
+  if ((!S.warm && !force) || !elPower.animate) return;
   elPower.animate([
     { transform:"scale(1,0.004)", filter:"brightness(6)", opacity:0.9 },
     { transform:"scale(1,0.004)", filter:"brightness(6)", opacity:1, offset:0.12 },
@@ -1582,8 +1582,8 @@ function warmUp(){
     { transform:"scale(1,1)", filter:"brightness(1)" }
   ], { duration:1400, easing:"cubic-bezier(.3,.7,.2,1)" });
 }
-function powerOff(done){
-  if (!S.warm || !elPower.animate){ done && done(); return; }
+function powerOff(done, force){
+  if ((!S.warm && !force) || !elPower.animate){ done && done(); return; }
   const a = elPower.animate([
     { transform:"scale(1,1)", filter:"brightness(1)", opacity:1 },
     { transform:"scale(1,0.005)", filter:"brightness(5)", opacity:1, offset:0.45 },
@@ -3048,6 +3048,30 @@ function runCmd(c){
   else if (c.startsWith("palette:")) setPalette(c.slice(8));
   else if (c.startsWith("page:")) showIdlePage(c.slice(5));
   else if (c.startsWith("sp:")){ try { spDeck(JSON.parse(c.slice(3))); } catch(e){} }
+  else if (c.startsWith("screen:")){ try { runScreen(JSON.parse(c.slice(7))); } catch(e){} }
+}
+// "screen:{anim,pic,music,viz,palette,page}" från en scen eller en knapp: skärmen gör det som är
+// ifyllt, i den här ordningen. Tomt fält = rör inte.
+//   anim:  warm (bilden tänds som på ett gammalt TV) | wake (väckningen: söker signal, testbild)
+//          | noise (kanalbrus) | off (bilden krymper ihop och slocknar)
+//   pic:   on (visa bilden) | off (svart skärm)
+//   music: play | pause | toggle (radion eller Spotify, beroende på källa)
+function runScreen(o){
+  o = o || {};
+  if (o.pic === "on"){ $("#blank").classList.remove("on"); state.blanked = false; start(); }
+  const blank = () => { state.blanked = true; $("#blank").classList.add("on"); };
+  if (o.anim === "warm") warmUp(true);
+  else if (o.anim === "noise") channelNoise(900);
+  else if (o.anim === "wake") playWakeAnimation(Promise.resolve(true));
+  else if (o.anim === "off") powerOff(() => { if (o.pic === "off") blank(); }, true);
+  if (o.pic === "off" && o.anim !== "off") blank();
+  const radio = S.source === "radio";
+  if (o.music === "play"){ if (radio){ if (audioEl && audioEl.paused) radioToggle(); } else spCmd("play"); }
+  else if (o.music === "pause"){ if (radio){ if (audioEl && !audioEl.paused) radioToggle(); } else spCmd("pause"); }
+  else if (o.music === "toggle") playPause();
+  if (o.viz) runCmd("viz:" + o.viz);
+  if (o.palette) runCmd("palette:" + o.palette);
+  if (o.page) runCmd("page:" + o.page);
 }
 // "sp:{action,value,device}" från Stream Controllern: styr Spotify med den här sidans inloggning.
 // action: toggle | play | pause | next | prev | vol | vol-rel | seek-rel | shuffle | repeat |
