@@ -122,6 +122,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #board svg{stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
 #board .pg{position:absolute;inset:0;display:none;flex-direction:column;gap:3vh}
 #board .pg.on{display:flex}
+#board .pg.leaving{display:flex;pointer-events:none}
 #board .kick{font-size:.8em;letter-spacing:.35em;text-transform:uppercase;color:var(--mid);display:flex;justify-content:space-between;gap:2vh;
   border-bottom:max(1px,.2vh) solid var(--dim);padding-bottom:1vh;white-space:nowrap;overflow:hidden}
 .wxNow{display:flex;align-items:center;gap:3vh}
@@ -2233,35 +2234,63 @@ async function prepHtml(h){
 function afterLayout(el){
   requestAnimationFrame(() => { el.classList.remove("tight"); if (el.id === "pgWx" && wxCramped(el)) el.classList.add("tight"); fitLists(el); });
 }
+// Byter en del mot en ny med övertoning: den gamla ligger kvar på exakt samma ställe ovanpå
+// (i samma förälder, så den behåller sitt utseende) och tonas bort medan den nya tonas fram.
+function crossReplace(live, fresh){
+  if (!(live instanceof Element) || !live.isConnected || !live.offsetParent){ live.replaceWith(fresh); return; }
+  const r = live.getBoundingClientRect();
+  const x = live.offsetLeft, y = live.offsetTop;
+  live.after(fresh);
+  Object.assign(live.style, { position:"absolute", left:x + "px", top:y + "px", width:r.width + "px", height:r.height + "px",
+    margin:"0", boxSizing:"border-box", pointerEvents:"none", transition:"opacity .6s", zIndex:"1" });
+  if (fresh instanceof Element){ fresh.style.opacity = "0"; fresh.style.transition = "opacity .6s"; }
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    live.style.opacity = "0"; if (fresh instanceof Element) fresh.style.opacity = "1";
+  }));
+  setTimeout(() => { live.remove(); if (fresh instanceof Element){ fresh.style.transition = ""; fresh.style.opacity = ""; } }, 650);
+}
+// Jämför förra och nya versionen av sidan (som de genererades, inte som de ser ut efter
+// anpassningar) och byter bara det som ändrats. Ändrad text byts direkt; ändrade delar tonas över.
+function patchNodes(prevNode, newNode, liveNode){
+  if (!liveNode) return false;
+  if (prevNode.nodeType !== newNode.nodeType || prevNode.nodeType !== liveNode.nodeType) return false;
+  if (prevNode.nodeType === 3){ if (prevNode.data !== newNode.data) liveNode.data = newNode.data; return true; }
+  if (prevNode.nodeType !== 1) return true;
+  if (prevNode.isEqualNode(newNode)) return true;
+  const pc = prevNode.childNodes, nc = newNode.childNodes, lc = liveNode.childNodes;
+  const sameAttrs = prevNode.tagName === newNode.tagName && prevNode.attributes.length === newNode.attributes.length
+    && [...prevNode.attributes].every(at => newNode.getAttribute(at.name) === at.value);
+  if (!sameAttrs || pc.length !== nc.length || lc.length !== pc.length || newNode.tagName === "IMG") return false;
+  for (let i = 0; i < nc.length; i++){
+    if (!patchNodes(pc[i], nc[i], lc[i])) crossReplace(lc[i], nc[i].cloneNode(true));
+  }
+  return true;
+}
 async function setPage(el, h){
   if (el._h === h) return;
   el._h = h; const tok = el._tok = (el._tok || 0) + 1;
-  const shown = el.classList.contains("on") && el.style.opacity !== "0" && el.children.length;
+  const shown = el.classList.contains("on") && el.style.opacity !== "0" && el.childNodes.length && el._prev;
   if (!shown) el.style.opacity = "0";                 // en sida som just ska visas: dold tills den är klar
   const tpl = await prepHtml(h);
   if (el._tok !== tok) return;
-  const kids = [...tpl.content.children], prev = el._kids || [];
-  const htmls = kids.map(k => k.outerHTML);
-  const sameShape = shown && prev.length === kids.length && el.children.length === kids.length
-    && kids.every((k, n) => el.children[n].tagName === k.tagName && el.children[n].className.split(" ")[0] === k.className.split(" ")[0]);
-  if (sameShape){
-    // bara de delar som ändrats byts; delar med nya bilder tonas
-    const jobs = kids.map(async (k, n) => {
-      if (htmls[n] === prev[n]) return;
-      // tonas: nya bilder, eller ny uppbyggnad (t.ex. "Hämtar väder…" som byts mot vädret)
-      const old = el.children[n], fade = imgsOf(k) !== imgsOf(old) || Math.abs(k.querySelectorAll("*").length - old.querySelectorAll("*").length) > 2;
-      if (fade){ old.style.transition = "opacity .3s"; old.style.opacity = "0"; await wait(300); if (el._tok !== tok) return; k.style.opacity = "0"; k.style.transition = "opacity .45s"; }
-      old.replaceWith(k);
-      if (fade) requestAnimationFrame(() => requestAnimationFrame(() => { k.style.opacity = "1"; }));
-    });
-    await Promise.all(jobs);
-    if (el._tok !== tok) return;
-    el._kids = htmls; afterLayout(el); return;
+  const fresh = tpl.content, keep = fresh.cloneNode(true);
+  if (shown && el._prev && el._prev.childNodes.length === fresh.childNodes.length && el.childNodes.length === fresh.childNodes.length){
+    for (let i = 0; i < fresh.childNodes.length; i++)
+      if (!patchNodes(el._prev.childNodes[i], fresh.childNodes[i], el.childNodes[i])) crossReplace(el.childNodes[i], fresh.childNodes[i].cloneNode(true));
+    el._prev = keep; afterLayout(el); return;
   }
-  if (shown){ el.style.transition = "opacity .3s"; el.style.opacity = "0"; await wait(300); if (el._tok !== tok) return; }
-  el.classList.remove("tight"); el.replaceChildren(...kids); el._kids = htmls;
+  if (shown){
+    // ny uppbyggnad: hela innehållet tonas över
+    const wrapOld = document.createElement("div"); wrapOld.style.cssText = "position:absolute;inset:0;display:flex;flex-direction:column;gap:inherit;pointer-events:none;transition:opacity .6s";
+    wrapOld.append(...el.childNodes); el.append(wrapOld);
+    el.classList.remove("tight"); el.prepend(...fresh.childNodes); el._prev = keep; afterLayout(el);
+    requestAnimationFrame(() => requestAnimationFrame(() => { wrapOld.style.opacity = "0"; }));
+    setTimeout(() => wrapOld.remove(), 650);
+    return;
+  }
+  el.classList.remove("tight"); el.replaceChildren(...fresh.childNodes); el._prev = keep;
   afterLayout(el);
-  el.style.transition = "opacity .45s";
+  el.style.transition = "opacity .6s";
   requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => { if (el._tok === tok) el.style.opacity = "1"; })));
 }
 function layoutPage(el, h){
@@ -2334,6 +2363,21 @@ function alignNxm(el){
   });
 }
 window.addEventListener("resize", () => document.querySelectorAll("#board .pg").forEach(el => { el._h = ""; }));
+// Sidbyte med övertoning: sidan som lämnas ligger kvar och tonas bort medan nästa tonas fram
+// (båda ligger på samma plats). En sida som inte är färdigladdad tonas fram när den är klar.
+function pageOn(el, on){
+  const was = el.classList.contains("on");
+  if (on === was) return;
+  clearTimeout(el._leaveT);
+  if (on){
+    el.classList.remove("leaving"); el.classList.add("on");
+    if (el.style.opacity !== "0"){ el.style.transition = "none"; el.style.opacity = "0"; void el.offsetWidth; el.style.transition = "opacity .6s";
+      requestAnimationFrame(() => requestAnimationFrame(() => { if (el.classList.contains("on") && !el._loading) el.style.opacity = "1"; })); }
+  } else {
+    el.classList.remove("on"); el.classList.add("leaving"); el.style.transition = "opacity .6s"; el.style.opacity = "0";
+    el._leaveT = setTimeout(() => el.classList.remove("leaving"), 650);
+  }
+}
 function renderBoard(){
   const wx = $("#pgWx"), nw = $("#pgNews");
   if (BOARD.page === "wx") setPage(wx, renderWxPage());
@@ -2343,12 +2387,12 @@ function renderBoard(){
   if (BOARD.page === "hockey") setPage(hk, renderHkPage());
   const hm = $("#pgHome");
   if (BOARD.page === "hem") setPage(hm, renderHomePage());
-  hm.classList.toggle("on", BOARD.page === "hem");
-  fb.classList.toggle("on", BOARD.page === "fotboll");
-  hk.classList.toggle("on", BOARD.page === "hockey");
+  pageOn(hm, BOARD.page === "hem");
+  pageOn(fb, BOARD.page === "fotboll");
+  pageOn(hk, BOARD.page === "hockey");
   $("#photo").classList.toggle("on", BOARD.page === "foto");
   $("#photo").classList.toggle("orig", !!S.photo.orig);
-  wx.classList.toggle("on", BOARD.page === "wx"); nw.classList.toggle("on", BOARD.page === "news");
+  pageOn(wx, BOARD.page === "wx"); pageOn(nw, BOARD.page === "news");
   $("#board").classList.toggle("on", ["wx", "news", "fotboll", "hockey", "hem"].includes(BOARD.page));
 }
 // körs varje bildruta; returnerar vilken sida som ska visas just nu ("" när musik spelar)
