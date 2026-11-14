@@ -2217,7 +2217,7 @@ let PLEX = { items:[], total:0, at:0 };
 async function loadPlex(){
   try{ const j = await (await fetch("/api/plex", { cache:"no-store" })).json();
     if (Array.isArray(j.items)){ PLEX = { items:j.items, total:j.total || j.items.length, at:j.at || 0 };
-      const st = $("#plexStatus"); if (st) st.textContent = PLEX.items.length ? `${PLEX.total} osedda filmer i Plex.` : "Inga filmtips än. Hubben på Pi:n behöver Plex-uppgifter i hub_config.json."; } }catch(e){}
+      const st = $("#plexStatus"); if (st) st.textContent = PLEX.items.length ? `${PLEX.total} osedda filmer i Plex.` : (j.error || "Inga filmtips än."); } }catch(e){}
 }
 function plexDur(m){ if (!m) return ""; const h = Math.floor(m / 60), mm = m % 60; return h ? `${h} h ${mm} min` : `${mm} min`; }
 function renderPlexPage(){

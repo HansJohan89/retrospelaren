@@ -213,6 +213,83 @@ def save_deck(data):
 # här, så att sidan kan visa dem. Bara i minnet, de senaste 30.
 SONOS_ART = {}
 PLEX_LIST = {}                    # filmtips från Plex, skickade av hubben (bara i minnet)
+
+# ---- Plex direkt från servern ----
+# Med fjärråtkomst påslagen i Plex når servern filmerna själv. Token läggs som miljövariabeln
+# PLEX_TOKEN på Railway (aldrig i sidans inställningar, som alla med adressen kan läsa).
+# PLEX_URL kan anges om adressen ska vara fast; annars frågas plex.tv efter serverns adress.
+PLEX_TOKEN = os.environ.get("PLEX_TOKEN", "").strip()
+PLEX_STATE = {"base": os.environ.get("PLEX_URL", "").strip().rstrip("/"), "base_at": 0, "list": None, "list_at": 0, "err": ""}
+PLEX_LOCK = __import__("threading").Lock()
+PLEX_HDRS = {"Accept": "application/json", "X-Plex-Product": "Blaupunkt", "X-Plex-Client-Identifier": "blaupunkt-retrospelaren"}
+
+
+def _plex_open(url, timeout=12, accept=None):
+    sep = "&" if "?" in url else "?"
+    h = dict(PLEX_HDRS)
+    if accept:
+        h["Accept"] = accept
+    req = urllib.request.Request(url + sep + "X-Plex-Token=" + urllib.parse.quote(PLEX_TOKEN), headers=h)
+    return urllib.request.urlopen(req, timeout=timeout, context=SSL_CTX)
+
+
+def plex_base():
+    """Adressen till Plex-servern, utifrån sett. Hämtas från plex.tv och provas; sparas en timme."""
+    if os.environ.get("PLEX_URL"):
+        return PLEX_STATE["base"]
+    if PLEX_STATE["base"] and time.time() - PLEX_STATE["base_at"] < 3600:
+        return PLEX_STATE["base"]
+    with _plex_open("https://plex.tv/api/v2/resources?includeHttps=1&includeRelay=1") as r:
+        res = json.loads(r.read().decode("utf-8"))
+    conns = []
+    for dev in res:
+        if "server" not in (dev.get("provides") or ""):
+            continue
+        for c in dev.get("connections") or []:
+            # utifrån: direkta adresser först, Plex egen relä sist
+            conns.append((1 if c.get("relay") else 0, 1 if c.get("local") else 0, c.get("uri")))
+    for _, local, uri in sorted(conns):
+        if local or not uri:
+            continue
+        try:
+            with _plex_open(uri.rstrip("/") + "/identity", timeout=5):
+                PLEX_STATE.update(base=uri.rstrip("/"), base_at=time.time())
+                return PLEX_STATE["base"]
+        except Exception:
+            continue
+    raise RuntimeError("hittar ingen Plex-server som går att nå utifrån (är fjärråtkomst påslagen?)")
+
+
+def plex_list():
+    """Osedda filmer, hälften de senast tillagda och resten slumpade. Sparas en halvtimme."""
+    import random
+    with PLEX_LOCK:
+        if PLEX_STATE["list"] is not None and time.time() - PLEX_STATE["list_at"] < 1800:
+            return PLEX_STATE["list"]
+        base = plex_base()
+        movies = []
+        with _plex_open(base + "/library/sections") as r:
+            secs = (json.loads(r.read().decode("utf-8")).get("MediaContainer") or {}).get("Directory") or []
+        for sec in secs:
+            if sec.get("type") != "movie":
+                continue
+            with _plex_open(base + "/library/sections/%s/all?type=1&unwatched=1&sort=addedAt:desc&X-Plex-Container-Start=0&X-Plex-Container-Size=300" % sec.get("key"), timeout=20) as r:
+                for m in (json.loads(r.read().decode("utf-8")).get("MediaContainer") or {}).get("Metadata") or []:
+                    if not m.get("viewCount") and not m.get("viewOffset"):
+                        movies.append(m)
+        movies.sort(key=lambda m: m.get("addedAt") or 0, reverse=True)
+        n = 40
+        pick = movies[:n // 2]
+        rest = movies[n // 2:]
+        pick += random.sample(rest, min(len(rest), n - len(pick)))
+        img = lambda p, w, h: ("/api/plex-img?w=%d&h=%d&p=%s" % (w, h, urllib.parse.quote(p, safe=""))) if p else ""
+        items = [{"title": m.get("title") or "", "year": m.get("year"), "summary": m.get("summary") or "",
+                  "minutes": round((m.get("duration") or 0) / 60000), "rating": m.get("audienceRating") or m.get("rating"),
+                  "genres": [g.get("tag") for g in (m.get("Genre") or [])][:3],
+                  "director": ", ".join(d.get("tag") for d in (m.get("Director") or [])[:1]),
+                  "added": m.get("addedAt"), "poster": img(m.get("thumb"), 400, 600), "art": img(m.get("art"), 960, 540)} for m in pick]
+        PLEX_STATE.update(list={"items": items, "total": len(movies), "at": time.time(), "src": "server"}, list_at=time.time(), err="")
+        return PLEX_STATE["list"]
 SONOS_ART_LOCK = __import__("threading").Lock()
 
 
@@ -791,7 +868,17 @@ class Handler(SimpleHTTPRequestHandler):
             if path == "/api/sonos-art":
                 return self._sonos_art(q.get("v", [""])[0])
             if path == "/api/plex":
-                return self._json(PLEX_LIST or {"items": []})
+                if PLEX_TOKEN:
+                    try:
+                        return self._json(plex_list())
+                    except Exception as e:
+                        PLEX_STATE["err"] = str(e)
+                        if PLEX_STATE["list"]:
+                            return self._json(PLEX_STATE["list"])
+                        return self._json({"items": [], "error": "Plex: %s" % e})
+                return self._json(PLEX_LIST or {"items": [], "error": "Plex är inte inställt (PLEX_TOKEN saknas på servern)."})
+            if path == "/api/plex-img":
+                return self._plex_img(q)
             if path == "/api/tradfri-list":
                 return self._json(get_tradfri_list())
             if path == "/api/ping":
@@ -835,6 +922,25 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/deck/live":
             return self._json(patch_deck_live(data))
         return self._json(save_state(data))
+
+    def _plex_img(self, q):
+        """Omslag från Plex, hämtade av servern (så att token aldrig hamnar i webbläsaren)."""
+        p = q.get("p", [""])[0]
+        if not PLEX_TOKEN or not p.startswith("/library/"):
+            return self._json({"error": "hittades inte"}, 404)
+        try:
+            w = max(50, min(1920, int(q.get("w", ["400"])[0]))); h = max(50, min(1920, int(q.get("h", ["600"])[0])))
+            url = plex_base() + "/photo/:/transcode?" + urllib.parse.urlencode({"url": p, "width": w, "height": h, "minSize": 1, "upscale": 1})
+            with _plex_open(url, timeout=15, accept="image/*") as r:
+                data, ctype = r.read(3000000), (r.headers.get("Content-Type") or "image/jpeg").split(";")[0]
+        except Exception as e:
+            return self._json({"error": str(e)}, 502)
+        self.send_response(200)
+        self.send_header("Content-Type", ctype if ctype.startswith("image/") else "image/jpeg")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "public, max-age=604800")
+        self.end_headers()
+        self.wfile.write(data)
 
     def _sonos_art(self, v):
         with SONOS_ART_LOCK:
