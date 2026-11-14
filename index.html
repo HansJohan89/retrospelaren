@@ -711,8 +711,10 @@ const $ = s => document.querySelector(s);
 // Railway-volymen), så de överlever omstarter och är desamma på alla enheter. Spotify-inloggningen
 // stannar i webbläsaren.
 const SHARED = ["settings", "favs", "lastStation"];
-const remote = { pend:{}, t:0,
-  push(k, v){ this.pend[k] = v === undefined ? null : v; clearTimeout(this.t); this.t = setTimeout(() => this.flush(), 600); },
+let REMOTE_IN = false;           // sant medan inställningar från en annan skärm läggs in (skickas då inte tillbaka)
+let SRV_SETTINGS = "";            // inställningarna som de senast såg ut på servern
+const remote = { pend:{}, t:0, at:0,
+  push(k, v){ if (REMOTE_IN) return; this.at = Date.now(); this.pend[k] = v === undefined ? null : v; clearTimeout(this.t); this.t = setTimeout(() => this.flush(), 600); },
   flush(){
     if (!Object.keys(this.pend).length) return;
     const body = JSON.stringify(this.pend); this.pend = {}; clearTimeout(this.t);
@@ -733,6 +735,7 @@ const store = {
     const srv = JSON.parse(x.responseText || "{}");
     if (!Object.keys(srv).length){ SHARED.forEach(k => { const v = store.get(k, undefined); if (v !== undefined) remote.push(k, v); }); return; }
     SHARED.forEach(k => { try{ if (k in srv) localStorage.setItem("rs." + k, JSON.stringify(srv[k])); }catch(e){} });
+    SRV_SETTINGS = JSON.stringify(srv.settings || null);
   }catch(e){}
 })();
 const S = Object.assign({
@@ -3318,6 +3321,47 @@ document.addEventListener("keydown", e => {
 
 let cursorTimer = 0;
 document.addEventListener("mousemove", () => { document.body.classList.remove("hidecursor"); clearTimeout(cursorTimer); cursorTimer = setTimeout(() => document.body.classList.add("hidecursor"), 2500); });
+
+// ================= inställningar från andra skärmar =================
+// Ändrar man något på sidan på datorn ska skärmen i skåpet följa med direkt, utan att någon
+// behöver röra den. Sidan frågar servern med några sekunders mellanrum och lägger in det nya.
+function applyRemoteSettings(ns){
+  const before = {}; Object.keys(Object.assign({}, S, ns)).forEach(k => { before[k] = JSON.stringify(S[k]); });
+  const changed = new Set(Object.keys(before).filter(k => k in ns && JSON.stringify(ns[k]) !== before[k]));
+  if (!changed.size) return;
+  REMOTE_IN = true;
+  try{
+    changed.forEach(k => { S[k] = ns[k]; });
+    try{ localStorage.setItem("rs.settings", JSON.stringify(S)); }catch(e){}
+    const has = (...ks) => ks.some(k => changed.has(k));
+    if (has("look")){ loadFonts(); applyLook(); }
+    if (has("palette")) setPalette(S.palette);
+    if (has("fx", "crt", "palette")) applyFxStatic();
+    if (has("info", "look")) applyInfoVis();
+    if (has("edge", "idle")) loadWeather();
+    if (has("idle")) loadNews();
+    if (has("photo")) loadPhotos();
+    if (has("foot", "idle")){ loadFootball(); loadHockey(); }
+    if (has("bus")){ DEP = { items:[], at:0, err:"", nokey:false }; loadDeps(); }
+    if (has("idle", "home", "photo", "foot", "bus")) BOARD.until = 0;
+    document.querySelectorAll("#board .pg").forEach(el => { el._h = ""; });
+    renderBoard(); renderEdges();
+    syncAll();
+    segOn("#vizSeg", String(S.viz)); segOn("#srcSeg", S.source);
+  } finally { REMOTE_IN = false; }
+}
+async function pollSettings(){
+  try{
+    const srv = await (await fetch("/api/state?t=" + Date.now(), { cache:"no-store" })).json();
+    const js = JSON.stringify(srv.settings || null);
+    if (js === SRV_SETTINGS) return;
+    // nyss ändrat här: vänta tills vår egen ändring har kommit fram till servern
+    if (Object.keys(remote.pend).length || Date.now() - remote.at < 3000) return;
+    SRV_SETTINGS = js;
+    if (srv.settings && typeof srv.settings === "object") applyRemoteSettings(srv.settings);
+  }catch(e){}
+}
+setInterval(pollSettings, 4000);
 
 // ================= init =================
 (async function init(){
