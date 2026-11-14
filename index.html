@@ -662,6 +662,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <div class="note">Under en AIK-match hämtar ESPN var 5:e minut. Highlightly hämtar högst en gång i timmen. Hockeyn (Hockeyallsvenskan) kommer alltid från Highlightly, högst en gång i timmen.</div>
       <div class="note" id="fbStatus"></div>
       <div class="note" id="hkStatus"></div>
+      <div id="sportNewsCfg"></div>
       <label class="chk"><input type="checkbox" id="idTest"> Testbild</label>
       <div id="idleSl"></div>
       <div class="lbl" style="margin-top:12px">Nyhetskällor (kryssa i så många du vill)</div>
@@ -2097,29 +2098,54 @@ function isSwedishRelevant(a, exclude){
   if (a.date){ const age = Date.now() - new Date(a.date).getTime(); if (age > 90*24*3600e3 || age < -3600e3) return false; }
   return true;
 }
-async function loadSportNews(key, query, exclude){
+// Nyheterna på fotbolls- och hockeysidan. Varje sida har egna inställningar: en nyhetssökning,
+// valfria sportflöden och egna RSS-flöden, ord som måste finnas med och ord som utesluter.
+const SPORT_FEEDS = [["svt-sport","SVT Sport","https://www.svt.se/sport/rss.xml"],["dn-sport","DN Sport","https://www.dn.se/rss/sport/"],
+  ["ab-sport","Sportbladet","https://rss.aftonbladet.se/rss2/small/pages/sections/sportbladet/"],["ex-sport","Expressen Sport","https://feeds.expressen.se/sport/"],
+  ["fk-top","Fotbollskanalen","https://www.fotbollskanalen.se/rss/"],["fd-top","Fotbolldirekt","https://www.fotbolldirekt.se/feed/"],
+  ["hs-top","Hockeysverige","https://www.hockeysverige.se/feed/"],["ex-hockey","Expressen Hockey","https://feeds.expressen.se/sport/hockey/"]];
+const SPORT_DEF = { fb:{ search:"AIK fotboll Solna", useSearch:true, must:"AIK", exclude:"chile, assadi", feeds:[], own:[] },
+                    hk:{ search:"AIK hockey", useSearch:true, must:"AIK", exclude:"skellefteå", feeds:[], own:[] } };
+S.sportNews = S.sportNews || {};
+for (const k of ["fb", "hk"]) S.sportNews[k] = Object.assign({}, SPORT_DEF[k], S.sportNews[k] || {});
+const words = t => String(t || "").toLowerCase().split(",").map(x => x.trim()).filter(Boolean);
+async function loadSportNews(key){
   if (!S.idle.fb) return;
-  try{
-    const r = await fetch("/api/rss?url=" + encodeURIComponent("https://www.bing.com/news/search?q=" + encodeURIComponent(query) + "&format=RSS"));
-    const j = await r.json();
-    const arr = Array.isArray(j) ? j : (j.items || []);
-    const filtered = arr.filter(a => isSwedishRelevant(a, exclude)).slice(0, 6);
-    const out = [];
-    for (const a of filtered){
-      const real = decodeBingUrl(a.link);
-      let img = "", desc = a.desc || "";
-      try{
-        const jj = await (await fetch("/api/ogimage?url=" + encodeURIComponent(real))).json();
-        if (jj.img) img = jj.img;
-        if (jj.desc) desc = jj.desc;
-      }catch(e){}
-      out.push({ title:a.title, desc, img, link:real, date:a.date || null });
-    }
-    if (out.length) SPNEWS[key] = { items:out, at:Date.now() };
-  }catch(e){}
+  const c = S.sportNews[key], must = words(c.must), excl = words(c.exclude);
+  const srcs = [];
+  if (c.useSearch && c.search.trim()) srcs.push({ name:"Nyhetssök", url:"https://www.bing.com/news/search?q=" + encodeURIComponent(c.search.trim()) + "&format=RSS", bing:true });
+  (c.feeds || []).forEach(k => { const f = SPORT_FEEDS.find(x => x[0] === k); if (f) srcs.push({ name:f[1], url:f[2] }); });
+  (c.own || []).forEach(f => { if (f && f.url) srcs.push({ name:f.name || "Egen källa", url:f.url }); });
+  const res = await Promise.all(srcs.map(async src => {
+    try{
+      const j = await (await fetch("/api/rss?url=" + encodeURIComponent(src.url))).json();
+      const arr = Array.isArray(j) ? j : (j.items || []);
+      if (!Array.isArray(j) && j.error) throw new Error(j.error);
+      return { src, items: arr.map(a => Object.assign({}, a, { link: src.bing ? decodeBingUrl(a.link) : a.link, srcName: src.name })) };
+    }catch(e){ return { src, err:e.message }; }
+  }));
+  const seen = new Set();
+  const all = res.flatMap(r => r.items || []).filter(a => {
+    const t = (a.title + " " + (a.desc || "")).toLowerCase(), k = (a.title || "").trim().toLowerCase();
+    if (!k || seen.has(k)) return false; seen.add(k);
+    if (must.length && !must.some(w => t.includes(w))) return false;
+    if (excl.some(w => t.includes(w))) return false;
+    if (!/[åäö]/.test(t) && a.srcName === "Nyhetssök") return false;      // sökningen ger annars utländska träffar
+    if (a.date){ const age = Date.now() - new Date(a.date).getTime(); if (age > 90*24*3600e3 || age < -3600e3) return false; }
+    return true;
+  }).sort((x, y) => (Date.parse(y.date) || 0) - (Date.parse(x.date) || 0)).slice(0, 8);
+  const out = [];
+  for (const a of all){
+    let img = a.img || "", desc = a.desc || "";
+    if (!img){ try{ const jj = await (await fetch("/api/ogimage?url=" + encodeURIComponent(a.link))).json(); if (jj.img) img = jj.img; if (jj.desc && !desc) desc = jj.desc; }catch(e){} }
+    out.push({ title:a.title, desc, img, link:a.link, date:a.date || null, src:a.srcName });
+  }
+  if (out.length) SPNEWS[key] = { items:out, at:Date.now() };
+  const st = $("#" + key + "NewsStatus"), bad = res.filter(r => r.err).map(r => r.src.name);
+  if (st) st.textContent = `${out.length} artiklar från ${res.filter(r => r.items).length} av ${srcs.length} källor, hämtade ${hhmm(new Date())}.` + (bad.length ? " Svarade inte: " + bad.join(", ") + "." : "") + (!srcs.length ? " Välj minst en källa." : "");
   renderBoard();
 }
-function loadAikNews(){ loadSportNews("fb", "AIK fotboll Solna", ["chile","assadi"]); loadSportNews("hk", "AIK hockey", ["skellefteå"]); }
+function loadAikNews(){ loadSportNews("fb"); loadSportNews("hk"); }
 
 const SV_DAYS = ["sön","mån","tis","ons","tor","fre","lör"];
 const ordinal = n => `${n}:${n % 10 in {1:1,2:1} && !(n % 100 in {11:1,12:1}) ? "a" : "e"}`;
@@ -3447,6 +3473,26 @@ function buildControls(){
     `<label class="chk feedChk"><input type="checkbox" data-feed="${k}"> ${esc(cat)}</label>`).join("")}</div>`).join("");
   $("#feedList").addEventListener("change", e => { const k = e.target.dataset.feed; if (!k) return;
     const set = new Set(S.idle.feeds); e.target.checked ? set.add(k) : set.delete(k); S.idle.feeds = [...set]; saveS(); loadNews(); });
+  // sportnyheter: samma uppsättning inställningar för fotbolls- och hockeysidan
+  $("#sportNewsCfg").innerHTML = [["fb","Fotbollsnyheter"],["hk","Hockeynyheter"]].map(([k, t]) => `<div class="spCfg" data-k="${k}">
+    <div class="lbl" style="margin-top:12px">${t}</div>
+    <label class="chk"><input type="checkbox" data-f="useSearch"> Nyhetssökning</label>
+    <div class="row"><input type="text" data-f="search" placeholder="Sökord, t.ex. AIK fotboll" style="flex:1"></div>
+    <div class="row"><span class="lbl">Måste innehålla</span><input type="text" data-f="must" placeholder="ord, med komma emellan" style="flex:1"></div>
+    <div class="row"><span class="lbl">Utesluta</span><input type="text" data-f="exclude" placeholder="ord, med komma emellan" style="flex:1"></div>
+    <div class="feedGrp">${SPORT_FEEDS.map(([fk, name]) => `<label class="chk feedChk"><input type="checkbox" data-sfeed="${fk}"> ${esc(name)}</label>`).join("")}</div>
+    <div class="spOwn"></div>
+    <div class="row"><input type="text" class="spOwnName" placeholder="Namn" style="width:7em"><input type="text" class="spOwnUrl" placeholder="Egen RSS-adress (https://...)" style="flex:1"><button class="btn spOwnAdd">Lägg till</button></div>
+    <div class="note" id="${k}NewsStatus"></div></div>`).join("");
+  const spT = {};
+  const spSave = k => { saveS(); clearTimeout(spT[k]); spT[k] = setTimeout(() => loadSportNews(k), 600); };
+  $("#sportNewsCfg").addEventListener("change", e => { const box = e.target.closest(".spCfg"); if (!box) return; const k = box.dataset.k, c = S.sportNews[k];
+    if (e.target.dataset.f){ const f = e.target.dataset.f; c[f] = e.target.type === "checkbox" ? e.target.checked : e.target.value; spSave(k); }
+    else if (e.target.dataset.sfeed){ const set = new Set(c.feeds); e.target.checked ? set.add(e.target.dataset.sfeed) : set.delete(e.target.dataset.sfeed); c.feeds = [...set]; spSave(k); } });
+  $("#sportNewsCfg").addEventListener("click", e => { const box = e.target.closest(".spCfg"); if (!box) return; const k = box.dataset.k, c = S.sportNews[k];
+    if (e.target.classList.contains("spOwnAdd")){ const url = box.querySelector(".spOwnUrl").value.trim(); if (!/^https?:\/\//.test(url)) return;
+      c.own = [...(c.own || []), { name: box.querySelector(".spOwnName").value.trim() || "Egen källa", url }]; box.querySelector(".spOwnUrl").value = ""; box.querySelector(".spOwnName").value = ""; syncAll(); spSave(k); }
+    if (e.target.dataset.sdel != null){ c.own.splice(+e.target.dataset.sdel, 1); syncAll(); spSave(k); } });
   $("#ownFeedAdd").addEventListener("click", () => { const url = $("#ownFeedUrl").value.trim(); if (!/^https?:\/\//.test(url)) return;
     S.idle.ownFeeds = [...(S.idle.ownFeeds || []), { name: $("#ownFeedName").value.trim() || "Egen källa", url }]; $("#ownFeedUrl").value = ""; $("#ownFeedName").value = ""; saveS(); syncAll(); loadNews(); });
   $("#ownFeeds").addEventListener("click", e => { const i = e.target.dataset.del; if (i == null) return;
@@ -3479,6 +3525,10 @@ function syncAll(){
   if (S.bus.id) $("#busSel").innerHTML = `<option value="${esc(S.bus.id)}">${esc(S.bus.name)}</option>`;
   if (S.bus.to) $("#busToSel").innerHTML = `<option value="">Ingen – visa vart bussen går</option><option value="${esc(S.bus.to)}" selected>${esc(S.bus.toName)}</option>`;
   $("#idWx").checked = S.idle.wx; $("#idNews").checked = S.idle.news; $("#idTest").checked = S.idle.test;
+  document.querySelectorAll("#sportNewsCfg .spCfg").forEach(box => { const c = S.sportNews[box.dataset.k];
+    box.querySelectorAll("[data-f]").forEach(i => { if (i.type === "checkbox") i.checked = !!c[i.dataset.f]; else if (document.activeElement !== i) i.value = c[i.dataset.f] || ""; });
+    box.querySelectorAll("[data-sfeed]").forEach(i => { i.checked = (c.feeds || []).includes(i.dataset.sfeed); });
+    box.querySelector(".spOwn").innerHTML = (c.own || []).map((f, i) => `<div class="row ownFeed"><span>${esc(f.name)}</span><span class="note" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.url)}</span><button class="btn" data-sdel="${i}">Ta bort</button></div>`).join(""); });
   document.querySelectorAll("#feedList input[data-feed]").forEach(cb => { cb.checked = (S.idle.feeds || []).includes(cb.dataset.feed); });
   $("#ownFeeds").innerHTML = (S.idle.ownFeeds || []).map((f, i) => `<div class="row ownFeed"><span>${esc(f.name)}</span><span class="note" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.url)}</span><button class="btn" data-del="${i}">Ta bort</button></div>`).join("");
 }
@@ -3524,6 +3574,7 @@ function applyRemoteSettings(ns){
     if (has("idle")) loadNews();
     if (has("photo")) loadPhotos();
     if (has("foot", "idle")){ loadFootball(); loadHockey(); }
+    if (has("sportNews", "idle")) loadAikNews();
     if (has("bus")){ DEP = { items:[], at:0, err:"", nokey:false }; loadDeps(); }
     if (has("idle", "home", "photo", "foot", "bus")) BOARD.until = 0;
     document.querySelectorAll("#board .pg").forEach(el => { el._h = ""; });
