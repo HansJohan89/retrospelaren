@@ -799,7 +799,8 @@ class Handler(SimpleHTTPRequestHandler):
     def asset(self, name):
         """Bilder i mappen assets (t.ex. Dalatrafiks logotyp). Bara enkla filnamn och bildformat."""
         import re
-        types = {".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp"}
+        types = {".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp",
+                 ".html": "text/html; charset=utf-8"}       # html: bara testsidor som ligger i förrådet
         ext = os.path.splitext(name)[1].lower()
         if not re.fullmatch(r"[A-Za-z0-9_.-]+", name) or ext not in types:
             return self._json({"error": "hittades inte"}, 404)
