@@ -277,6 +277,13 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #photo .fg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;filter:var(--cover-filter)}
 #photo.orig .bg{filter:blur(3vh) brightness(.45)}
 .lite #photo .bg,.lite #photo.orig .bg{filter:brightness(.3)}
+/* Pi:n: blandningslägen över hela skärmen tvingar grafiken att rita om allt bakom dem i varje bild.
+   Svarta linjer med "multiply" ser exakt likadana ut med vanlig genomskinlighet, och bruset med "screen"
+   blir nästan likadant. */
+.lite #crt.on::before{mix-blend-mode:normal}
+.lite #fx{mix-blend-mode:normal}
+.lite #screen{isolation:auto}
+.norund #screen{border-radius:0}
 #photo.orig .fg{filter:none}
 #photo .sl.on .fg{animation:kb var(--kb,14s) ease-out forwards}
 @keyframes kb{from{transform:scale(1)}to{transform:scale(1.07)}}
@@ -937,6 +944,7 @@ const RSCALE = Math.max(0.4, Math.min(1, +QS.get("rs") || (LITE ? 0.85 : 1)));
 const FPS_MAX = Math.max(10, Math.min(60, +QS.get("fps") || (LITE ? 30 : 60)));
 const SHOW_FPS = QS.get("visafps") === "1";
 if (LITE) document.documentElement.classList.add("lite");
+if (QS.get("rund") === "0") document.documentElement.classList.add("norund");   // inga rundade hörn (mätning)
 function resize(){
   layoutScreen();
   renderEdges.fitted = false;
@@ -1430,7 +1438,10 @@ function applyFxStatic(){
   // bild och är det tyngsta på sidan. Mjukheten kommer ändå av att bilden ritas i lägre upplösning.
   if (v("blur") > 0 && !LITE) f.push(`blur(${(v("blur")*1.4).toFixed(2)}px)`);
   if (v("wobble") > 0 && !LITE) f.push("url(#wob)");
-  elContent.style.filter = FX_OFF ? "" : f.join(" ");
+  // Pi:n: ljusstyrka och kontrast över hela skärmen kostar en extra ritning av allt i varje bild,
+  // och standardvärdena gör nästan ingen skillnad. Hoppas över om de ligger nära mitten.
+  const nearNeutral = Math.abs(v("bright") - 0.5) < 0.1 && Math.abs(v("contrast") - 0.5) < 0.1;
+  elContent.style.filter = FX_OFF || (LITE && nearNeutral) ? "" : f.join(" ");
   // spökbild och färgfransar på texten (bilden får samma sak i postFx)
   const g = v("ghost"), c = v("chroma"), ts = [];
   if (g > 0) ts.push(`${(0.6+g*1.6).toFixed(2)}vh 0 ${hexA(P.ink, (0.15+g*0.3).toFixed(2))}`);
