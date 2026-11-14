@@ -2349,7 +2349,7 @@ function patchNodes(prevNode, newNode, liveNode){
   if (prevNode.nodeType === 3){ if (prevNode.data !== newNode.data) liveNode.data = newNode.data; return true; }
   if (prevNode.nodeType !== 1) return true;
   if (prevNode.isEqualNode(newNode)) return true;
-  const pc = prevNode.childNodes, nc = newNode.childNodes, lc = liveNode.childNodes;
+  const pc = prevNode.childNodes, nc = newNode.childNodes, lc = [...liveNode.childNodes];   // kopia: crossReplace lägger in noder under loopen
   const sameAttrs = prevNode.tagName === newNode.tagName && prevNode.attributes.length === newNode.attributes.length
     && [...prevNode.attributes].every(at => newNode.getAttribute(at.name) === at.value);
   if (!sameAttrs || pc.length !== nc.length || lc.length !== pc.length || newNode.tagName === "IMG") return false;
@@ -2367,8 +2367,9 @@ async function setPage(el, h){
   if (el._tok !== tok) return;
   const fresh = tpl.content, keep = fresh.cloneNode(true);
   if (shown && el._prev && el._prev.childNodes.length === fresh.childNodes.length && el.childNodes.length === fresh.childNodes.length){
-    for (let i = 0; i < fresh.childNodes.length; i++)
-      if (!patchNodes(el._prev.childNodes[i], fresh.childNodes[i], el.childNodes[i])) crossReplace(el.childNodes[i], fresh.childNodes[i].cloneNode(true));
+    const live = [...el.childNodes], pv = [...el._prev.childNodes], nw = [...fresh.childNodes];
+    for (let i = 0; i < nw.length; i++)
+      if (!patchNodes(pv[i], nw[i], live[i])) crossReplace(live[i], nw[i].cloneNode(true));
     el._prev = keep; afterLayout(el); return;
   }
   if (shown){
