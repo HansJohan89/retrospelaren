@@ -1420,8 +1420,10 @@ function applyFxStatic(){
   r.setProperty("--rady", (1.3 + v("curve")*8).toFixed(2) + "%");
   r.setProperty("--curve", (1 + v("curve")*10).toFixed(1) + "vh");
   const f = [`brightness(${(0.7 + v("bright")*0.6).toFixed(3)})`, `contrast(${(0.7 + v("contrast")*0.6).toFixed(3)})`];
-  if (v("blur") > 0) f.push(`blur(${(v("blur")*1.4).toFixed(2)}px)`);
-  if (v("wobble") > 0) f.push("url(#wob)");
+  // På Pi:n (LITE) hoppas oskärpan och vågfiltret över: de räknas om över hela skärmen för varje
+  // bild och är det tyngsta på sidan. Mjukheten kommer ändå av att bilden ritas i lägre upplösning.
+  if (v("blur") > 0 && !LITE) f.push(`blur(${(v("blur")*1.4).toFixed(2)}px)`);
+  if (v("wobble") > 0 && !LITE) f.push("url(#wob)");
   elContent.style.filter = f.join(" ");
   // spökbild och färgfransar på texten (bilden får samma sak i postFx)
   const g = v("ghost"), c = v("chroma"), ts = [];
@@ -1502,7 +1504,7 @@ function fxFrame(now){
   else elHum.style.opacity = "0";
   // vågiga linjer
   const wob = v("wobble") + (b && kind === "wave" ? b*0.8 : 0);
-  if (wob > 0 && FX.frameN % 2 === 0){
+  if (wob > 0 && !LITE && FX.frameN % 2 === 0){
     if (v("wobble") === 0 && !elContent.style.filter.includes("#wob")) elContent.style.filter += " url(#wob)";
     wobT.setAttribute("seed", String(Math.floor(Math.random()*1000)));
     wobT.setAttribute("baseFrequency", `0.0001 ${(0.01 + Math.random()*0.03).toFixed(4)}`);
