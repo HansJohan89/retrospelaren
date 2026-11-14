@@ -961,7 +961,9 @@ function region(){ // visualiseringens yta mellan kanterna och radioskalan
 }
 function fade(a){ ctx.globalCompositeOperation = "source-over"; ctx.shadowBlur = 0; ctx.fillStyle = hexA(P.bg, a); ctx.fillRect(0,0,W,H); }
 function glow(c, b){ ctx.shadowColor = c; ctx.shadowBlur = b*DPR; }
-const fxv = k => (S.fx[k] || 0)/100;
+// fx=0 i adressen: alla skärmeffekter av (för att mäta vad de kostar på Pi:n)
+const FX_OFF = new URLSearchParams(location.search).get("fx") === "0";
+const fxv = k => FX_OFF ? (k === "bright" || k === "contrast" ? 0.5 : 0) : (S.fx[k] || 0)/100;
 const persistK = () => 1 - fxv("persist")*0.85;          // hur mycket av förra bilden som suddas
 function clearBg(){ fade(Math.min(1, persistK()*1.05)); }
 
@@ -1424,7 +1426,7 @@ function applyFxStatic(){
   // bild och är det tyngsta på sidan. Mjukheten kommer ändå av att bilden ritas i lägre upplösning.
   if (v("blur") > 0 && !LITE) f.push(`blur(${(v("blur")*1.4).toFixed(2)}px)`);
   if (v("wobble") > 0 && !LITE) f.push("url(#wob)");
-  elContent.style.filter = f.join(" ");
+  elContent.style.filter = FX_OFF ? "" : f.join(" ");
   // spökbild och färgfransar på texten (bilden får samma sak i postFx)
   const g = v("ghost"), c = v("chroma"), ts = [];
   if (g > 0) ts.push(`${(0.6+g*1.6).toFixed(2)}vh 0 ${hexA(P.ink, (0.15+g*0.3).toFixed(2))}`);
@@ -1444,7 +1446,7 @@ function applyFxStatic(){
   if (g > 0) lf.push(`drop-shadow(${(0.6+g*1.6).toFixed(2)}vh 0 0 rgba(255,255,255,${(0.2+g*0.4).toFixed(2)}))`);
   if (c > 0) lf.push(`drop-shadow(${(-c*0.5).toFixed(2)}vh 0 0 rgba(255,40,40,${(c*0.7).toFixed(2)})) drop-shadow(${(c*0.5).toFixed(2)}vh 0 0 rgba(0,190,255,${(c*0.7).toFixed(2)}))`);
   rs.setProperty("--logo-fx", lf.join(" ") || "none");
-  $("#crt").classList.toggle("on", S.crt);
+  $("#crt").classList.toggle("on", S.crt && !FX_OFF);
   if (v("wobble") === 0){ wobD.setAttribute("scale", "0"); }
 }
 
