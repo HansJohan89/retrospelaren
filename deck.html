@@ -515,6 +515,7 @@ const DeckCore = (() => {
         return "light:" + JSON.stringify({ group: a.group || "", action: op, value });
       }
       case "scene": return a.id ? "scene:" + String(a.id) : "";
+      case "plug": return a.id ? "plug:" + JSON.stringify({ id: String(a.id), action: ["on", "off", "toggle"].includes(a.op) ? a.op : "toggle" }) : "";
       case "sonos": {
         const op = a.op || "toggle", room = a.room || "";
         if (op === "vol") return "sonos-vol:" + JSON.stringify({ room, value: Math.max(0, Math.min(100, Math.round(num(a.value, 30)))) });
@@ -978,6 +979,8 @@ function autoLook(a){
         shuffle:["shuffle","Blanda"], repeat:["repeat","Upprepa"], like:["heart","Gilla"], "seek-rel":[v < 0 ? "prev" : "next", "Spola " + signed(v) + " s"] }[a.op] || ["note","Spotify"];
       return { icon: m[0], color: CAT.sp, title: m[1] };
     }
+    case "plug": { const o = LAMPS.find(l => l.outlet && String(l.id) === String(a.id));
+      return { icon: a.op === "off" ? "power" : "plug", color: CAT.light, title: (o ? o.name : "Uttag") + (a.op === "on" ? " på" : a.op === "off" ? " av" : "") }; }
     case "scene": { const sc = sceneById(a.id); return { icon: a.id === "jalusi-open" || a.id === "jalusi-close" ? "jalusi" : "sparkles", color: "#c4a7ff", title: sc ? sc.name : "Scen" }; }
     case "sonos": {
       const v = +a.value || 0;
@@ -1004,7 +1007,7 @@ function autoLook(a){
 }
 const grpName = a => { const r = Array.isArray(a.rooms) && a.rooms.length ? a.rooms : [a.room].filter(Boolean); return r.length > 2 ? r.length + " rum" : r.join(" + "); };
 const sceneById = id => (deck && Array.isArray(deck.scenes) ? deck.scenes.find(s => s.id === id) : null) || null;
-const ACT_KIND = { scene:"Egen scen", sp:"Spotify", bp:"Blaupunkt-skärmen", viz:"Blaupunkt-skärmen · Kanal", palette:"Blaupunkt-skärmen · Färgläge", page:"Blaupunkt-skärmen · Visa sida", light:"Belysning (Trådfri)",
+const ACT_KIND = { plug:"Smart uttag (Trådfri)", scene:"Egen scen", sp:"Spotify", bp:"Blaupunkt-skärmen", viz:"Blaupunkt-skärmen · Kanal", palette:"Blaupunkt-skärmen · Färgläge", page:"Blaupunkt-skärmen · Visa sida", light:"Belysning (Trådfri)",
   sonos:"Sonos", z2m:"Zigbee-enhet", mqtt:"MQTT-meddelande", http:"HTTP-anrop", sys:"Kommando på Pi:n", deckdev:"Stream Controllern", folder:"Mapp", back:"Tillbaka",
   home:"Överst i mappen", pagenav:"Byt sida", profile:"Byt profil", multi:"Flera åtgärder" };
 
@@ -1017,6 +1020,13 @@ function fieldsFor(a){
     case "palette": return [{ k:"p", label:"Färgläge", type:"select", opts: [["next","Nästa färgläge"], ...opt(PALETTE_NAMES)] }];
     case "page": return [{ k:"p", label:"Sida", type:"select", opts: [["next","Nästa sida i tur"], ...opt(PAGE_NAMES)] },
       { type:"note", text:"Sidorna visas på skärmen när inget spelas och bara de som är påslagna under När inget spelar." }];
+    case "plug": {
+      const outs = LAMPS.filter(l => l.outlet);
+      const f = [{ k:"id", label:"Uttag", type:"select", re:true, opts: outs.length ? outs.map(o => [String(o.id), o.name + (o.room && o.room !== "Uttag" ? " (" + o.room + ")" : "")]) : [[String(a.id || ""), a.id ? "uttag " + a.id : "(inga uttag hittade än)"]] },
+        { k:"op", label:"Gör", type:"select", re:true, opts: [["toggle","Växla på/av"],["on","Slå på"],["off","Slå av"]] }];
+      if (!outs.length) f.push({ type:"note", text:"Listan över uttag kommer från hubben. Starta om hubben (eller tryck Hämta i Scener) om den är tom." });
+      return f;
+    }
     case "light": {
       const f = [{ k:"group", label:"Grupp", type:"suggest", sugg: () => Object.keys(GROUPS), re:true }, { k:"op", label:"Gör", type:"select", opts: LIGHT_OPS, re:true, reset:"value" }];
       if (a.op === "dim") f.push({ k:"value", label:"Ljusstyrka", type:"range", min:1, max:100, unit:"%", def:100 });
@@ -1129,7 +1139,9 @@ const LIBRARY = [
     { id:"l-dn", name:"Mörkare", make:() => ({ t:"light", group:defGroup(), op:"dim-rel", value:-10 }) },
     { id:"l-temp", name:"Färgtemperatur", make:() => ({ t:"light", group:defGroup(), op:"temp", value:35 }) },
     { id:"l-color", name:"Färg", make:() => ({ t:"light", group:defGroup(), op:"color", value:"ff8a3d" }) },
-    { id:"l-scene", name:"Scen", make:() => ({ t:"light", group:defGroup(), op:"scene", value:(GROUPS[defGroup()] || [])[0] || "" }) } ] },
+    { id:"l-scene", name:"Scen", make:() => ({ t:"light", group:defGroup(), op:"scene", value:(GROUPS[defGroup()] || [])[0] || "" }) },
+    { id:"l-plug", name:"Smart uttag på/av", ico:"plug", make:() => ({ t:"plug", id: String((LAMPS.find(l => l.outlet) || {}).id || ""), op:"toggle" }) },
+    { id:"l-plug2", name:"Smart uttag, två lägen", ico:"plug", two:() => { const id = String((LAMPS.find(l => l.outlet) || {}).id || ""); return [{ t:"plug", id, op:"on" }, { t:"plug", id, op:"off" }]; } } ] },
   { cat:"Scener", note:"lampor och musik", items:[
     { id:"c-scene", name:"Kör egen scen", make:() => ({ t:"scene", id: (deck && deck.scenes && deck.scenes[0] || {}).id || "" }) } ] },
   { cat:"Blaupunkt-skärmen", items:[
@@ -2302,11 +2314,12 @@ function sceneModal(openId){
     const cur = sc.lights[l.id], on = !!cur && cur.use !== false, v = cur || {};
     const set = (fn, re) => { m(() => { const o = sc.lights[l.id] = sc.lights[l.id] || { use:true, on:true, dim:60, kind:"" }; fn(o); }, re, "l" + l.id); liveTry(sc, l.id); };
     const kinds = [["","Behåll färg"]]; if (l.temp || l.color) kinds.push(["white","Vitt"]); if (l.color) kinds.push(["color","Färg"]);
+    const outlet = !!l.outlet;
     const row = h("div", { class:"lampRow" + (on ? "" : " off") },
       h("input", { type:"checkbox", checked: on, title:"Ta med lampan i scenen", onchange: e => m(() => { if (e.target.checked) sc.lights[l.id] = Object.assign({ on:true, dim:60, kind:"" }, sc.lights[l.id] || {}, { use:true }); else delete sc.lights[l.id]; }, true) }),
-      h("div", { class:"nm", title: l.model }, h("b", { text: l.name }), h("small", { text: l.color ? "färg" : l.temp ? "vitt spektrum" : "bara ljusstyrka" })),
-      h("button", { class:"onoff" + (v.on !== false ? " on" : ""), text: v.on !== false ? "Tänd" : "Släckt", onclick: () => set(o => { o.on = o.on === false; }, true) }),
-      v.on !== false ? h("input", { type:"range", min:1, max:100, value: v.dim ?? 60, title:"Ljusstyrka " + (v.dim ?? 60) + " %", oninput: e => { e.target.title = "Ljusstyrka " + e.target.value + " %"; set(o => { o.dim = +e.target.value; }); } }) : h("span"),
+      h("div", { class:"nm", title: l.model }, h("b", { text: l.name }), h("small", { text: outlet ? "smart uttag" : l.color ? "färg" : l.temp ? "vitt spektrum" : "bara ljusstyrka" })),
+      h("button", { class:"onoff" + (v.on !== false ? " on" : ""), text: outlet ? (v.on !== false ? "På" : "Av") : v.on !== false ? "Tänd" : "Släckt", onclick: () => set(o => { o.on = o.on === false; }, true) }),
+      v.on !== false && !outlet ? h("input", { type:"range", min:1, max:100, value: v.dim ?? 60, title:"Ljusstyrka " + (v.dim ?? 60) + " %", oninput: e => { e.target.title = "Ljusstyrka " + e.target.value + " %"; set(o => { o.dim = +e.target.value; }); } }) : h("span"),
       v.on !== false && kinds.length > 1 ? h("select", { class:"in", onchange: e => set(o => { o.kind = e.target.value; if (o.kind === "white" && o.temp == null) o.temp = 35; if (o.kind === "color" && !o.color) o.color = "#ff8a3d"; }, true) }, kinds.map(([k, t]) => h("option", { value: k, text: t, selected: (v.kind || "") === k }))) : h("span"),
       v.on !== false && v.kind === "white" ? h("input", { type:"range", min:0, max:100, value: v.temp ?? 35, title:"Varmt till kallt", oninput: e => set(o => { o.temp = +e.target.value; }) })
         : v.on !== false && v.kind === "color" ? h("input", { type:"color", value: /^#[0-9a-f]{6}$/i.test(v.color || "") ? v.color : "#ff8a3d", oninput: e => set(o => { o.color = e.target.value; }) }) : h("span"),
