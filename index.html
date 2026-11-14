@@ -975,7 +975,8 @@ function fade(a){ ctx.globalCompositeOperation = "source-over"; ctx.shadowBlur =
 function glow(c, b){ ctx.shadowColor = c; ctx.shadowBlur = b*DPR; }
 // fx=0 i adressen: alla skärmeffekter av (för att mäta vad de kostar på Pi:n)
 const FX_OFF = new URLSearchParams(location.search).get("fx") === "0";
-const fxv = k => FX_OFF ? (k === "bright" || k === "contrast" ? 0.5 : 0) : (S.fx[k] || 0)/100;
+const FX_ZERO = new Set();       // effekter som tillfälligt är avstängda (prestandatestet ?bench=1)
+const fxv = k => FX_OFF || FX_ZERO.has(k) || FX_ZERO.has("alla") ? (k === "bright" || k === "contrast" ? 0.5 : 0) : (S.fx[k] || 0)/100;
 const persistK = () => 1 - fxv("persist")*0.85;          // hur mycket av förra bilden som suddas
 function clearBg(){ fade(Math.min(1, persistK()*1.05)); }
 
@@ -1461,7 +1462,7 @@ function applyFxStatic(){
   if (g > 0) lf.push(`drop-shadow(${(0.6+g*1.6).toFixed(2)}vh 0 0 rgba(255,255,255,${(0.2+g*0.4).toFixed(2)}))`);
   if (c > 0) lf.push(`drop-shadow(${(-c*0.5).toFixed(2)}vh 0 0 rgba(255,40,40,${(c*0.7).toFixed(2)})) drop-shadow(${(c*0.5).toFixed(2)}vh 0 0 rgba(0,190,255,${(c*0.7).toFixed(2)}))`);
   rs.setProperty("--logo-fx", lf.join(" ") || "none");
-  $("#crt").classList.toggle("on", S.crt && !FX_OFF);
+  $("#crt").classList.toggle("on", S.crt && !FX_OFF && !FX_ZERO.has("crt") && !FX_ZERO.has("alla"));
   if (v("wobble") === 0){ wobD.setAttribute("scale", "0"); }
 }
 
@@ -2305,6 +2306,24 @@ function drawBoardBg(t){
   const rg = ctx.createLinearGradient(0, ry-H*0.08, 0, ry+H*0.08);
   rg.addColorStop(0,"rgba(255,255,255,0)"); rg.addColorStop(0.5,"rgba(255,255,255,0.035)"); rg.addColorStop(1,"rgba(255,255,255,0)");
   ctx.fillStyle = rg; ctx.fillRect(0, ry-H*0.08, W, H*0.16);
+}
+
+// ================= prestandatest (?bench=1) =================
+// Stänger av en skärmeffekt i taget i fyra sekunder och mäter bilder per sekund, och visar
+// sedan en tabell. Används för att se vad som är tungt på en svag dator som Pi:n.
+async function benchFx(){
+  const box = document.body.appendChild(Object.assign(document.createElement("div"), { style: "position:fixed;left:2vh;top:6vh;z-index:99999;font:600 2.2vh monospace;color:#0f0;background:#000d;padding:1.5vh 2vh;white-space:pre;max-height:90vh;overflow:hidden" }));
+  const measure = () => new Promise(r => { let n = 0; const t0 = performance.now(); const f = now => { n++; if (now - t0 < 4000) requestAnimationFrame(f); else r(Math.round(n / ((now - t0) / 1000))); }; requestAnimationFrame(f); });
+  const names = { alla:"alla effekter av", crt:"CRT-lagret (linjer, vinjett, reflex)", bright:"ljusstyrka", contrast:"kontrast", blur:"mjukhet", persist:"efterglöd",
+    curve:"välvning", vignette:"vinjett", glare:"glasreflex", scan:"linjer", flicker:"flimmer", snow:"brus", hum:"brumband", jitter:"skakning",
+    roll:"bildrullning", interf:"störningar", ghost:"spökbild", chroma:"färgfransar" };
+  const rows = [];
+  const run = async (key) => { FX_ZERO.clear(); if (key) FX_ZERO.add(key); applyFxStatic(); await new Promise(r => setTimeout(r, 600)); const v = await measure(); rows.push([key ? "utan " + names[key] : "allt på", v]);
+    box.textContent = "Prestandatest, låt musiken spela…\n\n" + rows.map(([a, b]) => String(b).padStart(3) + " bilder/s  " + a).join("\n"); };
+  await run("");
+  for (const k of Object.keys(names)) await run(k);
+  FX_ZERO.clear(); applyFxStatic();
+  box.textContent = box.textContent.replace("Prestandatest, låt musiken spela…", "Prestandatest klart (" + rows[0][1] + " bilder/s med allt på)");
 }
 
 // ================= huvudloop =================
@@ -3325,6 +3344,7 @@ document.addEventListener("mousemove", () => { document.body.classList.remove("h
   loadStations(S.genre);
   const q = new URLSearchParams(location.search);
   if (q.get("autostart") === "1") start();   // för kioskläge på Pi:n
+  if (q.get("bench") === "1") setTimeout(benchFx, 8000);
 })();
 </script>
 </body>
