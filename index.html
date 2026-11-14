@@ -28,6 +28,14 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #hum{position:absolute;left:0;right:0;height:22%;z-index:5;pointer-events:none;opacity:0;
   background:linear-gradient(to bottom,transparent,rgba(0,0,0,.9) 45%,rgba(0,0,0,.9) 55%,transparent)}
 #flick{position:absolute;inset:0;z-index:7;background:#000;opacity:0;pointer-events:none}
+/* Flimmer, brumband och skakning ändras i varje bild. will-change ger dem egna lager som bara
+   flyttas eller tonas av grafikkretsen. Utan det målas de om över hela skärmen i varje bild,
+   och CRT-lagret (linjer, vinjett, reflex) målas om tillsammans med dem. På Pi:n var det det
+   som höll sidan nere på 10 bilder per sekund. */
+#flick{will-change:opacity}
+#hum{top:0;will-change:transform,opacity}
+#crt{will-change:transform}
+#content{will-change:transform}
 .power{position:absolute;inset:0;transform-origin:50% 50%}
 #screen.rolling .content{animation:roll .45s steps(6) 1}
 @keyframes roll{0%{transform:translateY(0)}40%{transform:translateY(-18%)}70%{transform:translateY(9%)}100%{transform:translateY(0)}}
@@ -1518,7 +1526,7 @@ function fxFrame(now){
   elFlick.style.opacity = fl ? (Math.random()*fl*0.14 + (Math.random() < fl*0.05 ? fl*0.18 : 0)).toFixed(3) : "0";
   // brumband
   const humA = v("hum")*0.5 + (b && kind === "hum" ? b*0.5 : 0);
-  if (humA > 0.005){ elHum.style.opacity = Math.min(0.95, humA).toFixed(3); elHum.style.top = (((now/1000)*0.045) % 1.3*100 - 22).toFixed(2) + "%"; }
+  if (humA > 0.005){ elHum.style.opacity = Math.min(0.95, humA).toFixed(3); elHum.style.transform = "translateY(" + ((((now/1000)*0.045) % 1.3*100 - 22) / 0.22).toFixed(1) + "%)"; }
   else elHum.style.opacity = "0";
   // vågiga linjer
   const wob = v("wobble") + (b && kind === "wave" ? b*0.8 : 0);
@@ -2318,7 +2326,8 @@ async function benchFx(){
     curve:"välvning", vignette:"vinjett", glare:"glasreflex", scan:"linjer", flicker:"flimmer", snow:"brus", hum:"brumband", jitter:"skakning",
     roll:"bildrullning", interf:"störningar", ghost:"spökbild", chroma:"färgfransar" };
   const rows = [];
-  const run = async (key) => { FX_ZERO.clear(); if (key) FX_ZERO.add(key); applyFxStatic(); await new Promise(r => setTimeout(r, 600)); const v = await measure(); rows.push([key ? "utan " + names[key] : "allt på", v]);
+  names["crt,flicker"] = "CRT-lagret och flimmer";
+  const run = async (key) => { FX_ZERO.clear(); if (key) key.split(",").forEach(k => FX_ZERO.add(k)); applyFxStatic(); await new Promise(r => setTimeout(r, 600)); const v = await measure(); rows.push([key ? "utan " + names[key] : "allt på", v]);
     box.textContent = "Prestandatest, låt musiken spela…\n\n" + rows.map(([a, b]) => String(b).padStart(3) + " bilder/s  " + a).join("\n"); };
   await run("");
   for (const k of Object.keys(names)) await run(k);
