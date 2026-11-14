@@ -2065,7 +2065,7 @@ function renderWxPage(){
 function renderWxNews(){
   const it = NEWS.items; if (!it.length) return `<div class="artWide"></div>`;
   const cur = BOARD.newsIdx % it.length, a = it[cur];
-  ensureImg(a);
+  ensureImg(a); SEEN.show("news", newsKey(a));
   const when = a.date ? hhmm(new Date(a.date)) : "";
   const img = a.img ? `<div class="im"><img src="/api/img?url=${encodeURIComponent(a.img)}" alt="" onerror="this.closest('.art').classList.add('noimg')"></div>` : "";
   return `<div class="artWide"><div class="art${a.img ? "" : " noimg"}">${img}<div class="tx"><div class="t">${esc(a.title)}</div>
@@ -2243,7 +2243,12 @@ async function loadSportNews(key){
   }).sort((x, y) => (Date.parse(y.date) || 0) - (Date.parse(x.date) || 0));
   const rich = all.filter(richArticle);
   const out = rich.slice(0, 25).map(a => ({ title:a.title, desc:a.desc || "", img:a.img || "", link:a.link, date:a.date || null, src:a.srcName }));
-  if (out.length) SPNEWS[key] = { items:out, at:Date.now() };
+  if (out.length){
+    // samma minne som nyhetssidan, men eget för fotboll och hockey
+    const idxKey = key === "fb" ? "fbNewsIdx" : "hkNewsIdx", pg = key === "fb" ? "fotboll" : "hockey", old = (SPNEWS[key] || { items:[] }).items;
+    const cur = old.length && BOARD.page === pg ? old[(BOARD[idxKey] || 0) % old.length] : null;
+    SPNEWS[key] = { items: SEEN.order("sp-" + key, out, newsKey, cur), at:Date.now() }; BOARD[idxKey] = 0;
+  }
   const st = $("#" + key + "NewsStatus"), bad = res.filter(r => r.err).map(r => r.src.name);
   if (st) st.textContent = (S.idle.richOnly !== false ? `${out.length} innehållsrika av ${all.length} artiklar` : `${out.length} artiklar`) + ` från ${res.filter(r => r.items).length} av ${srcs.length} källor, hämtade ${hhmm(new Date())}.` + (bad.length ? " Svarade inte: " + bad.join(", ") + "." : "") + (!srcs.length ? " Välj minst en källa." : "");
   renderBoard();
@@ -2287,6 +2292,7 @@ function renderSportNews(key){
   if (!it.length) return `<div class="artBig"></div>`;
   const idxKey = key === "fb" ? "fbNewsIdx" : "hkNewsIdx";
   const cur = (BOARD[idxKey] || 0) % it.length, a = it[cur];
+  SEEN.show("sp-" + key, newsKey(a));
   const when = a.date ? hhmm(new Date(a.date)) : "";
   const img = a.img ? `<div class="im"><img src="/api/img?url=${encodeURIComponent(a.img)}" alt="" onerror="this.closest('.art').classList.add('noimg')"></div>` : "";
   return `<div class="artBig"><div class="art${a.img ? "" : " noimg"}">${img}<div class="tx"><div class="t">${esc(a.title)}</div>
@@ -2620,11 +2626,15 @@ function boardStep(idle, now){
     BOARD.idx = (BOARD.idx + 1) % pages.length;
     const next = pages[BOARD.idx];
     if (BOARD.page && next !== BOARD.page) channelNoise(380);
-    SEEN.commit("news"); SEEN.commit("plex");
+    SEEN.commit("news"); SEEN.commit("plex"); SEEN.commit("sp-fb"); SEEN.commit("sp-hk");
     BOARD.page = next; BOARD.until = now + S.idle.secs*1000;
     BOARD.newsUntil = now + S.idle.artSecs*1000;
     // det som visades förra gången sidan var framme hoppas över
     if (["news", "wx", "hem"].includes(next) && NEWS.items.length && SEEN.when("news", newsKey(NEWS.items[BOARD.newsIdx % NEWS.items.length]))) BOARD.newsIdx++;
+    for (const [pg, key] of [["fotboll", "fb"], ["hockey", "hk"]]){
+      const it = (SPNEWS[key] || { items:[] }).items, ik = key + "NewsIdx";
+      if (next === pg && it.length && SEEN.when("sp-" + key, newsKey(it[(BOARD[ik] || 0) % it.length]))) BOARD[ik] = (BOARD[ik] || 0) + 1;
+    }
     if (next === "plex" && PLEX.items.length && SEEN.when("plex", plexKey(PLEX.items[(BOARD.plexIdx || 0) % PLEX.items.length]))) BOARD.plexIdx = (BOARD.plexIdx || 0) + 1;
     if (next === "news"){ const n = $("#pgNews"); if (!n._busy){ n.replaceChildren(); n._h = ""; n._prev = null; } }
     if (next === "hem"){ BOARD.homePhoto = (BOARD.homePhoto || 0) + 1; BOARD.photoUntil = now + S.photo.secs*1000; }
@@ -2637,8 +2647,8 @@ function boardStep(idle, now){
   if (BOARD.page === "hem" && S.home.photo && now > BOARD.photoUntil){ BOARD.homePhoto = (BOARD.homePhoto || 0) + 1; BOARD.photoUntil = now + S.photo.secs*1000; renderBoard(); }
   if ((BOARD.page === "news" || BOARD.page === "wx") && now > BOARD.newsUntil){ SEEN.commit("news"); BOARD.newsIdx++; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
   if (BOARD.page === "plex" && now > BOARD.newsUntil){ SEEN.commit("plex"); BOARD.plexIdx = (BOARD.plexIdx || 0) + 1; BOARD.newsUntil = now + Math.max(S.idle.artSecs, 12)*1000; renderBoard(); }
-  if (BOARD.page === "fotboll" && now > BOARD.newsUntil){ BOARD.fbNewsIdx = (BOARD.fbNewsIdx || 0) + 1; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
-  if (BOARD.page === "hockey" && now > BOARD.newsUntil){ BOARD.hkNewsIdx = (BOARD.hkNewsIdx || 0) + 1; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
+  if (BOARD.page === "fotboll" && now > BOARD.newsUntil){ SEEN.commit("sp-fb"); BOARD.fbNewsIdx = (BOARD.fbNewsIdx || 0) + 1; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
+  if (BOARD.page === "hockey" && now > BOARD.newsUntil){ SEEN.commit("sp-hk"); BOARD.hkNewsIdx = (BOARD.hkNewsIdx || 0) + 1; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
   return BOARD.page;
 }
 function drawBoardBg(t){
