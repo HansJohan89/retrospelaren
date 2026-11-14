@@ -819,6 +819,41 @@ def resrobot_key():
     return secret("RESROBOT_API_KEY")
 
 
+def og_fetch(url):
+    """Delningsbild och ingress ur artikelsidans metataggar. Sparas i minnet."""
+    import re
+    import html
+    cached = OG_CACHE.get(url)
+    if cached is not None:
+        return cached if isinstance(cached, dict) else {"img": cached, "desc": ""}
+    img = desc = ""
+    try:
+        with open_url(url, timeout=7) as r:
+            page = r.read(600 * 1024).decode("utf-8", "ignore")
+        for pat in (r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)',
+                    r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']',
+                    r'<meta[^>]+name=["\']twitter:image["\'][^>]+content=["\']([^"\']+)'):
+            m = re.search(pat, page, re.I)
+            if m:
+                img = html.unescape(m.group(1))
+                break
+        for pat in (r'<meta[^>]+property=["\']og:description["\'][^>]+content=["\']([^"\']+)',
+                    r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:description["\']',
+                    r'<meta[^>]+name=["\']description["\'][^>]+content=["\']([^"\']+)',
+                    r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+name=["\']description["\']'):
+            m = re.search(pat, page, re.I)
+            if m:
+                desc = re.sub(r"\s+", " ", html.unescape(m.group(1))).strip()
+                break
+    except Exception as e:
+        OG_CACHE[url] = {"img": "", "desc": "", "error": str(e)}    # försök inte igen varje gång
+        return OG_CACHE[url]
+    if len(OG_CACHE) > 3000:
+        OG_CACHE.clear()
+    OG_CACHE[url] = {"img": img, "desc": desc}
+    return OG_CACHE[url]
+
+
 def open_url(url, headers=None, timeout=10):
     req = urllib.request.Request(url, headers={"User-Agent": UA, **(headers or {})})
     return urllib.request.urlopen(req, timeout=timeout, context=SSL_CTX)
@@ -930,7 +965,7 @@ class Handler(SimpleHTTPRequestHandler):
             if path == "/api/cover":
                 return self.cover(q.get("term", [""])[0])
             if path == "/api/rss":
-                return self.rss(q.get("url", [""])[0])
+                return self.rss(q.get("url", [""])[0], rich=q.get("rich", [""])[0] == "1")
             if path == "/api/ogimage":
                 return self.ogimage(q.get("url", [""])[0])
             if path == "/api/stops":
@@ -1183,7 +1218,7 @@ class Handler(SimpleHTTPRequestHandler):
             "title": s.get("trackName") or "",
         })
 
-    def rss(self, url):
+    def rss(self, url, rich=False):
         """Rubriker, ingress, länk och bild ur ett RSS- eller Atom-flöde, som JSON."""
         import re
         import html
@@ -1192,7 +1227,7 @@ class Handler(SimpleHTTPRequestHandler):
         if not url.startswith(("http://", "https://")):
             return self._json({"error": "ogiltig url"}, 400)
         try:
-            with open_url(url, timeout=10) as r:
+            with open_url(url, {"Accept": "application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.9, */*;q=0.5"}, timeout=10) as r:
                 raw = r.read(3 * 1024 * 1024)
             root = ET.fromstring(raw)
         except Exception as e:
@@ -1250,48 +1285,31 @@ class Handler(SimpleHTTPRequestHandler):
             desc = clean(child(el, "description", "summary", "encoded", "content"))
             if len(desc) > 600:
                 desc = desc[:597].rsplit(" ", 1)[0] + "..."
-            out.append({"title": title, "desc": desc, "date": iso, "link": link(el), "img": image(el)})
-            if len(out) >= 20:
+            lk = link(el)
+            # Bings nyhetssök länkar via sig själv; plocka fram artikelns riktiga adress
+            if "bing.com/news/apiclick" in lk or ("bing.com" in lk and "url=" in lk):
+                q = urllib.parse.parse_qs(urllib.parse.urlparse(lk).query)
+                lk = (q.get("url") or [lk])[0]
+            out.append({"title": title, "desc": desc, "date": iso, "link": lk, "img": image(el)})
+            if len(out) >= 50:
                 break
+        if rich:
+            # Fyll i bild och längre ingress från artikelsidan där flödet saknar det
+            from concurrent.futures import ThreadPoolExecutor
+            need = [a for a in out if a["link"] and (not a["img"] or len(a["desc"]) < 140)][:40]
+            with ThreadPoolExecutor(8) as ex:
+                for a, og in zip(need, ex.map(lambda a: og_fetch(a["link"]), need)):
+                    if not a["img"] and og.get("img"):
+                        a["img"] = og["img"]
+                    if len(og.get("desc") or "") > len(a["desc"]):
+                        a["desc"] = og["desc"][:600]
         return self._json(out)
 
     def ogimage(self, url):
         """Artikelns delningsbild (og:image) och ingress (og:description), för flöden som saknar det."""
-        import re
-        import html
         if not url.startswith(("http://", "https://")):
             return self._json({"error": "ogiltig url"}, 400)
-        if url in OG_CACHE:
-            cached = OG_CACHE[url]
-            if isinstance(cached, dict):
-                return self._json(cached)
-            return self._json({"img": cached, "desc": ""})
-        img = ""
-        desc = ""
-        try:
-            with open_url(url, timeout=8) as r:
-                page = r.read(600 * 1024).decode("utf-8", "ignore")
-            for pat in (r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)',
-                        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']',
-                        r'<meta[^>]+name=["\']twitter:image["\'][^>]+content=["\']([^"\']+)'):
-                m = re.search(pat, page, re.I)
-                if m:
-                    img = html.unescape(m.group(1))
-                    break
-            for pat in (r'<meta[^>]+property=["\']og:description["\'][^>]+content=["\']([^"\']+)',
-                        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:description["\']',
-                        r'<meta[^>]+name=["\']description["\'][^>]+content=["\']([^"\']+)',
-                        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+name=["\']description["\']'):
-                m = re.search(pat, page, re.I)
-                if m:
-                    desc = html.unescape(m.group(1)).strip()
-                    break
-        except Exception as e:
-            return self._json({"error": str(e), "img": "", "desc": ""})
-        if len(OG_CACHE) > 500:
-            OG_CACHE.clear()
-        OG_CACHE[url] = {"img": img, "desc": desc}
-        return self._json({"img": img, "desc": desc})
+        return self._json(og_fetch(url))
 
     # --- kollektivtrafik via Trafiklab ResRobot v2.1, samma API och nyckel som e-ink-tavlan (fetchers/bus.py) ---
     def rr_get(self, endpoint, params):

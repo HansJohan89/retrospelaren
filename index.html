@@ -680,6 +680,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <label class="chk"><input type="checkbox" id="idTest"> Testbild</label>
       <div id="idleSl"></div>
       <div class="lbl" style="margin-top:12px">Nyhetskällor (kryssa i så många du vill)</div>
+      <label class="chk"><input type="checkbox" id="richOnly"> Bara innehållsrika artiklar (med bild och ordentlig text) – gäller även sport</label>
       <div id="feedList"></div>
       <div id="ownFeeds"></div>
       <div class="row"><input type="text" id="ownFeedName" placeholder="Namn" style="width:7em"><input type="text" id="ownFeedUrl" placeholder="Egen RSS-adress (https://...)" style="flex:1"><button id="ownFeedAdd" class="btn">Lägg till</button></div>
@@ -827,6 +828,7 @@ const BUS_DEF = { on:true, id:"", name:"", to:"", toName:"" };
 const PHOTO_DEF = { on:true, albums:"", secs:12, orig:false };
 const HOME_DEF = { on:true, clock:true, wx:true, bus:true, news:true, aik:true, photo:false };
 S.idle = Object.assign({}, IDLE_DEF, S.idle || {});
+if (S.idle.richOnly === undefined) S.idle.richOnly = true;
 // Förr gick det bara att välja en källa; flytta över den till listan med ikryssade.
 if (!Array.isArray(S.idle.feeds)){
   const old = { svt:"svt-top", dalarna:"svt-dalarna", ekot:"sr-ekot" }[S.idle.feed];
@@ -1900,6 +1902,12 @@ function feedList(){
   (S.idle.ownFeeds || []).forEach(f => { if (f && f.url) out.push({ name: f.name || "Egen källa", src: f.name || "Egen källa", url: f.url }); });
   return out;
 }
+// Innehållsrik artikel: har bild och en ingress som är mer än en rad (och inte bara upprepar rubriken)
+function richArticle(a){
+  if (S.idle.richOnly === false) return true;
+  const d = String(a.desc || "").trim(), t = String(a.title || "").trim().toLowerCase();
+  return !!a.img && d.length >= 110 && !d.toLowerCase().startsWith(t.slice(0, 40)) || (!!a.img && d.length >= 160);
+}
 // ---------- visat nyligen ----------
 // Varje skärm minns vad den har visat (nyheter, filmer). Det som inte visats kommer först,
 // sedan det som visades för längst sedan, så samma sak inte dyker upp om och om igen.
@@ -1933,9 +1941,9 @@ async function loadNews(){
   if (!want || !feeds.length){ NEWS = { items:[], at:0, src:"" }; $("#newsStatus").textContent = want && !feeds.length ? "Kryssa i minst en nyhetskälla." : ""; return; }
   const res = await Promise.all(feeds.map(async f => {
     try{
-      const j = await (await fetch("/api/rss?url=" + encodeURIComponent(f.url))).json();
+      const j = await (await fetch("/api/rss?rich=1&url=" + encodeURIComponent(f.url))).json();
       if (!Array.isArray(j)) throw new Error(j.error || "fel");
-      return { f, items: j.map(x => Object.assign({}, x, { src: f.src })) };
+      return { f, total: j.length, items: j.map(x => Object.assign({}, x, { src: f.src, ogTried: true })).filter(richArticle) };
     }catch(e){ return { f, err: e.message }; }
   }));
   // Blanda: nyast först inom varje källa, och sedan en i taget från varje källa, så att ingen tar över.
@@ -1949,7 +1957,8 @@ async function loadNews(){
   }
   if (items.length) NEWS = { items, at:Date.now(), src: [...new Set(res.filter(r => r.items).map(r => r.f.src))].join(", ") };
   const bad = res.filter(r => r.err).map(r => r.f.name);
-  $("#newsStatus").textContent = `${items.length} rubriker från ${res.filter(r => r.items).length} av ${feeds.length} flöden, hämtade ${hhmm(new Date())}.` + (bad.length ? " Svarade inte: " + bad.join(", ") + "." : "");
+  const tot = res.reduce((n, r) => n + (r.total || 0), 0);
+  $("#newsStatus").textContent = (S.idle.richOnly !== false ? `${items.length} innehållsrika av ${tot} artiklar` : `${items.length} rubriker`) + ` från ${res.filter(r => r.items).length} av ${feeds.length} flöden, hämtade ${hhmm(new Date())}.` + (bad.length ? " Svarade inte: " + bad.join(", ") + "." : "");
   renderBoard();
 }
 let DEP = { items:[], at:0, err:"", nokey:false };
@@ -2178,25 +2187,35 @@ function isSwedishRelevant(a, exclude){
 }
 // Nyheterna på fotbolls- och hockeysidan. Varje sida har egna inställningar: en nyhetssökning,
 // valfria sportflöden och egna RSS-flöden, ord som måste finnas med och ord som utesluter.
-const SPORT_FEEDS = [["svt-sport","SVT Sport","https://www.svt.se/sport/rss.xml"],["dn-sport","DN Sport","https://www.dn.se/rss/sport/"],
+const SPORT_FEEDS = [["aik-se","AIK.se (klubbens egna)","https://www.aik.se/rss"],["svt-sport","SVT Sport","https://www.svt.se/sport/rss.xml"],["dn-sport","DN Sport","https://www.dn.se/rss/sport/"],
   ["ab-sport","Sportbladet","https://rss.aftonbladet.se/rss2/small/pages/sections/sportbladet/"],["ex-sport","Expressen Sport","https://feeds.expressen.se/sport/"],
   ["fk-top","Fotbollskanalen","https://www.fotbollskanalen.se/rss/"],["fd-top","Fotbolldirekt","https://www.fotbolldirekt.se/feed/"],
   ["hs-top","Hockeysverige","https://www.hockeysverige.se/feed/"],["ex-hockey","Expressen Hockey","https://feeds.expressen.se/sport/hockey/"]];
-const SPORT_DEF = { fb:{ search:"AIK fotboll Solna", useSearch:true, must:"AIK", exclude:"chile, assadi", feeds:[], own:[] },
-                    hk:{ search:"AIK hockey", useSearch:true, must:"AIK", exclude:"skellefteå", feeds:[], own:[] } };
+const SPORT_DEF = { fb:{ search:"AIK fotboll, AIK allsvenskan, AIK Gnaget", useSearch:true, must:"AIK", exclude:"chile, assadi, skellefteå", feeds:["aik-se"], own:[] },
+                    hk:{ search:"AIK hockey, AIK hockeyallsvenskan, AIK ishockey", useSearch:true, must:"AIK", exclude:"skellefteå", feeds:[], own:[] } };
 S.sportNews = S.sportNews || {};
 for (const k of ["fb", "hk"]) S.sportNews[k] = Object.assign({}, SPORT_DEF[k], S.sportNews[k] || {});
+// fler sökningar och klubbens eget flöde som standard (en gång, för den som har de gamla standardvärdena)
+if (!S.sportNews.v2){
+  S.sportNews.v2 = true;
+  const f = S.sportNews.fb, h = S.sportNews.hk;
+  if (f.search === "AIK fotboll Solna") f.search = SPORT_DEF.fb.search;
+  if (h.search === "AIK hockey") h.search = SPORT_DEF.hk.search;
+  if (!(f.feeds || []).includes("aik-se")) f.feeds = [...(f.feeds || []), "aik-se"];
+}
 const words = t => String(t || "").toLowerCase().split(",").map(x => x.trim()).filter(Boolean);
 async function loadSportNews(key){
   if (!S.idle.fb) return;
   const c = S.sportNews[key], must = words(c.must), excl = words(c.exclude);
   const srcs = [];
-  if (c.useSearch && c.search.trim()) srcs.push({ name:"Nyhetssök", url:"https://www.bing.com/news/search?q=" + encodeURIComponent(c.search.trim()) + "&format=RSS", bing:true });
+  // flera sökningar, med komma emellan; varje sökning ger bara ett tiotal träffar
+  if (c.useSearch) String(c.search || "").split(/[,\n]/).map(x => x.trim()).filter(Boolean).slice(0, 6).forEach(q =>
+    srcs.push({ name:"Nyhetssök", url:"https://www.bing.com/news/search?q=" + encodeURIComponent(q) + "&format=RSS&setlang=sv-SE&cc=SE&mkt=sv-SE", bing:true }));
   (c.feeds || []).forEach(k => { const f = SPORT_FEEDS.find(x => x[0] === k); if (f) srcs.push({ name:f[1], url:f[2] }); });
   (c.own || []).forEach(f => { if (f && f.url) srcs.push({ name:f.name || "Egen källa", url:f.url }); });
   const res = await Promise.all(srcs.map(async src => {
     try{
-      const j = await (await fetch("/api/rss?url=" + encodeURIComponent(src.url))).json();
+      const j = await (await fetch("/api/rss?rich=1&url=" + encodeURIComponent(src.url))).json();
       const arr = Array.isArray(j) ? j : (j.items || []);
       if (!Array.isArray(j) && j.error) throw new Error(j.error);
       return { src, items: arr.map(a => Object.assign({}, a, { link: src.bing ? decodeBingUrl(a.link) : a.link, srcName: src.name })) };
@@ -2211,16 +2230,12 @@ async function loadSportNews(key){
     if (!/[åäö]/.test(t) && a.srcName === "Nyhetssök") return false;      // sökningen ger annars utländska träffar
     if (a.date){ const age = Date.now() - new Date(a.date).getTime(); if (age > 90*24*3600e3 || age < -3600e3) return false; }
     return true;
-  }).sort((x, y) => (Date.parse(y.date) || 0) - (Date.parse(x.date) || 0)).slice(0, 8);
-  const out = [];
-  for (const a of all){
-    let img = a.img || "", desc = a.desc || "";
-    if (!img){ try{ const jj = await (await fetch("/api/ogimage?url=" + encodeURIComponent(a.link))).json(); if (jj.img) img = jj.img; if (jj.desc && !desc) desc = jj.desc; }catch(e){} }
-    out.push({ title:a.title, desc, img, link:a.link, date:a.date || null, src:a.srcName });
-  }
+  }).sort((x, y) => (Date.parse(y.date) || 0) - (Date.parse(x.date) || 0));
+  const rich = all.filter(richArticle);
+  const out = rich.slice(0, 25).map(a => ({ title:a.title, desc:a.desc || "", img:a.img || "", link:a.link, date:a.date || null, src:a.srcName }));
   if (out.length) SPNEWS[key] = { items:out, at:Date.now() };
   const st = $("#" + key + "NewsStatus"), bad = res.filter(r => r.err).map(r => r.src.name);
-  if (st) st.textContent = `${out.length} artiklar från ${res.filter(r => r.items).length} av ${srcs.length} källor, hämtade ${hhmm(new Date())}.` + (bad.length ? " Svarade inte: " + bad.join(", ") + "." : "") + (!srcs.length ? " Välj minst en källa." : "");
+  if (st) st.textContent = (S.idle.richOnly !== false ? `${out.length} innehållsrika av ${all.length} artiklar` : `${out.length} artiklar`) + ` från ${res.filter(r => r.items).length} av ${srcs.length} källor, hämtade ${hhmm(new Date())}.` + (bad.length ? " Svarade inte: " + bad.join(", ") + "." : "") + (!srcs.length ? " Välj minst en källa." : "");
   renderBoard();
 }
 function loadAikNews(){ loadSportNews("fb"); loadSportNews("hk"); }
@@ -3607,6 +3622,7 @@ function buildControls(){
   // nyhetskällor: en grupp per källa med kryssrutor för kategorierna
   $("#feedList").innerHTML = NEWS_SOURCES.map(g => `<div class="feedGrp"><b>${esc(g.src)}</b>${g.feeds.map(([k, cat]) =>
     `<label class="chk feedChk"><input type="checkbox" data-feed="${k}"> ${esc(cat)}</label>`).join("")}</div>`).join("");
+  $("#richOnly").addEventListener("change", e => { S.idle.richOnly = e.target.checked; saveS(); loadNews(); loadAikNews(); });
   $("#feedList").addEventListener("change", e => { const k = e.target.dataset.feed; if (!k) return;
     const set = new Set(S.idle.feeds); e.target.checked ? set.add(k) : set.delete(k); S.idle.feeds = [...set]; saveS(); loadNews(); });
   // sportnyheter: samma uppsättning inställningar för fotbolls- och hockeysidan
@@ -3655,6 +3671,7 @@ function syncAll(){
   $("#edSteps").checked = !!S.edge.steps; $("#stepsGoal").value = S.edge.stepsGoal;
   $("#edDate").checked = S.edge.date; $("#edWeek").checked = S.edge.week; $("#edClock").checked = S.edge.clock; $("#edWx").checked = S.edge.wx;
   $("#wxPlace").value = S.edge.place;
+  $("#richOnly").checked = S.idle.richOnly !== false;
   $("#idBus").checked = S.bus.on; $("#signOrig").checked = S.bus.signOrig !== false;
   $("#idHome").checked = S.home.on; document.querySelectorAll("#homeSeg button").forEach(b => b.classList.toggle("on", !!S.home[b.dataset.v]));
   $("#idPhoto").checked = S.photo.on; $("#albums").value = S.photo.albums; $("#photoOrig").checked = !!S.photo.orig; $("#idFb").checked = S.idle.fb; $("#fbSrc").value = S.foot.src; $("#fbMins").value = S.foot.mins;
