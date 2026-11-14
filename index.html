@@ -1661,7 +1661,12 @@ async function playWakeAnimation(readyPromise){
     blank.style.transition = "opacity .4s";
     blank.style.opacity = "0"; state.blanked = false;
 
+    // Testbilden står kvar tills musiken faktiskt har börjat spela (Sonos och Spotify tar några
+    // sekunder att komma igång, och annars hinner vädersidan visas emellan), dock högst 25 s.
     await wait(3800);
+    const holdUntil = performance.now() + 25000;
+    while (!(state.playing && state.track) && performance.now() < holdUntil) await wait(250);
+    if (state.playing && state.track) await wait(600);   // låt låtnamnet hinna komma på plats
 
     // Fas 3: en kort, dold vaxling (ett andetag morker) fran testbilden
     // till appens riktiga innehall - undviker en tvar klippning rakt in i
