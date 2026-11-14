@@ -3867,13 +3867,21 @@ function playYt(it, el){
   f.allow = "autoplay; encrypted-media"; f.referrerPolicy = "strict-origin-when-cross-origin";
   f.src = "https://www.youtube.com/embed/" + encodeURIComponent(it.id) + "?autoplay=1&controls=0&rel=0&playsinline=1&iv_load_policy=3&enablejsapi=1&origin=" + encodeURIComponent(location.origin);
   // YouTube berättar när klippet är slut, när vi ber om det
-  f.onload = () => { try { f.contentWindow.postMessage(JSON.stringify({ event:"listening", id:1, channel:"widget" }), "*"); } catch(e){} };
+  const cmd = (func, args = []) => { try { f.contentWindow.postMessage(JSON.stringify({ event:"command", func, args }), "*"); } catch(e){} };
+  HL.ytState = -1;
+  f.onload = () => {
+    try { f.contentWindow.postMessage(JSON.stringify({ event:"listening", id:1, channel:"widget" }), "*"); } catch(e){}
+    setTimeout(() => { if (HL.on && HL.ytState !== 1) cmd("playVideo"); }, 1500);
+    // spelar det fortfarande inte stoppar webbläsaren ljud utan knapptryck: då spelas klippet tyst
+    setTimeout(() => { if (HL.on && HL.ytState !== 1 && HL.ytState !== 3){ cmd("mute"); cmd("playVideo"); } }, 4500);
+  };
   el.prepend(f);
 }
 addEventListener("message", e => {
   if (!HL.on || !/youtube/.test(e.origin)) return;
   let d; try { d = typeof e.data === "string" ? JSON.parse(e.data) : e.data; } catch(err){ return; }
   const st = d && (d.event === "onStateChange" ? d.info : d.event === "infoDelivery" && d.info ? d.info.playerState : undefined);
+  if (st !== undefined) HL.ytState = st;
   if (st === 0) hideHighlights();
   if (d && d.event === "onError") { osd("YouTube-klippet gick inte att spela"); hideHighlights(); }
 });
