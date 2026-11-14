@@ -967,7 +967,7 @@ const PALETTE_NAMES = { svartvit:"Svartvit", sepia:"Sepia", fosfor:"Grön fosfor
 const PAGE_NAMES = { hem:"Hemskärm", wx:"Väder", news:"Nyheter", foto:"Foton", fotboll:"Fotboll", hockey:"Hockey", plex:"Filmtips (Plex)", test:"Testbild" };
 const PAGE_ICONS = { plex:"film", hem:"home", wx:"weather", news:"news", foto:"image", fotboll:"ball", hockey:"hockey", test:"testcard" };
 const BP_NAMES = { open:"Öppna", close:"Stäng", playpause:"Spela/paus", next:"Nästa", prev:"Föregående", wake:"Väckning",
-  "hl:latest":"Highlights, senaste matchen", "hl:fb":"Highlights, fotboll", "hl:hk":"Highlights, hockey", "hl:toggle":"Highlights på/av", "hl:stop":"Stäng highlights" };
+  "hl:latest":"Highlights, fotboll (SVT)", "hl:fb":"Highlights, fotboll", "hl:hk":"Highlights, hockey (YouTube, kan ha reklam)", "hl:toggle":"Highlights fotboll på/av", "hl:stop":"Stäng highlights" };
 const BP_ICONS = { open:"tv", close:"tv-off", playpause:"playpause", next:"next", prev:"prev", wake:"sunrise", "hl:latest":"film", "hl:fb":"film", "hl:hk":"film", "hl:toggle":"film", "hl:stop":"tv-off" };
 const LIGHT_OPS = [["on","Tänd"],["off","Släck"],["toggle","Tänd/släck (växla)"],["dim","Ljusstyrka"],["dim-rel","Ljusare/mörkare (steg)"],["temp","Färgtemperatur"],["temp-rel","Varmare/kallare (steg)"],["color","Färg"],["hue-rel","Färghjul (steg)"],["scene","Scen"]];
 const SP_OPS = [["toggle","Spela/paus"],["play","Spela"],["pause","Pausa"],["next","Nästa spår"],["prev","Föregående spår"],["vol","Volym (fast nivå)"],["vol-rel","Volym upp/ner (steg)"],["playlist","Spela spellista"],["device","Flytta till enhet"],["shuffle","Blanda av/på"],["repeat","Upprepa (växla)"],["like","Gilla låten"],["seek-rel","Spola (steg)"]];
@@ -1197,7 +1197,7 @@ const LIBRARY = [
     { id:"b-next", name:"Nästa", make:() => ({ t:"bp", c:"next" }) },
     { id:"b-prev", name:"Föregående", make:() => ({ t:"bp", c:"prev" }) },
     { id:"b-wake", name:"Väckning", make:() => ({ t:"bp", c:"wake" }) },
-    { id:"b-hl", name:"Highlights, senaste matchen", ico:"film", make:() => ({ t:"bp", c:"hl:toggle" }) },
+    { id:"b-hl", name:"Highlights (fotboll, SVT)", ico:"film", make:() => ({ t:"bp", c:"hl:toggle" }) },
     { id:"b-viz", name:"Kanal (visualisering)", make:() => ({ t:"viz", n:"next" }) },
     { id:"b-pal", name:"Färgläge", make:() => ({ t:"palette", p:"next" }) },
     { id:"b-page", name:"Visa sida", make:() => ({ t:"page", p:"wx" }) } ] },

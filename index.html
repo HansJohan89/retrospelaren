@@ -3828,8 +3828,9 @@ async function showHighlights(which){
   let d;
   try { d = await (await fetch("/api/highlights?team=" + encodeURIComponent(hlTeam()), { cache:"no-store" })).json(); }
   catch(e){ osd("Höjdpunkterna svarar inte"); return; }
-  const it = which === "fb" ? d.fb : which === "hk" ? d.hk
-    : [d.fb, d.hk].filter(Boolean).sort((a, b) => (Date.parse(b.at) || 0) - (Date.parse(a.at) || 0))[0];
+  // "senaste matchen" tar bara reklamfria klipp (SVT); hockeyklippen på YouTube kan ha reklam och
+  // visas bara med knappen "Highlights, hockey"
+  const it = which === "fb" ? d.fb : which === "hk" ? d.hk : d.fb;
   if (!it){ osd(which === "fb" ? "Inga fotbollshöjdpunkter just nu" : which === "hk" ? "Inga hockeyhöjdpunkter just nu" : "Inga höjdpunkter just nu"); return; }
   hideHighlights(true);
   const el = $("#hl"); el.innerHTML = "";
