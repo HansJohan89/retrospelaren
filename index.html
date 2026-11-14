@@ -276,6 +276,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #photo .bg{position:absolute;inset:-6%;width:112%;height:112%;object-fit:cover;filter:var(--cover-filter) blur(3vh) brightness(.45)}
 #photo .fg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;filter:var(--cover-filter)}
 #photo.orig .bg{filter:blur(3vh) brightness(.45)}
+.lite #photo .bg,.lite #photo.orig .bg{filter:brightness(.3)}
 #photo.orig .fg{filter:none}
 #photo .sl.on .fg{animation:kb var(--kb,14s) ease-out forwards}
 @keyframes kb{from{transform:scale(1)}to{transform:scale(1.07)}}
@@ -922,11 +923,17 @@ function measureEdges(){
   }
 }
 
+// Lätt läge för Raspberry Pi (?pi=1 i adressen, som kioskläget använder): 30 bilder i sekunden,
+// visualiseringen ritas i lägre upplösning och skalas upp, och den tunga oskärpan bakom fotona
+// slås av. Pi:n har lite minne och en svag grafikdel, och sidan blir annars seg eller kraschar.
+const LITE = /[?&](pi|lite)=1/.test(location.search);
+const RSCALE = LITE ? 0.6 : 1;
+if (LITE) document.documentElement.classList.add("lite");
 function resize(){
   layoutScreen();
   renderEdges.fitted = false;
   requestAnimationFrame(measureEdges);
-  DPR = Math.min(2, window.devicePixelRatio || 1);
+  DPR = LITE ? RSCALE : Math.min(2, window.devicePixelRatio || 1);
   const r = view.getBoundingClientRect();
   W = Math.round(r.width*DPR); H = Math.round(r.height*DPR);
   if (cv.width !== W || cv.height !== H){ cv.width = W; cv.height = H; view.width = W; view.height = H; ctx.fillStyle = P.bg; ctx.fillRect(0,0,W,H); }
@@ -2296,6 +2303,7 @@ let lastVizDrawn = 0;
 let forceTestcard = false;
 function frame(nowMs){
   requestAnimationFrame(frame);
+  if (LITE){ if (nowMs - (frame.lastMs || 0) < 30) return; frame.lastMs = nowMs; }
   if (!W) resize();
   const t = nowMs/1000;
   computeLevels(t);
