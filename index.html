@@ -532,6 +532,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <div class="row"><input type="search" id="stSearch" placeholder="Sök station på namn..."><button class="btn" id="stSearchBtn">Sök</button></div>
       <ul id="stations"><li class="empty">Välj en genre ovan.</li></ul>
       <div class="row"><span>Volym</span><input type="range" id="vol" min="0" max="1" step="0.01"></div>
+      <div class="row"><span>Ljud för klipp och sändningar</span><select id="clipRoom"><option value="">Skärmens egna högtalare</option></select></div>
     </section>
 
     <section id="spSec">
@@ -836,6 +837,7 @@ const FONTS_B = ["Special Elite","Courier Prime","Cutive Mono","Josefin Sans","J
   "VT323","Space Mono","IBM Plex Mono","Inconsolata","Rubik","JetBrains Mono","Archivo Narrow"];
 const VIZROT_DEF = { 1:true, 2:true, 3:true, 4:true, 5:true, 6:true, 7:true, 8:true };
 S.vizRot = Object.assign({}, VIZROT_DEF, S.vizRot || {});
+if (S.clipRoom === undefined) S.clipRoom = "Vardagsrum";
 S.fx = Object.assign({}, FX_DEF, S.fx || {}); if (S.warm === undefined) S.warm = true;
 S.look = Object.assign({}, LOOK_DEF, S.look || {});
 S.edge = Object.assign({}, EDGE_DEF, S.edge || {});
@@ -3557,6 +3559,7 @@ $("#stSearch").addEventListener("keydown", e => { if (e.key === "Enter") $("#stS
 $("#vizSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setViz(+b.dataset.v); });
 $("#palSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setPalette(b.dataset.v); });
 $("#vinSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.vizInput = b.dataset.v; saveS(); start(); applyVizInput(); });
+$("#clipRoom").addEventListener("change", e => { S.clipRoom = e.target.value; saveS(); });
 $("#vol").addEventListener("input", e => { S.volume = +e.target.value; saveS(); if (outGain) outGain.gain.value = S.volume; });
 $("#autoCh").addEventListener("change", e => { S.autoChannel = e.target.checked; saveS(); });
 (function buildVizRot(){
@@ -3741,6 +3744,9 @@ function syncAll(){
   $("#edSteps").checked = !!S.edge.steps; $("#stepsGoal").value = S.edge.stepsGoal;
   $("#edDate").checked = S.edge.date; $("#edWeek").checked = S.edge.week; $("#edClock").checked = S.edge.clock; $("#edWx").checked = S.edge.wx;
   $("#wxPlace").value = S.edge.place;
+  { const sel = $("#clipRoom"), want = S.clipRoom || "";
+    if (want && ![...sel.options].some(o => o.value === want)) sel.append(new Option("Sonos: " + want, want));
+    sel.value = want; }
   $("#richOnly").checked = S.idle.richOnly !== false; $("#signFit").checked = S.bus.sz.fit !== false; document.querySelectorAll("#signBold [data-sb]").forEach(c => { c.checked = S.bus.sz[c.dataset.sb] !== false; });
   $("#idBus").checked = S.bus.on; $("#signOrig").checked = S.bus.signOrig !== false;
   $("#idHome").checked = S.home.on; document.querySelectorAll("#homeSeg button").forEach(b => b.classList.toggle("on", !!S.home[b.dataset.v]));
@@ -3829,6 +3835,10 @@ async function pollSettings(){
 }
 setInterval(pollSettings, 3000);
 
+// Sonos-rummen till valet "Ljud för klipp och sändningar"
+(async () => { try { const d = await (await fetch("/api/tradfri-list")).json(); const sel = $("#clipRoom");
+  (d.speakers || []).forEach(r => { if (![...sel.options].some(o => o.value === r)) sel.append(new Option("Sonos: " + r, r)); });
+  sel.value = S.clipRoom || ""; } catch(e){} })();
 // ================= highlights =================
 // Höjdpunkter från lagets senaste match, bara när någon trycker på en knapp för det (hl:latest,
 // hl:fb, hl:hk, hl:toggle, hl:stop). Fotboll från SVT Play (spelas här med hls.js, bara i Sverige),
@@ -3868,6 +3878,14 @@ async function playItem(it, prog){
   setTimeout(() => { const c = el.querySelector(".cap"); if (c) c.classList.add("gone"); }, 6000);
   el.classList.add("on"); requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("show")));
   clearTimeout(HL.t); HL.t = setTimeout(hideHighlights, Math.max(60, (+it.secs || 600) + 60) * 1000);   // om slutet aldrig märks
+  // På skärmen i skåpet: ljudet till Sonos (hubben flyttar Pi:ns ljud dit med AirPlay). AirPlay
+  // behöver ett par sekunder att koppla upp, så klippet startar efter det.
+  HL.audio = LITE && !!S.clipRoom;
+  if (HL.audio){
+    fetch("/api/send?c=" + encodeURIComponent("clip-audio:on:" + S.clipRoom)).catch(() => {});
+    await new Promise(r => setTimeout(r, 2500));
+    if (!HL.on || HL.item !== it) return;
+  }
   try { it.src === "svt" ? await playSvt(it, el) : playYt(it, el); }
   catch(e){ console.warn("highlights", e); osd(e.message || "Klippet gick inte att spela"); hideHighlights(); }
 }
@@ -3916,6 +3934,7 @@ addEventListener("message", e => {
 });
 function hideHighlights(quick){
   clearTimeout(HL.t);
+  if (HL.audio){ HL.audio = false; fetch("/api/send?c=clip-audio:off").catch(() => {}); }
   const el = $("#hl");
   if (HL.hls){ try { HL.hls.destroy(); } catch(e){} HL.hls = null; }
   const done = () => { el.querySelectorAll("video").forEach(v => { v.pause(); v.removeAttribute("src"); v.load(); }); el.innerHTML = ""; el.classList.remove("on"); };
