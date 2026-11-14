@@ -3870,7 +3870,8 @@ async function showHighlights(which){
   await playItem(it, "hl");
 }
 async function playItem(it, prog){
-  hideHighlights(true);
+  const audioOn = HL.audio;             // ett klipp byts mot ett annat: ljudet ligger kvar hos Sonos
+  hideHighlights(true, true);
   const el = $("#hl"); el.innerHTML = "";
   HL.on = true; HL.item = it; HL.prog = prog; HL.wasBlank = state.blanked;
   if (state.blanked){ $("#blank").classList.remove("on"); state.blanked = false; }
@@ -3881,7 +3882,7 @@ async function playItem(it, prog){
   // På skärmen i skåpet: ljudet till Sonos (hubben flyttar Pi:ns ljud dit med AirPlay). AirPlay
   // behöver ett par sekunder att koppla upp, så klippet startar efter det.
   HL.audio = LITE && !!S.clipRoom;
-  if (HL.audio){
+  if (HL.audio && !audioOn){
     fetch("/api/send?c=" + encodeURIComponent("clip-audio:on:" + S.clipRoom)).catch(() => {});
     await new Promise(r => setTimeout(r, 2500));
     if (!HL.on || HL.item !== it) return;
@@ -3932,9 +3933,9 @@ addEventListener("message", e => {
   if (st === 0) hideHighlights();
   if (d && d.event === "onError") { osd("YouTube-klippet gick inte att spela"); hideHighlights(); }
 });
-function hideHighlights(quick){
+function hideHighlights(quick, keepAudio){
   clearTimeout(HL.t);
-  if (HL.audio){ HL.audio = false; fetch("/api/send?c=clip-audio:off").catch(() => {}); }
+  if (HL.audio && !keepAudio){ HL.audio = false; fetch("/api/send?c=clip-audio:off").catch(() => {}); }
   const el = $("#hl");
   if (HL.hls){ try { HL.hls.destroy(); } catch(e){} HL.hls = null; }
   const done = () => { el.querySelectorAll("video").forEach(v => { v.pause(); v.removeAttribute("src"); v.load(); }); el.innerHTML = ""; el.classList.remove("on"); };
