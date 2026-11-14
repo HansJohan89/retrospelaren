@@ -2293,6 +2293,17 @@ function inputsModal(){
     body.append(card("Jalusisensorn", "Shelly BLU Door/Window, läses av Pi:n över Bluetooth", "jalusi", null,
       [["Jalusin öppnas", picker(J.open, c => { J.open = c; }, "in:jalusi:open")], ["Jalusin stängs", picker(J.close, c => { J.close = c; }, "in:jalusi:close")]]));
     const known = new Set(INPUTS.map(i => i.key)), cfg = deck.inputs = deck.inputs || {};
+    // Trådfri-scener som startas utifrån, till exempel av en genvägsknapp
+    const moodRows = [];
+    Object.entries(GROUPS).forEach(([g, moods]) => (moods || []).forEach(mname => {
+      const key = "mood:" + g.toLowerCase() + ":" + String(mname).toLowerCase();
+      const get = () => ((cfg[key] || {}).events || {}).run;
+      const set = c => { if (c) cfg[key] = { name: mname + " (" + g + ")", events: { run: c } }; else delete cfg[key]; };
+      moodRows.push([mname + " i " + g, picker(get(), set, "in:" + key)]);
+    }));
+    if (moodRows.length) body.append(card("När en Trådfri-scen startas", "till exempel av en genvägsknapp", "sparkles", null, moodRows,
+      "Koppla genvägsknappen till en scen i IKEA-appen, och välj här vad som ska hända när den scenen startas. Hubben märker när en grupp byter scen utan att hubben själv gjorde det. "
+      + "Det är ett försök: fungerar det inte, visar gatewayen inte vilken scen som startas. Samma scen två gånger i rad märks inte, eftersom gruppen då inte byter scen."));
     const all = [...INPUTS, ...Object.keys(cfg).filter(k => !known.has(k)).map(k => ({ key: k, src: k.split(":")[0], name: cfg[k].name || k, gone: true, events: Object.keys(cfg[k].events || {}), groups: [] }))];
     let noted = 0;
     all.forEach(i => {
