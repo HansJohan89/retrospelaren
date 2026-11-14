@@ -880,7 +880,7 @@ function computeLevels(t){
     L.amp = 1;
   } else {
     const target = state.playing ? 1 : 0;
-    simAmp += (target - simAmp) * 0.04;
+    simAmp += (target - simAmp) * ease(0.04);
     const a = simAmp, bpm = 116, ph = (t*bpm/60) % 1, env = Math.exp(-ph*5.5), env2 = Math.exp(-((ph*2)%1)*7);
     for (let i=0;i<FFT;i++){
       const x = i/FFT;
@@ -897,10 +897,10 @@ function computeLevels(t){
     L.rmsL = r*(0.96 + 0.08*smoothNoise(7,t)); L.rmsR = r*(0.96 + 0.08*smoothNoise(11,t*1.1)); L.rms = r;
     L.amp = a;
   }
-  for (let b=0;b<NB;b++){ const v = bands[b]; bandsSm[b] = v > bandsSm[b] ? v : bandsSm[b]*0.88 + v*0.12; }
+  for (let b=0;b<NB;b++){ const v = bands[b]; const d = decay(0.88); bandsSm[b] = v > bandsSm[b] ? v : bandsSm[b]*d + v*(1-d); }
   const bass = (bandsSm[0]+bandsSm[1]+bandsSm[2]+bandsSm[3])/4;
-  bassAvg = bassAvg*0.95 + bass*0.05;
-  if (bass > bassAvg*1.25 && bass > 0.18) L.beat = 1; else L.beat *= 0.9;
+  bassAvg = bassAvg*decay(0.95) + bass*(1 - decay(0.95));
+  if (bass > bassAvg*1.25 && bass > 0.18) L.beat = 1; else L.beat *= decay(0.9);
 }
 
 // ================= canvas =================
@@ -982,7 +982,13 @@ function region(){ // visualiseringens yta mellan kanterna och radioskalan
   const top = Math.max(0.15, EDGE_B + 0.02), bottom = (infoOn ? 0.62 : 0.85) - EDGE_BB;
   return { x:W*0.06, y:H*top, w:W*0.88, h:H*(bottom - top) };
 }
-function fade(a){ ctx.globalCompositeOperation = "source-over"; ctx.shadowBlur = 0; ctx.fillStyle = hexA(P.bg, a); ctx.fillRect(0,0,W,H); }
+// Utjämningar och avklingningar är skrivna för 60 bilder i sekunden. FK = hur många sådana
+// bilder som gått sedan förra (2 vid 30 bilder/s), så att rörelserna går lika fort i tid oavsett
+// takt. Annars blir staplar och efterglöd dubbelt så tröga på Pi:n.
+let FK = 1;
+const decay = k => Math.pow(k, FK);                 // x *= k per 60-delssekund
+const ease = r => 1 - Math.pow(1 - r, FK);          // x += (mål - x) * r per 60-delssekund
+function fade(a){ if (a < 1) a = ease(a); ctx.globalCompositeOperation = "source-over"; ctx.shadowBlur = 0; ctx.fillStyle = hexA(P.bg, a); ctx.fillRect(0,0,W,H); }
 function glow(c, b){ ctx.shadowColor = c; ctx.shadowBlur = b*DPR; }
 // fx=0 i adressen: alla skärmeffekter av (för att mäta vad de kostar på Pi:n)
 const FX_OFF = new URLSearchParams(location.search).get("fx") === "0";
@@ -1011,7 +1017,7 @@ function drawOsc(t){
   let start = 0;
   for (let i=1;i<FFT/2;i++){ if (wave[i-1] < 0 && wave[i] >= 0){ start = i; break; } }
   let peak = 0.02; for (let i=start;i<start+1024;i++) peak = Math.max(peak, Math.abs(wave[i]));
-  oscGain += ((0.9/Math.max(0.08, peak)) - oscGain)*0.05;
+  oscGain += ((0.9/Math.max(0.08, peak)) - oscGain)*ease(0.05);
   ctx.save(); ctx.beginPath(); ctx.rect(R.x, R.y - R.h*0.04, R.w, R.h*1.08); ctx.clip();
   ctx.strokeStyle = P.ink; ctx.lineWidth = 2.4*DPR; glow(P.ink, 14);
   ctx.beginPath();
@@ -1028,7 +1034,7 @@ function drawEye(t){
   clearBg();
   const R = region(), cx = R.x+R.w/2, cy = R.y+R.h/2, r = Math.min(R.w,R.h)*0.4;
   const la = Math.min(1, L.rmsL*4.2), lb = Math.min(1, L.rmsR*2.4);
-  eyeA += (la-eyeA)*(la>eyeA?0.45:0.12); eyeB += (lb-eyeB)*(lb>eyeB?0.45:0.12);
+  eyeA += (la-eyeA)*ease(la>eyeA?0.45:0.12); eyeB += (lb-eyeB)*ease(lb>eyeB?0.45:0.12);
   // bezel
   const bez = ctx.createRadialGradient(cx, cy-r*0.3, r*0.2, cx, cy, r*1.18);
   bez.addColorStop(0, hexA(P.mid,0.55)); bez.addColorStop(1, hexA(P.dim,0.9));
@@ -1116,7 +1122,7 @@ function drawMeter(x,y,w,h,val,idx,label){
   // nål med ballistik
   const db = 20*Math.log10(Math.max(1e-5, val)) + 13;
   const target = vuPos(db);
-  needles[idx] += (target - needles[idx]) * 0.14;
+  needles[idx] += (target - needles[idx]) * ease(0.14);
   const na = angOf(Math.max(-0.03, Math.min(1.04, needles[idx])));
   ctx.save();
   ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
@@ -1193,7 +1199,7 @@ function drawOrgan(t){
   for (let c=0;c<cols;c++){
     const bi = ORGAN_ORDER[c];
     const v = Math.min(1, Math.max(bandsSm[bi*2], bandsSm[bi*2+1]) * 1.15);
-    peaks[c] = Math.max(v, peaks[c] - 0.008);
+    peaks[c] = Math.max(v, peaks[c] - 0.008*FK);
     const lit = Math.round(v*rows), pk = Math.min(rows-1, Math.round(peaks[c]*rows));
     for (let r=0;r<rows;r++){
       const x = R.x + c*cw + (cw-lw)/2, y = R.y + R.h - (r+1)*rh + (rh-lh)/2;
@@ -1232,7 +1238,7 @@ function drawOrganMirror(t){
   for (let c=0;c<cols;c++){
     const bi = ORGAN_ORDER[c];
     const v = Math.min(1, Math.max(bandsSm[bi*2], bandsSm[bi*2+1]) * 1.15);
-    organMirrorPeaks[c] = Math.max(v, organMirrorPeaks[c] - 0.008);
+    organMirrorPeaks[c] = Math.max(v, organMirrorPeaks[c] - 0.008*FK);
     const lit = Math.round(v*rows), pk = Math.min(rows-1, Math.round(organMirrorPeaks[c]*rows));
     for (let r=0;r<rows;r++){
       const x = R.x + c*cw + (cw-lw)/2, y = R.y + R.h - (r+1)*rh + (rh-lh)/2;
@@ -1269,7 +1275,7 @@ function drawArcFan(cx, cy, angStart, angEnd, order, peaks, rIn, rOut, rows){
   for (let c=0;c<cols;c++){
     const bi = order[c];
     const v = Math.min(1, Math.max(bandsSm[bi*2], bandsSm[bi*2+1]) * 1.15);
-    peaks[c] = Math.max(v, peaks[c] - 0.008);
+    peaks[c] = Math.max(v, peaks[c] - 0.008*FK);
     const lit = Math.round(v*rows), pk = Math.min(rows-1, Math.round(peaks[c]*rows));
     const ang = (angStart + (angEnd-angStart)*c/(cols-1)) * Math.PI/180;
     for (let r=0;r<rows;r++){
@@ -1319,7 +1325,7 @@ function drawOrganWing(t){
   for (let c=0;c<cols;c++){
     const bi = ORGAN_ORDER[c];
     const v = Math.min(1, Math.max(bandsSm[bi*2], bandsSm[bi*2+1]) * 1.2);
-    organWingPeaks[c] = Math.max(v, organWingPeaks[c] - 0.008);
+    organWingPeaks[c] = Math.max(v, organWingPeaks[c] - 0.008*FK);
     const lit = Math.round(v*rows), pk = Math.min(rows-1, Math.round(organWingPeaks[c]*rows));
     for (let r=0;r<rows;r++){
       const on = r < lit || (r === pk && pk > 0);
@@ -2357,7 +2363,8 @@ let lastVizDrawn = 0;
 let forceTestcard = false;
 function frame(nowMs){
   requestAnimationFrame(frame);
-  if (FPS_MAX < 60){ if (nowMs - (frame.lastMs || 0) < 1000 / FPS_MAX - 3) return; frame.lastMs = nowMs; }
+  if (FPS_MAX < 60){ if (nowMs - (frame.lastMs || 0) < 1000 / FPS_MAX - 3) return; }
+  FK = Math.max(0.25, Math.min(4, (nowMs - (frame.lastMs || nowMs - 16.7)) / 16.667)); frame.lastMs = nowMs;
   if (SHOW_FPS){   // liten mätare uppe till vänster, för att prova inställningarna
     const F = frame.fps = frame.fps || { n: 0, at: nowMs, el: document.body.appendChild(Object.assign(document.createElement("div"), { style: "position:fixed;left:6px;top:6px;z-index:99999;font:600 14px monospace;color:#0f0;background:#000a;padding:2px 6px" })) };
     F.n++; if (nowMs - F.at >= 1000){ F.el.textContent = F.n + " bilder/s · ritupplösning " + Math.round(RSCALE * 100) + " %"; F.n = 0; F.at = nowMs; }
