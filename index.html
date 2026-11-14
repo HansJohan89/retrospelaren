@@ -405,6 +405,9 @@ input[type=text],input[type=search]{font:inherit;font-size:14px;padding:7px 9px;
   color:var(--panel-ink);border-radius:3px;flex:1;min-width:0}
 input[type=range]{flex:1;accent-color:var(--panel-hot)}
 label.chk{display:flex;gap:8px;align-items:center;margin-top:8px;cursor:pointer}
+.feedGrp{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;margin-top:8px}
+.feedGrp b{width:100%;font-weight:600;font-size:.9em;opacity:.8}
+.feedGrp label.chk{margin-top:0}
 .row label.chk{margin-top:0}
 .note{font-size:12.5px;color:#6b5a3e;margin-top:8px;line-height:1.45}
 .note code{background:#f6efdc;padding:1px 4px;border:1px solid var(--panel-line);word-break:break-all;font-size:12px}
@@ -661,8 +664,10 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <div class="note" id="hkStatus"></div>
       <label class="chk"><input type="checkbox" id="idTest"> Testbild</label>
       <div id="idleSl"></div>
-      <div class="row"><span class="lbl">Nyhetskälla</span><select id="feedSel"></select></div>
-      <div class="row" id="feedOwnRow"><input type="text" id="feedOwn" placeholder="Egen RSS-adress (https://...)"></div>
+      <div class="lbl" style="margin-top:12px">Nyhetskällor (kryssa i så många du vill)</div>
+      <div id="feedList"></div>
+      <div id="ownFeeds"></div>
+      <div class="row"><input type="text" id="ownFeedName" placeholder="Namn" style="width:7em"><input type="text" id="ownFeedUrl" placeholder="Egen RSS-adress (https://...)" style="flex:1"><button id="ownFeedAdd" class="btn">Lägg till</button></div>
       <div class="note" id="newsStatus"></div>
       <div class="note">Sidorna växlar efter varandra. Är inget valt visas testbilden.</div>
     </section>
@@ -774,17 +779,34 @@ const BUS_DEF = { on:true, id:"", name:"", to:"", toName:"" };
 const PHOTO_DEF = { on:true, albums:"", secs:12, orig:false };
 const HOME_DEF = { on:true, clock:true, wx:true, bus:true, news:true, aik:true, photo:false };
 S.idle = Object.assign({}, IDLE_DEF, S.idle || {});
+// Förr gick det bara att välja en källa; flytta över den till listan med ikryssade.
+if (!Array.isArray(S.idle.feeds)){
+  const old = { svt:"svt-top", dalarna:"svt-dalarna", ekot:"sr-ekot" }[S.idle.feed];
+  S.idle.feeds = old ? [old] : S.idle.feed === "own" ? [] : ["svt-top"];
+  S.idle.ownFeeds = S.idle.feed === "own" && S.idle.own ? [{ name:"Egen källa", url:S.idle.own }] : [];
+}
+if (!Array.isArray(S.idle.ownFeeds)) S.idle.ownFeeds = [];
 S.bus = Object.assign({}, BUS_DEF, S.bus || {});
 S.photo = Object.assign({}, PHOTO_DEF, S.photo || {});
 S.home = Object.assign({}, HOME_DEF, S.home || {});
 if (S.idle.fb === undefined) S.idle.fb = true;
 S.foot = Object.assign({ src:"espn", mins:60 }, S.foot || {});
-const FEEDS = {
-  svt:     { name:"SVT Nyheter",  url:"https://www.svt.se/nyheter/rss.xml" },
-  dalarna: { name:"SVT Dalarna",  url:"https://www.svt.se/nyheter/lokalt/dalarna/rss.xml" },
-  ekot:    { name:"Ekot",         url:"https://api.sr.se/api/rss/program/83" },
-  own:     { name:"Egen källa",   url:"" }
-};
+// Nyhetskällor och deras kategorier. Man kryssar i så många man vill; rubrikerna blandas.
+const NEWS_SOURCES = [
+  { src:"SVT", feeds:[["svt-top","Senaste","https://www.svt.se/nyheter/rss.xml"],["svt-in","Inrikes","https://www.svt.se/nyheter/inrikes/rss.xml"],
+    ["svt-ut","Utrikes","https://www.svt.se/nyheter/utrikes/rss.xml"],["svt-ek","Ekonomi","https://www.svt.se/nyheter/ekonomi/rss.xml"],
+    ["svt-vet","Vetenskap","https://www.svt.se/nyheter/vetenskap/rss.xml"],["svt-kul","Kultur","https://www.svt.se/kultur/rss.xml"],
+    ["svt-sport","Sport","https://www.svt.se/sport/rss.xml"],["svt-dalarna","Dalarna","https://www.svt.se/nyheter/lokalt/dalarna/rss.xml"]] },
+  { src:"Sveriges Radio", feeds:[["sr-ekot","Ekot","https://api.sr.se/api/rss/program/83"]] },
+  { src:"DN", feeds:[["dn-top","Senaste","https://www.dn.se/rss/"],["dn-sv","Sverige","https://www.dn.se/rss/sverige/"],["dn-ut","Världen","https://www.dn.se/rss/varlden/"],
+    ["dn-ek","Ekonomi","https://www.dn.se/rss/ekonomi/"],["dn-kul","Kultur","https://www.dn.se/rss/kultur/"],["dn-sport","Sport","https://www.dn.se/rss/sport/"]] },
+  { src:"Aftonbladet", feeds:[["ab-top","Senaste","https://rss.aftonbladet.se/rss2/small/pages/sections/senastenytt/"],
+    ["ab-sport","Sportbladet","https://rss.aftonbladet.se/rss2/small/pages/sections/sportbladet/"],["ab-noje","Nöjesbladet","https://rss.aftonbladet.se/rss2/small/pages/sections/nojesbladet/"]] },
+  { src:"Expressen", feeds:[["ex-top","Nyheter","https://feeds.expressen.se/nyheter/"],["ex-sport","Sport","https://feeds.expressen.se/sport/"],["ex-noje","Nöje","https://feeds.expressen.se/noje/"]] },
+  { src:"SvD", feeds:[["svd-top","Senaste","https://www.svd.se/feed/articles.rss"]] },
+  { src:"Fotbollskanalen", feeds:[["fk-top","Senaste","https://www.fotbollskanalen.se/rss/"]] }
+];
+const FEED_BY_KEY = {}; NEWS_SOURCES.forEach(g => g.feeds.forEach(([k, cat, url]) => { FEED_BY_KEY[k] = { name: g.src + (g.feeds.length > 1 ? " " + cat : ""), src: g.src, url }; }));
 const saveS = () => store.set("settings", S);
 let FT = '"Limelight", serif', FB = '"Special Elite", monospace';
 
@@ -1824,20 +1846,32 @@ function idlePages(){
   if (S.idle.test || !p.length) p.push("test");
   return p;
 }
-function feedInfo(){ const f = FEEDS[S.idle.feed] || FEEDS.svt; return { name:f.name, url: S.idle.feed === "own" ? S.idle.own : f.url }; }
+function feedList(){
+  const out = (S.idle.feeds || []).map(k => FEED_BY_KEY[k]).filter(Boolean);
+  (S.idle.ownFeeds || []).forEach(f => { if (f && f.url) out.push({ name: f.name || "Egen källa", src: f.name || "Egen källa", url: f.url }); });
+  return out;
+}
 async function loadNews(){
   // Vädersidan visar en nyhet från samma flöde, så det hämtas även när bara "Väder i detalj" är på
   // och "Nyheter" som egen sida är avstängd.
-  const want = S.idle.news || S.idle.wx;
-  const f = feedInfo();
-  if (!want || !f.url){ NEWS = { items:[], at:0, src:"" }; $("#newsStatus").textContent = S.idle.news && !f.url ? "Ange en RSS-adress." : ""; return; }
-  try{
-    const r = await fetch("/api/rss?url=" + encodeURIComponent(f.url));
-    const j = await r.json();
-    if (!Array.isArray(j)) throw new Error(j.error || "fel");
-    NEWS = { items:j.slice(0, 12), at:Date.now(), src:f.name };
-    $("#newsStatus").textContent = `${j.length} rubriker från ${f.name}, hämtade ${hhmm(new Date())}.`;
-  }catch(e){ $("#newsStatus").textContent = "Kunde inte hämta nyheter: " + e.message; }
+  const want = S.idle.news || S.idle.wx || (S.home && S.home.on);
+  const feeds = feedList();
+  if (!want || !feeds.length){ NEWS = { items:[], at:0, src:"" }; $("#newsStatus").textContent = want && !feeds.length ? "Kryssa i minst en nyhetskälla." : ""; return; }
+  const res = await Promise.all(feeds.map(async f => {
+    try{
+      const j = await (await fetch("/api/rss?url=" + encodeURIComponent(f.url))).json();
+      if (!Array.isArray(j)) throw new Error(j.error || "fel");
+      return { f, items: j.map(x => Object.assign({}, x, { src: f.src })) };
+    }catch(e){ return { f, err: e.message }; }
+  }));
+  // Blanda: nyast först inom varje källa, och sedan en i taget från varje källa, så att ingen tar över.
+  const lists = res.filter(r => r.items && r.items.length).map(r => r.items.sort((x, y) => (Date.parse(y.date) || 0) - (Date.parse(x.date) || 0)));
+  const seen = new Set(), items = [];
+  for (let i = 0; items.length < 40 && lists.some(l => i < l.length); i++)
+    for (const l of lists){ const x = l[i]; if (!x) continue; const k = (x.title || "").trim().toLowerCase(); if (k && !seen.has(k)){ seen.add(k); items.push(x); } }
+  if (items.length) NEWS = { items, at:Date.now(), src: [...new Set(res.filter(r => r.items).map(r => r.f.src))].join(", ") };
+  const bad = res.filter(r => r.err).map(r => r.f.name);
+  $("#newsStatus").textContent = `${items.length} rubriker från ${res.filter(r => r.items).length} av ${feeds.length} flöden, hämtade ${hhmm(new Date())}.` + (bad.length ? " Svarade inte: " + bad.join(", ") + "." : "");
   renderBoard();
 }
 let DEP = { items:[], at:0, err:"", nokey:false };
@@ -1979,7 +2013,7 @@ function renderNewsPage(){
   const nx = it[(cur + 1) % it.length]; if (nx.img){ const pre = new Image(); pre.src = "/api/img?url=" + encodeURIComponent(nx.img); }
   const when = a.date ? hhmm(new Date(a.date)) : "";
   const img = a.img ? `<div class="im"><img src="/api/img?url=${encodeURIComponent(a.img)}" alt="" onerror="this.closest('.art').classList.add('noimg')"></div>` : "";
-  return `<div class="kick"><span>Nyheter · ${esc(NEWS.src)}</span><span>${cur + 1} / ${it.length}</span></div>
+  return `<div class="kick"><span>Nyheter · ${esc(a.src || NEWS.src)}</span><span>${cur + 1} / ${it.length}</span></div>
     <div class="art${a.img ? "" : " noimg"}" data-k="${cur}">${img}<div class="tx"><div class="t">${esc(a.title)}</div>
       ${a.desc ? `<div class="d">${esc(a.desc)}</div>` : ""}
       <div class="m">${[when, newsHost(a.link)].filter(Boolean).join(" · ")}</div></div></div>
@@ -2159,7 +2193,7 @@ function homeTile(k){
   if (k === "news"){
     const it = NEWS.items; if (!it.length) return `<div class="tile"><div class="h">Nyheter</div><div class="sub">Inga nyheter hämtade.</div></div>`;
     const a = it[BOARD.newsIdx % it.length]; ensureImg(a);
-    return `<div class="tile"><div class="h">${esc(NEWS.src)}${a.date ? " · " + hhmm(new Date(a.date)) : ""}</div>
+    return `<div class="tile"><div class="h">${esc(a.src || NEWS.src)}${a.date ? " · " + hhmm(new Date(a.date)) : ""}</div>
       <div class="nw">${a.img ? `<img src="/api/img?url=${encodeURIComponent(a.img)}" alt="" onerror="this.remove()">` : ""}<div class="t2">${esc(a.title)}</div></div></div>`;
   }
   if (k === "aik"){
@@ -3408,9 +3442,15 @@ function buildControls(){
   for (const [id, key] of [["#idWx","wx"],["#idNews","news"],["#idTest","test"]])
     $(id).addEventListener("change", e => { S.idle[key] = e.target.checked; saveS(); BOARD.until = 0;
       if (key === "wx") loadWeather(); if (key === "news" || key === "wx") loadNews(); });
-  $("#feedSel").innerHTML = Object.entries(FEEDS).map(([k, f]) => `<option value="${k}">${f.name}</option>`).join("");
-  $("#feedSel").addEventListener("change", e => { S.idle.feed = e.target.value; saveS(); $("#feedOwnRow").style.display = S.idle.feed === "own" ? "" : "none"; NEWS.items = []; loadNews(); });
-  $("#feedOwn").addEventListener("change", e => { S.idle.own = e.target.value.trim(); saveS(); loadNews(); });
+  // nyhetskällor: en grupp per källa med kryssrutor för kategorierna
+  $("#feedList").innerHTML = NEWS_SOURCES.map(g => `<div class="feedGrp"><b>${esc(g.src)}</b>${g.feeds.map(([k, cat]) =>
+    `<label class="chk feedChk"><input type="checkbox" data-feed="${k}"> ${esc(cat)}</label>`).join("")}</div>`).join("");
+  $("#feedList").addEventListener("change", e => { const k = e.target.dataset.feed; if (!k) return;
+    const set = new Set(S.idle.feeds); e.target.checked ? set.add(k) : set.delete(k); S.idle.feeds = [...set]; saveS(); loadNews(); });
+  $("#ownFeedAdd").addEventListener("click", () => { const url = $("#ownFeedUrl").value.trim(); if (!/^https?:\/\//.test(url)) return;
+    S.idle.ownFeeds = [...(S.idle.ownFeeds || []), { name: $("#ownFeedName").value.trim() || "Egen källa", url }]; $("#ownFeedUrl").value = ""; $("#ownFeedName").value = ""; saveS(); syncAll(); loadNews(); });
+  $("#ownFeeds").addEventListener("click", e => { const i = e.target.dataset.del; if (i == null) return;
+    S.idle.ownFeeds.splice(+i, 1); saveS(); syncAll(); loadNews(); });
   $("#wxBtn").addEventListener("click", () => { const v = $("#wxPlace").value.trim(); if (v) findPlace(v); });
   $("#wxPlace").addEventListener("keydown", e => { if (e.key === "Enter") $("#wxBtn").click(); });
   $("#resetBtn").addEventListener("click", () => {
@@ -3439,7 +3479,8 @@ function syncAll(){
   if (S.bus.id) $("#busSel").innerHTML = `<option value="${esc(S.bus.id)}">${esc(S.bus.name)}</option>`;
   if (S.bus.to) $("#busToSel").innerHTML = `<option value="">Ingen – visa vart bussen går</option><option value="${esc(S.bus.to)}" selected>${esc(S.bus.toName)}</option>`;
   $("#idWx").checked = S.idle.wx; $("#idNews").checked = S.idle.news; $("#idTest").checked = S.idle.test;
-  $("#feedSel").value = S.idle.feed; $("#feedOwn").value = S.idle.own; $("#feedOwnRow").style.display = S.idle.feed === "own" ? "" : "none";
+  document.querySelectorAll("#feedList input[data-feed]").forEach(cb => { cb.checked = (S.idle.feeds || []).includes(cb.dataset.feed); });
+  $("#ownFeeds").innerHTML = (S.idle.ownFeeds || []).map((f, i) => `<div class="row ownFeed"><span>${esc(f.name)}</span><span class="note" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.url)}</span><button class="btn" data-del="${i}">Ta bort</button></div>`).join("");
 }
 function applyInfoVis(){ $("#info").classList.toggle("hidden", !S.info); $("#dial").classList.toggle("hidden", !S.info || !S.look.dial); $("#infoChk").checked = S.info; }
 
