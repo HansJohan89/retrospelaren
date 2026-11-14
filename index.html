@@ -2642,7 +2642,7 @@ function boardStep(idle, now){
     if (next === "news"){ const n = $("#pgNews"); if (!n._busy){ n.replaceChildren(); n._h = ""; n._prev = null; } }
     if (next === "hem"){ BOARD.homePhoto = (BOARD.homePhoto || 0) + 1; BOARD.photoUntil = now + S.photo.secs*1000; }
     if (next === "foto"){ showPhoto(); BOARD.photoUntil = now + S.photo.secs*1000; }
-    if (next === "wx" && S.bus.on && S.bus.id && Date.now() - DEP.at > 45e3) loadDeps();
+    if ((next === "wx" || (next === "hem" && S.home.bus)) && S.bus.on && S.bus.id && Date.now() - DEP.at > 45e3) loadDeps();
     renderBoard(); renderEdges();
   }
   if (BOARD.page === "foto" && now > BOARD.photoUntil){ showPhoto(); BOARD.photoUntil = now + S.photo.secs*1000; }
@@ -3854,7 +3854,8 @@ function watchVersion(){
   loadAikNews(); setInterval(loadAikNews, 10*60*1000);
   loadPlex(); setInterval(loadPlex, 10*60*1000);
   setInterval(renderBoard, 15*1000);
-  loadDeps(); setInterval(() => { if (S.bus.on && S.bus.id && (BOARD.page === "wx" || Date.now() - DEP.at > 5*60e3)) loadDeps(); }, 60*1000);
+  // Avgångarna hämtas bara när de syns (ResRobots gratisnyckel räcker till 25 000 anrop i månaden)
+  loadDeps(); setInterval(() => { if (S.bus.on && S.bus.id && !state.blanked && (BOARD.page === "wx" || (BOARD.page === "hem" && S.home.bus))) loadDeps(); }, 60*1000);
   segOn("#vizSeg", String(S.viz)); segOn("#srcSeg", S.source); segOn("#vinSeg", S.vizInput); segOn("#genreSeg", S.genre);
   resize(); requestAnimationFrame(frame);
   if (location.pathname === "/callback"){
