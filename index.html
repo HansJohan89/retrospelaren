@@ -1967,7 +1967,8 @@ function newsHost(link){ try{ return new URL(link).hostname.replace(/^www\./, ""
 async function ensureImg(x){
   if (!x || x.img || x.ogTried || !x.link) return;
   x.ogTried = true;
-  try{ const j = await (await fetch("/api/ogimage?url=" + encodeURIComponent(x.link))).json(); if (j.img){ x.img = j.img; renderBoard(); } }catch(e){}
+  try{ const j = await (await fetch("/api/ogimage?url=" + encodeURIComponent(x.link))).json();
+    if (j.img){ x.img = j.img; await preloadImg("/api/img?url=" + encodeURIComponent(x.img)); renderBoard(); } }catch(e){}
 }
 function renderNewsPage(){
   const it = NEWS.items; if (!it.length) return "";
@@ -2197,13 +2198,71 @@ function renderHomePage(){
 
 // Lägger in sidans HTML bara när den ändrats, och tar bort de sista raderna i listor som inte får plats
 // (bussavgångar), så att inget hamnar ovanpå prognosen oavsett skärmformat och textstorlek.
-function setPage(el, h){
+// ---------- mjuka byten: inget visas förrän det är färdigladdat ----------
+// Bilderna i en ny sida (eller en ny del av den) hämtas och avkodas först, i bakgrunden. Bilder
+// som inte går att hämta tas bort. Sedan tonas det gamla ut och det nya in. Ändras bara text
+// (en ny avgångstid, klockan) byts den direkt, utan toning.
+const IMG_READY = new Map();      // adress -> Promise<true/false>
+function preloadImg(src){
+  if (IMG_READY.has(src)) return IMG_READY.get(src);
+  const p = new Promise(res => {
+    const im = new Image(); let done = false;
+    const fin = ok => { if (!done){ done = true; res(ok); } };
+    im.onload = () => (im.decode ? im.decode().catch(() => {}) : Promise.resolve()).then(() => fin(true));
+    im.onerror = () => fin(false);
+    setTimeout(() => fin(false), 8000);
+    im.src = src;
+  });
+  IMG_READY.set(src, p);
+  if (IMG_READY.size > 400) IMG_READY.delete(IMG_READY.keys().next().value);
+  p.then(ok => { if (!ok) setTimeout(() => IMG_READY.delete(src), 60000); });   // misslyckade provas igen senare
+  return p;
+}
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const imgsOf = node => [...node.querySelectorAll("img")].map(i => i.getAttribute("src")).filter(Boolean).join("|");
+async function prepHtml(h){
+  const tpl = document.createElement("template"); tpl.innerHTML = h;
+  const imgs = [...tpl.content.querySelectorAll("img")].filter(i => i.getAttribute("src"));
+  const ok = await Promise.all(imgs.map(i => preloadImg(i.src)));
+  imgs.forEach((i, n) => { if (ok[n]) return;
+    const art = i.closest(".art"), im = i.closest(".im");
+    if (art && im){ im.remove(); art.classList.add("noimg"); } else i.style.visibility = "hidden"; });
+  if (document.fonts) await Promise.race([document.fonts.ready, wait(1500)]);
+  return tpl;
+}
+function afterLayout(el){
+  requestAnimationFrame(() => { el.classList.remove("tight"); if (el.id === "pgWx" && wxCramped(el)) el.classList.add("tight"); fitLists(el); });
+}
+async function setPage(el, h){
   if (el._h === h) return;
-  el._h = h; layoutPage(el, h);
-  // Typsnitt och emblem kan ladda in efteråt och ändra höjderna: lägg ut sidan på nytt när de är klara
-  const again = () => { if (el._h === h) layoutPage(el, h); };
-  if (document.fonts) document.fonts.ready.then(() => requestAnimationFrame(again));
-  setTimeout(again, 1500);
+  el._h = h; const tok = el._tok = (el._tok || 0) + 1;
+  const shown = el.classList.contains("on") && el.style.opacity !== "0" && el.children.length;
+  if (!shown) el.style.opacity = "0";                 // en sida som just ska visas: dold tills den är klar
+  const tpl = await prepHtml(h);
+  if (el._tok !== tok) return;
+  const kids = [...tpl.content.children], prev = el._kids || [];
+  const htmls = kids.map(k => k.outerHTML);
+  const sameShape = shown && prev.length === kids.length && el.children.length === kids.length
+    && kids.every((k, n) => el.children[n].tagName === k.tagName && el.children[n].className.split(" ")[0] === k.className.split(" ")[0]);
+  if (sameShape){
+    // bara de delar som ändrats byts; delar med nya bilder tonas
+    const jobs = kids.map(async (k, n) => {
+      if (htmls[n] === prev[n]) return;
+      // tonas: nya bilder, eller ny uppbyggnad (t.ex. "Hämtar väder…" som byts mot vädret)
+      const old = el.children[n], fade = imgsOf(k) !== imgsOf(old) || Math.abs(k.querySelectorAll("*").length - old.querySelectorAll("*").length) > 2;
+      if (fade){ old.style.transition = "opacity .3s"; old.style.opacity = "0"; await wait(300); if (el._tok !== tok) return; k.style.opacity = "0"; k.style.transition = "opacity .45s"; }
+      old.replaceWith(k);
+      if (fade) requestAnimationFrame(() => requestAnimationFrame(() => { k.style.opacity = "1"; }));
+    });
+    await Promise.all(jobs);
+    if (el._tok !== tok) return;
+    el._kids = htmls; afterLayout(el); return;
+  }
+  if (shown){ el.style.transition = "opacity .3s"; el.style.opacity = "0"; await wait(300); if (el._tok !== tok) return; }
+  el.classList.remove("tight"); el.replaceChildren(...kids); el._kids = htmls;
+  afterLayout(el);
+  el.style.transition = "opacity .45s";
+  requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => { if (el._tok === tok) el.style.opacity = "1"; })));
 }
 function layoutPage(el, h){
   el.classList.remove("tight"); el.innerHTML = h;
@@ -2495,8 +2554,10 @@ function isLocalNetworkUrl(url){
 function applyCover(url){
   if (!url){ elCov.src = ""; elCovPh.style.display = ""; accentFrom(null); return; }
   const prox = (url.startsWith("/") || isLocalNetworkUrl(url)) ? url : "/api/img?url=" + encodeURIComponent(url);
-  elCov.onload = () => { elCovPh.style.display = "none"; accentFrom(elCov); };
-  elCov.onerror = () => { elCov.src = ""; elCovPh.style.display = ""; };
+  // omslaget visas först när det är hämtat, och tonas in
+  elCov.style.transition = "opacity .5s"; elCov.style.opacity = "0";
+  elCov.onload = () => { elCovPh.style.display = "none"; accentFrom(elCov); requestAnimationFrame(() => { elCov.style.opacity = "1"; }); };
+  elCov.onerror = () => { elCov.src = ""; elCovPh.style.display = ""; elCov.style.opacity = "1"; };
   elCov.src = prox;
 }
 function accentFrom(img){
