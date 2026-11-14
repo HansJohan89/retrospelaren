@@ -863,6 +863,65 @@ def shrink_image(data, ctype, maxw):
         return data, ctype
 
 
+HL_CACHE = {}
+HL_YT_HOCKEY = "UCXwGjjrSiyHPTHXJlvYrEtQ"     # HockeyAllsvenskans egen YouTube-kanal (highlights efter varje match)
+
+
+def highlights(team="AIK", fresh=False):
+    """Höjdpunkter från lagets senaste match. Fotboll: SVT Plays "Allsvenskan: Höjdpunkter"
+    (spelas av sidan själv, bara i Sverige). Hockey: HockeyAllsvenskans YouTube-kanal.
+    Sparas en kvart."""
+    import re
+    import html as _html
+    key = team.lower()
+    hit = HL_CACHE.get(key)
+    if hit and not fresh and time.time() - hit[0] < 900:
+        return hit[1]
+    word = re.compile(r"(?<![\wåäö-])" + re.escape(team.lower()) + r"(?![\wåäö])")
+    out = {"team": team, "fb": None, "hk": None, "errors": []}
+    # fotboll: SVT Play
+    try:
+        with open_url("https://www.svtplay.se/allsvenskan-hojdpunkter", {"User-Agent": BROWSER_UA}, timeout=12) as r:
+            page = r.read(4 * 1024 * 1024).decode("utf-8", "ignore")
+        seen = []
+        for vid, slug in re.findall(r"/klipp/(\w+)/([\w-]+)", page):
+            if vid not in seen and word.search(slug.replace("-", " ")):
+                seen.append(vid)
+        best = None
+        for vid in seen[:6]:
+            try:
+                j = _get_json("https://api.svt.se/video/" + vid, timeout=10)
+            except Exception:
+                continue
+            rights = j.get("rights") or {}
+            title = j.get("episodeTitle") or ""
+            if not word.search(title.lower()):
+                continue
+            item = {"src": "svt", "id": vid, "title": title, "program": j.get("programTitle") or "",
+                    "at": rights.get("validFrom") or "", "until": rights.get("validTo") or "", "secs": j.get("contentDuration") or 0,
+                    "img": ("https://www.svtstatic.se/image/wide/992/%s/" % j["imageId"]) if j.get("imageId") else ""}
+            if best is None or item["at"] > best["at"]:
+                best = item
+        out["fb"] = best
+    except Exception as e:
+        out["errors"].append("SVT Play: %s" % e)
+    # hockey: YouTube
+    try:
+        with open_url("https://www.youtube.com/feeds/videos.xml?channel_id=" + HL_YT_HOCKEY, {"User-Agent": BROWSER_UA}, timeout=12) as r:
+            x = r.read(2 * 1024 * 1024).decode("utf-8", "ignore")
+        for m in re.finditer(r"<entry>.*?<yt:videoId>(.*?)</yt:videoId>.*?<title>(.*?)</title>.*?<published>(.*?)</published>", x, re.S):
+            vid, title, pub = m.group(1), _html.unescape(m.group(2)), m.group(3)
+            low = title.lower()
+            if word.search(low) and "highlights" in low:
+                out["hk"] = {"src": "youtube", "id": vid, "title": title, "program": "HockeyAllsvenskan", "at": pub,
+                             "img": "https://i.ytimg.com/vi/%s/hqdefault.jpg" % vid}
+                break
+    except Exception as e:
+        out["errors"].append("YouTube: %s" % e)
+    HL_CACHE[key] = (time.time(), out)
+    return out
+
+
 def og_fetch(url):
     """Delningsbild och ingress ur artikelsidans metataggar. Sparas i minnet."""
     import re
@@ -1038,6 +1097,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json(get_sonos_now())
             if path == "/api/sonos-art":
                 return self._sonos_art(q.get("v", [""])[0])
+            if path == "/api/highlights":
+                return self._json(highlights(q.get("team", ["AIK"])[0] or "AIK", q.get("fresh", [""])[0] == "1"))
             if path == "/api/plex":
                 if PLEX_TOKEN:
                     try:

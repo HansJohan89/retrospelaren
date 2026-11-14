@@ -36,6 +36,13 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #hum{top:0;will-change:transform,opacity}
 #crt{will-change:transform}
 #content{will-change:transform}
+/* highlights: ett klipp över hela bilden (under bildrörets effekter) */
+#hl{position:absolute;inset:0;z-index:4;background:#000;display:none;opacity:0;transition:opacity .6s}
+#hl.on{display:block}#hl.show{opacity:1}
+#hl video,#hl iframe{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:contain;background:#000}
+#hl .cap{position:absolute;left:5%;top:5%;right:5%;z-index:2;font-family:var(--fT),serif;font-size:4.2vh;color:#fff;text-shadow:0 0 1.2vh #000,0 0 .3vh #000;transition:opacity 1.2s;pointer-events:none}
+#hl .cap small{display:block;font-family:var(--fB),monospace;font-size:.5em;letter-spacing:.25em;text-transform:uppercase;opacity:.85;margin-bottom:.6vh}
+#hl .cap.gone{opacity:0}
 .power{position:absolute;inset:0;transform-origin:50% 50%}
 #screen.rolling .content{animation:roll .45s steps(6) 1}
 @keyframes roll{0%{transform:translateY(0)}40%{transform:translateY(-18%)}70%{transform:translateY(9%)}100%{transform:translateY(0)}}
@@ -475,6 +482,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <div id="dial"><canvas id="dialC"></canvas></div>
       <div id="photo"></div>
       <div id="board"><div class="pg" id="pgWx"></div><div class="pg" id="pgNews"></div><div class="pg" id="pgFb"></div><div class="pg" id="pgHk"></div><div class="pg" id="pgHome"></div><div class="pg" id="pgPlex"></div></div>
+      <div id="hl"></div>
       <div id="osd"></div>
     </div></div>
     <div id="hum"></div>
@@ -2720,6 +2728,7 @@ function frame(nowMs){
     F.n++; if (nowMs - F.at >= 1000){ F.el.textContent = F.n + " bilder/s · ritupplösning " + Math.round(RSCALE * 100) + " %"; F.n = 0; F.at = nowMs; }
   }
   if (!W) resize();
+  if (HL.on){ fxFrame(nowMs); return; }        // ett klipp visas: inget annat behöver ritas
   const t = nowMs/1000;
   computeLevels(t);
   // interpolerad position
@@ -3407,6 +3416,7 @@ function runCmd(c){
   else if (c === "palette:next"){ const names = Object.keys(PALETTES); setPalette(names[(names.indexOf(S.palette) + 1) % names.length]); }
   else if (c.startsWith("palette:")) setPalette(c.slice(8));
   else if (c.startsWith("page:")) showIdlePage(c.slice(5));
+  else if (c.startsWith("hl:")) showHighlights(c.slice(3));
   else if (c.startsWith("sp:")){ try { spDeck(JSON.parse(c.slice(3))); } catch(e){} }
   else if (c.startsWith("screen:")){ try { runScreen(JSON.parse(c.slice(7))); } catch(e){} }
 }
@@ -3805,6 +3815,79 @@ async function pollSettings(){
 }
 setInterval(pollSettings, 3000);
 
+// ================= highlights =================
+// Höjdpunkter från lagets senaste match, bara när någon trycker på en knapp för det (hl:latest,
+// hl:fb, hl:hk, hl:toggle, hl:stop). Fotboll från SVT Play (spelas här med hls.js, bara i Sverige),
+// hockey från HockeyAllsvenskans YouTube-kanal. Servern letar upp klippen (/api/highlights).
+const HL = { on:false, hls:null, t:0, wasBlank:false, item:null };
+const hlTeam = () => ((S.sportNews && S.sportNews.fb && S.sportNews.fb.must) || "AIK").split(",")[0].trim() || "AIK";
+function loadScript(src){ return new Promise((res, rej) => { const el = document.createElement("script"); el.src = src; el.onload = res; el.onerror = rej; document.head.append(el); }); }
+async function showHighlights(which){
+  if (which === "stop" || (which === "toggle" && HL.on)) return hideHighlights();
+  osd("Hämtar höjdpunkter…");
+  let d;
+  try { d = await (await fetch("/api/highlights?team=" + encodeURIComponent(hlTeam()), { cache:"no-store" })).json(); }
+  catch(e){ osd("Höjdpunkterna svarar inte"); return; }
+  const it = which === "fb" ? d.fb : which === "hk" ? d.hk
+    : [d.fb, d.hk].filter(Boolean).sort((a, b) => (Date.parse(b.at) || 0) - (Date.parse(a.at) || 0))[0];
+  if (!it){ osd(which === "fb" ? "Inga fotbollshöjdpunkter just nu" : which === "hk" ? "Inga hockeyhöjdpunkter just nu" : "Inga höjdpunkter just nu"); return; }
+  hideHighlights(true);
+  const el = $("#hl"); el.innerHTML = "";
+  HL.on = true; HL.item = it; HL.wasBlank = state.blanked;
+  if (state.blanked){ $("#blank").classList.remove("on"); state.blanked = false; }
+  el.append(Object.assign(document.createElement("div"), { className:"cap", innerHTML: `<small>${esc(it.program || "Höjdpunkter")}</small>${esc(it.title)}` }));
+  setTimeout(() => { const c = el.querySelector(".cap"); if (c) c.classList.add("gone"); }, 6000);
+  el.classList.add("on"); requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("show")));
+  clearTimeout(HL.t); HL.t = setTimeout(hideHighlights, Math.max(60, (+it.secs || 600) + 60) * 1000);   // om slutet aldrig märks
+  try { it.src === "svt" ? await playSvt(it, el) : playYt(it, el); }
+  catch(e){ console.warn("highlights", e); osd(e.message || "Klippet gick inte att spela"); hideHighlights(); }
+}
+async function playSvt(it, el){
+  const j = await (await fetch("https://api.svt.se/video/" + encodeURIComponent(it.id))).json();
+  const refs = j.videoReferences || [];
+  const ref = refs.find(r => r.format === "hls-cmaf-avc") || refs.find(r => r.format === "hls") || refs.find(r => /^hls/.test(r.format));
+  if (!ref) throw new Error("SVT-klippet finns inte längre");
+  const v = Object.assign(document.createElement("video"), { autoplay:true, playsInline:true });
+  v.onended = () => hideHighlights();
+  v.onerror = () => { osd("SVT-klippet gick inte att spela (det visas bara i Sverige)"); hideHighlights(); };
+  el.prepend(v);
+  if (v.canPlayType("application/vnd.apple.mpegurl")) v.src = ref.url;
+  else {
+    if (!window.Hls) await loadScript("https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js");
+    const hls = HL.hls = new Hls({ maxBufferLength: 20, capLevelToPlayerSize: true });
+    hls.on(Hls.Events.ERROR, (_, data) => { if (data.fatal){ osd("SVT-klippet gick inte att spela (det visas bara i Sverige)"); hideHighlights(); } });
+    hls.loadSource(ref.url); hls.attachMedia(v);
+  }
+  v.volume = 1;
+  try { await v.play(); } catch(e){ v.muted = true; v.play().catch(() => {}); }
+}
+function playYt(it, el){
+  const f = document.createElement("iframe");
+  f.allow = "autoplay; encrypted-media"; f.referrerPolicy = "strict-origin-when-cross-origin";
+  f.src = "https://www.youtube.com/embed/" + encodeURIComponent(it.id) + "?autoplay=1&controls=0&rel=0&playsinline=1&iv_load_policy=3&enablejsapi=1&origin=" + encodeURIComponent(location.origin);
+  // YouTube berättar när klippet är slut, när vi ber om det
+  f.onload = () => { try { f.contentWindow.postMessage(JSON.stringify({ event:"listening", id:1, channel:"widget" }), "*"); } catch(e){} };
+  el.prepend(f);
+}
+addEventListener("message", e => {
+  if (!HL.on || !/youtube/.test(e.origin)) return;
+  let d; try { d = typeof e.data === "string" ? JSON.parse(e.data) : e.data; } catch(err){ return; }
+  const st = d && (d.event === "onStateChange" ? d.info : d.event === "infoDelivery" && d.info ? d.info.playerState : undefined);
+  if (st === 0) hideHighlights();
+  if (d && d.event === "onError") { osd("YouTube-klippet gick inte att spela"); hideHighlights(); }
+});
+function hideHighlights(quick){
+  clearTimeout(HL.t);
+  const el = $("#hl");
+  if (HL.hls){ try { HL.hls.destroy(); } catch(e){} HL.hls = null; }
+  const done = () => { el.querySelectorAll("video").forEach(v => { v.pause(); v.removeAttribute("src"); v.load(); }); el.innerHTML = ""; el.classList.remove("on"); };
+  if (!HL.on){ if (quick) done(); return; }
+  HL.on = false;
+  if (HL.wasBlank && !quick){ state.blanked = true; $("#blank").classList.add("on"); }
+  if (quick){ el.classList.remove("show"); done(); return; }
+  el.classList.remove("show"); setTimeout(() => { if (!HL.on) done(); }, 650);
+}
+
 // ================= ny version =================
 // När en ny version av sidan har lagts ut laddar sidan om sig själv, så att skärmen i skåpet
 // alltid har den senaste utan att någon behöver röra den. Det väntar tills det passar: inte mitt
@@ -3821,7 +3904,7 @@ function watchVersion(){
       const stale = LITE && performance.now() > 6*3600e3 && !state.playing;
       if (v === mine && !stale) return;
       const radioOn = S.source === "radio" && audioEl && !audioEl.paused;
-      if (forceTestcard || radioOn || document.querySelector("#panel.open")) return;     // försök igen om en stund
+      if (forceTestcard || HL.on || radioOn || document.querySelector("#panel.open")) return;     // försök igen om en stund
       remote.flush();
       try{ if (state.blanked) sessionStorage.setItem("rs.reloadBlank", "1"); }catch(e){}
       location.reload();
