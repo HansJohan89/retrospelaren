@@ -3851,9 +3851,10 @@ async function playSvt(it, el){
   v.onended = () => hideHighlights();
   v.onerror = () => { osd("SVT-klippet gick inte att spela (det visas bara i Sverige)"); hideHighlights(); };
   el.prepend(v);
-  if (v.canPlayType("application/vnd.apple.mpegurl")) v.src = ref.url;
+  // hls.js i första hand: Chromes egen HLS-uppspelning säger "kanske" men klarar inte SVT:s strömmar
+  if (!window.Hls) await loadScript("https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js").catch(() => {});
+  if (!(window.Hls && Hls.isSupported())) v.src = ref.url;
   else {
-    if (!window.Hls) await loadScript("https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js");
     const hls = HL.hls = new Hls({ maxBufferLength: 20, capLevelToPlayerSize: true });
     hls.on(Hls.Events.ERROR, (_, data) => { if (data.fatal){ osd("SVT-klippet gick inte att spela (det visas bara i Sverige)"); hideHighlights(); } });
     hls.loadSource(ref.url); hls.attachMedia(v);
