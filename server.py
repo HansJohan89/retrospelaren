@@ -57,6 +57,7 @@ import socket
 import ssl
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -93,6 +94,7 @@ SONOS_MAX_AGE_S = 90  # om inget rapporterats in på så här länge räknas det
 TRADFRI_LOCK = __import__("threading").Lock()
 TRADFRI_LIST = {"groups": [], "at": 0}
 OG_CACHE = {}
+RR_COUNT = []          # tidpunkter för anrop till ResRobot (för /api/ping-statistik)
 DEP_CACHE = {}
 ALBUM_CACHE = {}
 FOOTBALL_CACHE = {}
@@ -1359,8 +1361,17 @@ class Handler(SimpleHTTPRequestHandler):
         if not key:
             raise LookupError("Ingen RESROBOT_API_KEY på servern")
         qs = urllib.parse.urlencode({**params, "format": "json", "accessId": key})
-        with open_url(f"https://api.resrobot.se/v2.1/{endpoint}?{qs}", timeout=10) as r:
-            return json.loads(r.read().decode("utf-8"))
+        RR_COUNT.append(time.time())
+        try:
+            with open_url(f"https://api.resrobot.se/v2.1/{endpoint}?{qs}", timeout=10) as r:
+                return json.loads(r.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            # Trafiklab säger varför i svaret (t.ex. att nyckelns kvot är slut); ta med det i felet
+            try:
+                body = e.read().decode("utf-8", "ignore")[:300]
+            except Exception:
+                body = ""
+            raise RuntimeError("ResRobot svarade %s %s %s" % (e.code, e.reason, body.replace(key, "***"))) from None
 
     def stops(self, q):
         q = q.strip()
@@ -1382,7 +1393,7 @@ class Handler(SimpleHTTPRequestHandler):
         if not sid:
             return self._json({"error": "ange id"}, 400)
         hit = DEP_CACHE.get(sid)
-        if hit and time.time() - hit[0] < 60:
+        if hit and time.time() - hit[0] < 300:
             return self._json(hit[1])
         try:
             # Minst 8 avgångar om det går: först 3 timmar framåt, vid gles trafik (t.ex. en avgång i timmen) upp till 12 timmar
@@ -1396,6 +1407,8 @@ class Handler(SimpleHTTPRequestHandler):
         except LookupError as e:
             return self._json({"error": str(e), "nokey": True}, 200)
         except Exception as e:
+            if hit and time.time() - hit[0] < 3 * 3600:
+                return self._json(hit[1])
             return self._json({"error": str(e)}, 502)
         out = []
         for d in deps:
@@ -1420,7 +1433,9 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json({"error": "ange from och to"}, 400)
         key = src + ">" + dst
         hit = DEP_CACHE.get(key)
-        if hit and time.time() - hit[0] < 60:
+        # ResRobots gratisnyckel räcker till 30 000 anrop i månaden: en resesökning är upp till två
+        # anrop, så svaret sparas i fem minuter (minuterna till avgång räknas ändå fram av sidan)
+        if hit and time.time() - hit[0] < 300:
             return self._json(hit[1])
         # Bara resor med en buss direkt från starthållplatsen hela vägen (ingen promenad till annan hållplats, inget byte),
         # så att skylten visar de linjer som faktiskt går från hållplatsen.
@@ -1439,7 +1454,7 @@ class Handler(SimpleHTTPRequestHandler):
         # ResRobot ger högst 6 resor per sökning: hämtar nya omgångar från minuten efter den sista avgången
         trips, params = [], {"originId": src, "destId": dst, "numF": 6}
         try:
-            for _ in range(4):
+            for _ in range(2):
                 j = self.rr_get("trip", params)
                 got = j.get("Trip") or []
                 if isinstance(got, dict):    # en enda resa kommer som objekt, inte lista
@@ -1463,6 +1478,8 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json({"error": str(e), "nokey": True}, 200)
         except Exception as e:
             if not trips:
+                if hit and time.time() - hit[0] < 3 * 3600:
+                    return self._json(hit[1])          # ResRobot svarar inte: visa det senaste vi har
                 return self._json({"error": str(e)}, 502)
         out, seen = [], set()
         for t in trips:
