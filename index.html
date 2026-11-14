@@ -3802,7 +3802,10 @@ function watchVersion(){
       const v = (await (await fetch("/api/version", { cache:"no-store" })).json()).v;
       if (!v) return;
       if (!mine){ mine = v; return; }
-      if (v === mine) return;
+      // Skärmen i skåpet laddar om sig själv var sjätte timme när inget spelar, så att minnet
+      // städas (Chromium på en Pi med 1 GB blir annars sakta segare)
+      const stale = LITE && performance.now() > 6*3600e3 && !state.playing;
+      if (v === mine && !stale) return;
       const radioOn = S.source === "radio" && audioEl && !audioEl.paused;
       if (forceTestcard || radioOn || document.querySelector("#panel.open")) return;     // försök igen om en stund
       remote.flush();

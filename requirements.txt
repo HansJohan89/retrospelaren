@@ -1,1 +1,2 @@
-# requirements: endast Pythons standardbibliotek
+# Pillow skalar ner artikelbilder (/api/img) så att skärmen i skåpet inte fylls av jättebilder
+Pillow>=10

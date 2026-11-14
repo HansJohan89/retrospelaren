@@ -821,6 +821,28 @@ def resrobot_key():
     return secret("RESROBOT_API_KEY")
 
 
+def shrink_image(data, ctype, maxw):
+    """Skalar ner en bild till högst maxw px bred (JPEG, eller PNG om den har genomskinlighet).
+    Utan Pillow, eller om något går fel, skickas originalet."""
+    try:
+        from PIL import Image
+        import io
+        im = Image.open(io.BytesIO(data))
+        if getattr(im, "is_animated", False) or (im.width <= maxw and len(data) < 400 * 1024):
+            return data, ctype
+        im.draft("RGB", (maxw, maxw * 2))
+        if im.width > maxw:
+            im = im.resize((maxw, max(1, round(im.height * maxw / im.width))), Image.LANCZOS)
+        out = io.BytesIO()
+        if im.mode in ("RGBA", "LA", "P") and ("transparency" in im.info or im.mode != "P"):
+            im.save(out, "PNG", optimize=True)
+            return out.getvalue(), "image/png"
+        im.convert("RGB").save(out, "JPEG", quality=82, optimize=True, progressive=True)
+        return out.getvalue(), "image/jpeg"
+    except Exception:
+        return data, ctype
+
+
 def og_fetch(url):
     """Delningsbild och ingress ur artikelsidans metataggar. Sparas i minnet."""
     import re
@@ -1635,7 +1657,11 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json({"error": str(e)}, 502)
         if not ctype.startswith("image/"):
             return self._json({"error": "inte en bild"}, 415)
+        # Artikelbilder kan vara flera tusen pixlar breda. Skärmen i skåpet (1 GB minne) visar dem
+        # högst ~900 px breda, så de skalas ner här; annars fylls minnet av avkodade jättebilder.
+        data, ctype = shrink_image(data, ctype, 960)
         self.send_response(200)
+        self.send_header("Cache-Control", "public, max-age=86400")
         self.send_header("Content-Type", ctype)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Content-Length", str(len(data)))
