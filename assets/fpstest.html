@@ -1,0 +1,31 @@
+<!doctype html><html lang="sv"><head><meta charset="utf-8"><title>FPS-test</title>
+<style>html,body{margin:0;height:100%;background:#000;color:#0f0;font:600 3vh monospace;overflow:hidden}
+#t{position:fixed;left:2vh;top:2vh;z-index:2;background:#000c;padding:1vh 2vh;white-space:pre}canvas{position:fixed;inset:0;width:100%;height:100%}
+#b{position:fixed;left:0;top:45%;width:10vh;height:10vh;background:#0f0}</style></head><body>
+<div id="t">mäter…</div><div id="b"></div><canvas id="c"></canvas>
+<script>
+// Mäter hur många bilder per sekund webbläsaren hinner med. ?c=1 ritar dessutom en enkel
+// animation över hela skärmen på en duk (som visualiseringen gör), ?s=0.5 i halv upplösning.
+const q = new URLSearchParams(location.search), C = q.get("c") === "1", S = +q.get("s") || 1;
+const cv = document.getElementById("c"), x = cv.getContext("2d"), t = document.getElementById("t"), b = document.getElementById("b");
+if (!C) cv.style.display = "none";
+let n = 0, at = performance.now(), worst = 0, last = at;
+function f(now){
+  requestAnimationFrame(f);
+  worst = Math.max(worst, now - last); last = now; n++;
+  b.style.transform = `translateX(${(now / 4) % innerWidth}px)`;
+  if (C){
+    const W = Math.round(innerWidth * S), H = Math.round(innerHeight * S);
+    if (cv.width !== W){ cv.width = W; cv.height = H; }
+    x.fillStyle = "rgba(0,0,0,.2)"; x.fillRect(0, 0, W, H);
+    x.strokeStyle = "#3f8"; x.lineWidth = 3 * S; x.beginPath();
+    for (let i = 0; i <= 200; i++){ const px = i / 200 * W, py = H / 2 + Math.sin(i / 12 + now / 300) * H / 4; i ? x.lineTo(px, py) : x.moveTo(px, py); }
+    x.stroke();
+  }
+  if (now - at >= 1000){
+    t.textContent = `${n} bilder/s   (längsta paus ${Math.round(worst)} ms)\nfönster ${innerWidth}×${innerHeight}, skärm ${screen.width}×${screen.height}, pixelkvot ${devicePixelRatio}\n${C ? "med duk i " + Math.round(S * 100) + " % upplösning" : "utan duk"}`;
+    n = 0; at = now; worst = 0;
+  }
+}
+requestAnimationFrame(f);
+</script></body></html>
