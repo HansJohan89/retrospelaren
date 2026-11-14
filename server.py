@@ -206,6 +206,30 @@ def save_deck(data):
         return {"ok": True, "rev": DECK_CACHE["rev"]}
 
 
+# Skivomslag som hubben hämtat från en Sonos-högtalare (som bara går att nå hemma) och lagt upp
+# här, så att sidan kan visa dem. Bara i minnet, de senaste 30.
+SONOS_ART = {}
+SONOS_ART_LOCK = __import__("threading").Lock()
+
+
+def set_sonos_art(data):
+    import base64
+    import hashlib
+    try:
+        raw = base64.b64decode(str(data.get("data") or ""), validate=True)
+    except Exception:
+        return {"error": "ogiltig bild"}
+    ctype = str(data.get("type") or "image/jpeg")
+    if not raw or len(raw) > 1500000 or ctype not in ("image/jpeg", "image/png", "image/webp", "image/gif"):
+        return {"error": "ogiltig bild"}
+    v = hashlib.sha1(raw).hexdigest()[:16]
+    with SONOS_ART_LOCK:
+        SONOS_ART[v] = (ctype, raw)
+        while len(SONOS_ART) > 30:
+            SONOS_ART.pop(next(iter(SONOS_ART)))
+    return {"url": "/api/sonos-art?v=" + v}
+
+
 def get_scenes():
     """Egna scener och sensorernas atgarder ur deck-konfigurationen. Hamtas av hubben nar en
     scen ska koras, sa att den alltid kor den senast sparade versionen."""
@@ -758,6 +782,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json(load_state())
             if path == "/api/sonos-now":
                 return self._json(get_sonos_now())
+            if path == "/api/sonos-art":
+                return self._sonos_art(q.get("v", [""])[0])
             if path == "/api/tradfri-list":
                 return self._json(get_tradfri_list())
             if path == "/api/ping":
@@ -774,9 +800,9 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         path = urllib.parse.urlparse(self.path).path
-        if path not in ("/api/state", "/api/sonos-now", "/api/tradfri-list", "/api/deck", "/api/deck/live"):
+        if path not in ("/api/state", "/api/sonos-now", "/api/tradfri-list", "/api/deck", "/api/deck/live", "/api/sonos-art"):
             return self._json({"error": "hittades inte"}, 404)
-        limit = DECK_MAX_BYTES if path == "/api/deck" else 512 * 1024
+        limit = DECK_MAX_BYTES if path == "/api/deck" else 2500 * 1024 if path == "/api/sonos-art" else 512 * 1024
         try:
             n = int(self.headers.get("Content-Length") or 0)
             if n <= 0 or n > limit:
@@ -788,6 +814,8 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json({"error": "ogiltig data: %s" % e}, 400)
         if path == "/api/sonos-now":
             return self._json(set_sonos_now(data))
+        if path == "/api/sonos-art":
+            return self._json(set_sonos_art(data))
         if path == "/api/tradfri-list":
             return self._json(set_tradfri_list(data))
         if path == "/api/deck":
@@ -795,6 +823,18 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/deck/live":
             return self._json(patch_deck_live(data))
         return self._json(save_state(data))
+
+    def _sonos_art(self, v):
+        with SONOS_ART_LOCK:
+            item = SONOS_ART.get(v)
+        if not item:
+            return self._json({"error": "hittades inte"}, 404)
+        self.send_response(200)
+        self.send_header("Content-Type", item[0])
+        self.send_header("Content-Length", str(len(item[1])))
+        self.send_header("Cache-Control", "public, max-age=86400")
+        self.end_headers()
+        self.wfile.write(item[1])
 
     def asset(self, name):
         """Bilder i mappen assets (t.ex. Dalatrafiks logotyp). Bara enkla filnamn och bildformat."""
