@@ -3633,6 +3633,28 @@ async function pollSettings(){
 }
 setInterval(pollSettings, 4000);
 
+// ================= ny version =================
+// När en ny version av sidan har lagts ut laddar sidan om sig själv, så att skärmen i skåpet
+// alltid har den senaste utan att någon behöver röra den. Det väntar tills det passar: inte mitt
+// i väckningen, och inte medan radion spelar i den här webbläsaren (då skulle ljudet avbrytas).
+function watchVersion(){
+  let mine = "";
+  const check = async () => {
+    try{
+      const v = (await (await fetch("/api/version", { cache:"no-store" })).json()).v;
+      if (!v) return;
+      if (!mine){ mine = v; return; }
+      if (v === mine) return;
+      const radioOn = S.source === "radio" && audioEl && !audioEl.paused;
+      if (forceTestcard || radioOn || document.querySelector("#panel.open")) return;     // försök igen om en stund
+      remote.flush();
+      try{ if (state.blanked) sessionStorage.setItem("rs.reloadBlank", "1"); }catch(e){}
+      location.reload();
+    }catch(e){}
+  };
+  check(); setInterval(check, 60000);
+}
+
 // ================= init =================
 (async function init(){
   $("#spRedirect").textContent = SP.redirect;
@@ -3668,6 +3690,9 @@ setInterval(pollSettings, 4000);
   loadStations(S.genre);
   const q = new URLSearchParams(location.search);
   if (q.get("autostart") === "1") start();   // för kioskläge på Pi:n
+  // Laddades sidan om för en ny version medan skärmen var svart: håll den svart.
+  try{ if (sessionStorage.getItem("rs.reloadBlank") === "1"){ sessionStorage.removeItem("rs.reloadBlank"); state.blanked = true; $("#blank").classList.add("on"); } }catch(e){}
+  watchVersion();
   if (q.get("bench") === "1") setTimeout(benchFx, 8000);
 })();
 </script>

@@ -311,6 +311,22 @@ def set_sonos_art(data):
     return {"url": "/api/sonos-art?v=" + v}
 
 
+def page_version():
+    """Ändras när index.html ändras (ny version utlagd). Öppna sidor laddar då om sig själva."""
+    import hashlib
+    try:
+        st = os.stat(os.path.join(ROOT, "index.html"))
+        if PAGE_VER.get("key") != (st.st_mtime, st.st_size):
+            with open(os.path.join(ROOT, "index.html"), "rb") as f:
+                PAGE_VER.update(key=(st.st_mtime, st.st_size), v=hashlib.sha1(f.read()).hexdigest()[:12])
+    except OSError:
+        pass
+    return PAGE_VER.get("v", "")
+
+
+PAGE_VER = {}
+
+
 def get_scenes():
     """Egna scener och sensorernas atgarder ur deck-konfigurationen. Hamtas av hubben nar en
     scen ska koras, sa att den alltid kor den senast sparade versionen."""
@@ -883,6 +899,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json(get_tradfri_list())
             if path == "/api/ping":
                 return self._json({"ok": True})
+            if path == "/api/version":
+                return self._json({"v": page_version()})
             if path == "/api/logo":
                 f = next((n for n in ("dalatrafik-logo.svg", "dalatrafik-logo.png") if os.path.isfile(os.path.join(ROOT, "assets", n))), None)
                 return self._json({"url": "/assets/" + f if f else ""})
