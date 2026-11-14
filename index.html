@@ -892,6 +892,10 @@ const dialC = $("#dialC"), dctx = dialC.getContext("2d");
 const fxc = $("#fx"), fctx = fxc.getContext("2d");
 const off = document.createElement("canvas"), octx = off.getContext("2d");
 const offT = document.createElement("canvas"), otx = offT.getContext("2d");
+// glow=0 i adressen: ingen glöd (skuggoskärpa) på duken. Den räknas om för varje linje i varje
+// bild och kan vara det tyngsta för Pi:ns grafik.
+if (new URLSearchParams(location.search).get("glow") === "0")
+  for (const c of [ctx, vctx, dctx, fctx, octx, otx]) Object.defineProperty(c, "shadowBlur", { get: () => 0, set: () => {} });
 let W=0, H=0, DPR=1;
 function layoutScreen(){
   const sc = $("#screen"), L2 = S.look, vw = innerWidth, vh = innerHeight, k = L2.scale/100;
