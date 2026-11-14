@@ -386,7 +386,19 @@ def get_scenes():
         deck = DECK_CACHE["deck"] if isinstance(DECK_CACHE.get("deck"), dict) else {}
         return {"rev": DECK_CACHE["rev"], "scenes": deck.get("scenes") if isinstance(deck.get("scenes"), list) else [],
                 "sensors": deck.get("sensors") if isinstance(deck.get("sensors"), dict) else {},
-                "inputs": deck.get("inputs") if isinstance(deck.get("inputs"), dict) else {}}
+                "inputs": deck.get("inputs") if isinstance(deck.get("inputs"), dict) else {},
+                "schedules": deck.get("schedules") if isinstance(deck.get("schedules"), list) else [],
+                "lampRules": deck.get("lampRules") if isinstance(deck.get("lampRules"), list) else [],
+                "place": _place()}
+
+
+def _place():
+    """Var huset ligger (för soluppgång och solnedgång): samma plats som vädret på sidan."""
+    try:
+        e = (load_state().get("settings") or {}).get("edge") or {}
+        return {"lat": float(e.get("lat", 60.6065)), "lon": float(e.get("lon", 15.6355)), "name": e.get("place") or "Falun"}
+    except Exception:
+        return {"lat": 60.6065, "lon": 15.6355, "name": "Falun"}
 
 
 def get_deck_faces(want):
@@ -588,6 +600,12 @@ def set_tradfri_list(patch):
             TRADFRI_LIST["inputs"] = [i for i in patch["inputs"] if isinstance(i, dict)]
         if isinstance(patch.get("speakers"), list) and len(patch["speakers"]) <= 100:
             TRADFRI_LIST["speakers"] = [str(x)[:80] for x in patch["speakers"]]
+        # pågående scener och kommande tider, från hubben (visas i deck-redigeraren)
+        if isinstance(patch.get("runs"), list) and len(patch["runs"]) <= 100:
+            TRADFRI_LIST["runs"] = [r for r in patch["runs"] if isinstance(r, dict)]
+            TRADFRI_LIST["runsAt"] = time.time()
+        if isinstance(patch.get("upcoming"), list) and len(patch["upcoming"]) <= 200:
+            TRADFRI_LIST["upcoming"] = [r for r in patch["upcoming"] if isinstance(r, dict)]
         if isinstance(patch.get("states"), dict) and len(patch["states"]) <= 300:
             TRADFRI_LIST["states"] = {str(k): v for k, v in patch["states"].items() if isinstance(v, dict)}
             TRADFRI_LIST["statesAt"] = time.time()

@@ -85,7 +85,7 @@ button{cursor:pointer}
 .scEd h4{margin:16px 0 8px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut)}
 .scRoom{display:flex;align-items:center;gap:8px;margin:10px 0 4px;font-weight:600}
 .scRoom .lnk{font-weight:400}
-.lampRow{display:grid;grid-template-columns:22px minmax(110px,1.3fr) 62px minmax(90px,1fr) 92px minmax(90px,1fr) 30px;align-items:center;gap:8px;padding:4px 6px;border-radius:8px}
+.lampRow{display:grid;grid-template-columns:22px minmax(110px,1.3fr) 62px minmax(90px,1fr) 92px minmax(90px,1fr) 30px 30px;align-items:center;gap:8px;padding:4px 6px;border-radius:8px}
 .lampRow:hover{background:var(--panel2)}
 .lampRow.off>*:not(:first-child):not(.nm){opacity:.35;pointer-events:none}
 .lampRow .try{width:28px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:7px;border:1px solid var(--line);background:var(--panel2);color:var(--mut)}
@@ -93,6 +93,25 @@ button{cursor:pointer}
 .lampRow .nm{min-width:0}.lampRow .nm b{display:block;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lampRow .nm small{color:var(--dim);font-size:11px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lampRow input[type=range]{width:100%;min-width:0}
+.lampRow .try.adv{color:var(--acc);border-color:var(--acc)}
+.lampAdv{margin:0 6px 8px 36px;padding:8px 10px;border-left:2px solid var(--acc);background:var(--panel2);border-radius:0 8px 8px 0;display:flex;flex-direction:column;gap:6px}
+.lampAdv>div{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.lampAdv .lbl{color:var(--mut);font-size:12px}
+.phCard{border:1px solid var(--line);border-radius:12px;background:var(--panel2);padding:10px 12px;margin:8px 0}
+.phCard.dim{opacity:.55}
+.phHd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0}
+.phHd>b{min-width:52px;font-weight:600;font-size:13px}
+.phSub{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);margin:10px 0 4px}
+.runBox{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:rgba(124,92,255,.14);border:1px solid var(--acc);border-radius:10px;padding:8px 12px;margin:10px 0}
+.runDot{width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 6px #4ade80;flex:none}
+.tlWrap{padding:12px 16px;max-height:72vh;overflow:auto}
+.days{display:inline-flex;gap:4px;flex-wrap:wrap;align-items:center}
+.days button:not(.lnk){padding:4px 8px;border-radius:7px;border:1px solid var(--line);background:var(--panel);color:var(--mut);font-size:12px}
+.days button.on{background:var(--acc-d);border-color:var(--acc);color:#fff}
+.lampPick{display:flex;flex-direction:column;gap:6px;margin:6px 0 8px}.lampPick>div{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.lampPick b{min-width:110px;font-weight:600;font-size:12px}
+.chkL{display:inline-flex;align-items:center;gap:6px}
+.sw{position:relative;display:inline-block;width:34px;height:20px}.sw input{opacity:0;width:0;height:0}
+.sw i{position:absolute;inset:0;border-radius:20px;background:var(--line2);transition:.2s;cursor:pointer}.sw i::after{content:"";position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:.2s}
+.sw input:checked+i{background:var(--acc)}.sw input:checked+i::after{left:17px}
 .inCard{border:1px solid var(--line);border-radius:12px;background:var(--panel2);padding:12px 14px;margin-bottom:12px}
 .inCard .hd{display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .inCard .hd b{font-size:14px}.inCard .hd small{color:var(--mut)}
@@ -336,6 +355,8 @@ input[type=checkbox]{accent-color:var(--acc);width:15px;height:15px;margin:0}
     <button class="tbtn icon" id="redoBtn" title="Gör om (Ctrl+Y)"></button>
     <button class="tbtn" id="inputsBtn" title="Fjärrkontroller, rörelsesensorer och jalusisensorn"><span id="inputsIc"></span>Sensorer</button>
     <button class="tbtn" id="scenesBtn" title="Bygg egna scener med lampor och musik"><span id="scenesIc"></span>Scener</button>
+    <button class="tbtn" id="schedBtn" title="Scener som körs av sig själva vid vissa tider"><span id="schedIc"></span>Tider</button>
+    <button class="tbtn" id="rulesBtn" title="Färg och ljusstyrka lampor får när de tänds under vissa tider"><span id="rulesIc"></span>Lampregler</button>
     <button class="tbtn icon" id="deviceBtn" title="Enhetsinställningar"></button>
     <span id="saveState"></span>
   </header>
@@ -515,6 +536,7 @@ const DeckCore = (() => {
         return "light:" + JSON.stringify({ group: a.group || "", action: op, value });
       }
       case "scene": return a.id ? "scene:" + String(a.id) : "";
+      case "scenestop": return "scene-stop:" + String(a.id || "*") + (a.end ? ":end" : "");
       case "screen": {
         const o = {};
         for (const k of ["anim", "pic", "music", "viz", "palette", "page"]) if (a[k] != null && a[k] !== "") o[k] = String(a[k]);
@@ -988,6 +1010,7 @@ function autoLook(a){
     case "plug": { const o = LAMPS.find(l => l.outlet && String(l.id) === String(a.id));
       return { icon: a.op === "off" ? "power" : "plug", color: CAT.light, title: (o ? o.name : "Uttag") + (a.op === "on" ? " på" : a.op === "off" ? " av" : "") }; }
     case "scene": { const sc = sceneById(a.id); return { icon: a.id === "jalusi-open" || a.id === "jalusi-close" ? "jalusi" : "sparkles", color: "#c4a7ff", title: sc ? sc.name : "Scen" }; }
+    case "scenestop": { const sc = sceneById(a.id); return { icon:"stop", color: "#c4a7ff", title: (a.end ? "Avsluta " : "Avbryt ") + (sc ? sc.name : "alla scener") }; }
     case "sonos": {
       const v = +a.value || 0;
       const m = { toggle:["playpause","Spela/paus"], play:["play","Spela"], pause:["pause","Pausa"], next:["next","Nästa"], prev:["prev","Föregående"], vol:["vol-up","Volym " + (a.value ?? 30)],
@@ -1163,7 +1186,8 @@ const LIBRARY = [
     { id:"l-plug", name:"Smart uttag på/av", ico:"plug", make:() => ({ t:"plug", id: String((LAMPS.find(l => l.outlet) || {}).id || ""), op:"toggle" }) },
     { id:"l-plug2", name:"Smart uttag, två lägen", ico:"plug", two:() => { const id = String((LAMPS.find(l => l.outlet) || {}).id || ""); return [{ t:"plug", id, op:"on" }, { t:"plug", id, op:"off" }]; } } ] },
   { cat:"Scener", note:"lampor och musik", items:[
-    { id:"c-scene", name:"Kör egen scen", make:() => ({ t:"scene", id: (deck && deck.scenes && deck.scenes[0] || {}).id || "" }) } ] },
+    { id:"c-scene", name:"Kör egen scen", make:() => ({ t:"scene", id: (deck && deck.scenes && deck.scenes[0] || {}).id || "" }) },
+    { id:"c-scenestop", name:"Avbryt pågående scen", ico:"stop", make:() => ({ t:"scenestop", id:"", end:false }) } ] },
   { cat:"Blaupunkt-skärmen", items:[
     { id:"b-screen", name:"Skärmen, egna steg", ico:"sliders", make:() => ({ t:"screen", anim:"warm", pic:"on", music:"play" }) },
     { id:"b-open", name:"Öppna (tänd bild, spela)", make:() => ({ t:"bp", c:"open" }) },
@@ -1559,6 +1583,11 @@ let INPUTS = [];                  // fjärrkontroller och sensorer, från hubben
 let SPEAKERS = [];                // alla Sonos-högtalare, från hubben
 const roomNames = () => [...new Set(["Vardagsrum", ...SPEAKERS, ...((LIVE.hub && LIVE.hub.rooms) || [])])];
 let LAMPS = [];                   // alla enskilda lampor, från hubben: { id, name, model, room, color, temp, dim }
+let RUNS = [], UPCOMING = [];
+const hhmmOf = ts => { const d = new Date(ts * 1000), t = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  const days = Math.round((new Date(d).setHours(0,0,0,0) - new Date().setHours(0,0,0,0)) / 864e5);
+  return days === 0 ? t : days === 1 ? "i morgon " + t : ["sön","mån","tis","ons","tor","fre","lör"][d.getDay()] + " " + t; };
+function stopScene(id, end, redraw){ fetch("/api/send?c=" + encodeURIComponent("scene-stop:" + id + (end ? ":end" : ""))).catch(() => {}); toast(end ? "Hoppar till slutet…" : "Avbryter scenen…", 2000); setTimeout(async () => { await loadGroups(); redraw && redraw(); }, 2500); }
 async function loadGroups(){
   try {
     const d = await (await fetch("/api/tradfri-list", { cache:"no-store" })).json();
@@ -1566,6 +1595,8 @@ async function loadGroups(){
     LAMPS = Array.isArray(d.lamps) ? d.lamps : [];
     SPEAKERS = Array.isArray(d.speakers) ? d.speakers : [];
     INPUTS = Array.isArray(d.inputs) ? d.inputs : [];
+    RUNS = Array.isArray(d.runs) && d.runsAt && Date.now() / 1000 - d.runsAt < 120 ? d.runs : [];
+    UPCOMING = Array.isArray(d.upcoming) ? d.upcoming : [];
     if (!Object.keys(GROUPS).length && !askedGroups){ askedGroups = true; fetch("/api/send?c=tradfri-refresh").catch(() => {}); setTimeout(loadGroups, 7000); }
   } catch(e){}
 }
@@ -2095,6 +2126,12 @@ function actionEditor(st, co){
   if (a.t === "folder") box.append(h("button", { class:"sbtnS pri", onclick: () => openFolder(a.fid) }, icon("folder"), "Öppna mappen"), h("div", { class:"note", text:"En mapp är en egen uppsättning knappar. Dubbelklick på knappen öppnar den också." }));
   else if (a.t === "multi") box.append(multiEditor(a, co));
   else if (a.t === "scene") box.append(sceneFields(a, co));
+  else if (a.t === "scenestop"){
+    box.append(field("Scen", h("select", { class:"in w", onchange: e => mutate(() => { a.id = e.target.value; }, { re:true }) },
+      [h("option", { value:"", text:"Alla pågående scener", selected: !a.id }), ...(deck.scenes || []).map(s => h("option", { value: s.id, text: s.name, selected: s.id === a.id }))])));
+    box.append(field("Slutet", h("select", { class:"in w", onchange: e => mutate(() => { a.end = e.target.value === "1"; }, { re:true }) },
+      [["","Avbryt direkt, kör inte scenens slut"],["1","Hoppa till slutet (kör scenens slut nu)"]].map(([v, t]) => h("option", { value: v, text: t, selected: (a.end ? "1" : "") === v })))));
+  }
   else box.append(actionFields(a, co));
   const cn = cmdNote(a); if (cn) box.append(cn);
   return box;
@@ -2258,6 +2295,8 @@ function sceneSummary(sc){
   else if (mu.do === "pause") parts.push("pausar musiken"); else if (mu.do === "vol") parts.push("volym " + (mu.vol ?? ""));
   const st = screenText(screenObj(sc.screen));
   if (st) parts.push("skärmen: " + st);
+  if ((sc.steps || []).length) parts.push((sc.steps.length === 1 ? "ett steg" : sc.steps.length + " steg") + " senare");
+  if (sc.end && sc.end.use) parts.push("slutar efter " + (Math.round((+sc.end.after || 0) * 10) / 10) + " min");
   return parts.length ? "Scenen: " + parts.join(", ") + "." : "Scenen är tom än.";
 }
 // ---------- fjärrkontroller och sensorer ----------
@@ -2335,7 +2374,7 @@ function sceneModal(openId){
   const drawList = () => {
     list.innerHTML = "";
     deck.scenes.forEach(s => list.append(h("button", { class: s.id === sceneSel ? "on" : "", onclick: () => { sceneSel = s.id; draw(); } },
-      h("span", { html: iconSvg(JALUSI_IDS.includes(s.id) ? "jalusi" : "sparkles"), style:{ display:"inline-flex", color:"#c4a7ff" } }), h("span", { class:"nm", text: s.name }))));
+      h("span", { html: iconSvg(JALUSI_IDS.includes(s.id) ? "jalusi" : "sparkles"), style:{ display:"inline-flex", color:"#c4a7ff" } }), h("span", { class:"nm", text: s.name }), RUNS.some(r => r.id === s.id) ? h("span", { class:"runDot", title:"Pågår" }) : null)));
     list.append(h("button", { style:{ color:"var(--mut)", marginTop:"6px" }, onclick: () => { const sc = newScene(); m(() => { deck.scenes.push(sc); }); sceneSel = sc.id; draw(); } }, icon("plus"), h("span", { class:"nm", text:"Ny scen" })));
   };
   // Skickar lampornas läge i scenen direkt till lamporna, utan att röra musik eller annat.
@@ -2343,21 +2382,122 @@ function sceneModal(openId){
     if (Object.keys(o).length) fetch("/api/send?c=" + encodeURIComponent("lamps-set:" + JSON.stringify(o))).catch(() => {}); return Object.keys(o).length; };
   const liveT = {};
   const liveTry = (sc, id) => { if (!prefs.get("sceneLive", true)) return; clearTimeout(liveT[id]); liveT[id] = setTimeout(() => tryLamps(sc, [id]), 280); };
-  const lampRow = (sc, l) => {
-    const cur = sc.lights[l.id], on = !!cur && cur.use !== false, v = cur || {};
-    const set = (fn, re) => { m(() => { const o = sc.lights[l.id] = sc.lights[l.id] || { use:true, on:true, dim:60, kind:"" }; fn(o); }, re, "l" + l.id); liveTry(sc, l.id); };
+  const openAdv = new Set();     // lampor vars extra val (övergång, startläge) är utfällda
+  const fmtDur = sec => { sec = +sec || 0; return sec >= 60 ? (Math.round(sec / 6) / 10) + " min" : sec + " s"; };
+  // tid i minuter + sekunder (två små fält), sparas som sekunder
+  const durIn = (val, onv, max = 240) => { const tot = +val || 0, mm = Math.floor(tot / 60), ss = Math.round(tot % 60);
+    const a = h("input", { class:"in n", type:"number", min:0, max, value: mm || "", placeholder:"0", style:{ width:"58px" } }), b = h("input", { class:"in n", type:"number", min:0, max:59, value: ss || "", placeholder:"0", style:{ width:"52px" } });
+    const ch = () => onv(clamp(+a.value || 0, 0, max) * 60 + clamp(+b.value || 0, 0, 59));
+    a.oninput = ch; b.oninput = ch; return h("span", { style:{ display:"inline-flex", alignItems:"center", gap:"4px" } }, a, "min", b, "s"); };
+  // färg/vitt/ljusstyrka för ett "läge" (används för startläget och lampreglerna)
+  const lookEdit = (o, l, set) => { const kinds = [["","Behåll färg"]]; if (!l || l.temp || l.color) kinds.push(["white","Vitt"]); if (!l || l.color) kinds.push(["color","Färg"]);
+    return [h("input", { type:"range", min:1, max:100, value: o.dim ?? 60, title:"Ljusstyrka " + (o.dim ?? 60) + " %", style:{ width:"110px" }, oninput: e => { e.target.title = "Ljusstyrka " + e.target.value + " %"; set(x => { x.dim = +e.target.value; }); } }),
+      h("select", { class:"in", onchange: e => set(x => { x.kind = e.target.value; if (x.kind === "white" && x.temp == null) x.temp = 35; if (x.kind === "color" && !x.color) x.color = "#ff8a3d"; }, true) }, kinds.map(([k, t]) => h("option", { value: k, text: t, selected: (o.kind || "") === k }))),
+      o.kind === "white" ? h("input", { type:"range", min:0, max:100, value: o.temp ?? 35, title:"Varmt till kallt", style:{ width:"110px" }, oninput: e => set(x => { x.temp = +e.target.value; }) })
+        : o.kind === "color" ? h("input", { type:"color", value: /^#[0-9a-f]{6}$/i.test(o.color || "") ? o.color : "#ff8a3d", oninput: e => set(x => { x.color = e.target.value; }) }) : null]; };
+  const lampRow = (sc, l, ph, key) => {
+    ph = ph || sc; key = key || "";
+    const cur = ph.lights[l.id], on = !!cur && cur.use !== false, v = cur || {};
+    const set = (fn, re) => { m(() => { const o = ph.lights[l.id] = ph.lights[l.id] || { use:true, on:true, dim:60, kind:"" }; fn(o); }, re, key + "l" + l.id); liveTry(ph, l.id); };
     const kinds = [["","Behåll färg"]]; if (l.temp || l.color) kinds.push(["white","Vitt"]); if (l.color) kinds.push(["color","Färg"]);
     const outlet = !!l.outlet;
     const row = h("div", { class:"lampRow" + (on ? "" : " off") },
-      h("input", { type:"checkbox", checked: on, title:"Ta med lampan i scenen", onchange: e => m(() => { if (e.target.checked) sc.lights[l.id] = Object.assign({ on:true, dim:60, kind:"" }, sc.lights[l.id] || {}, { use:true }); else delete sc.lights[l.id]; }, true) }),
+      h("input", { type:"checkbox", checked: on, title:"Ta med lampan", onchange: e => m(() => { if (e.target.checked) ph.lights[l.id] = Object.assign({ on:true, dim:60, kind:"" }, ph.lights[l.id] || {}, { use:true }); else delete ph.lights[l.id]; }, true) }),
       h("div", { class:"nm", title: l.model }, h("b", { text: l.name }), h("small", { text: outlet ? "smart uttag" : l.color ? "färg" : l.temp ? "vitt spektrum" : "bara ljusstyrka" })),
       h("button", { class:"onoff" + (v.on !== false ? " on" : ""), text: outlet ? (v.on !== false ? "På" : "Av") : v.on !== false ? "Tänd" : "Släckt", onclick: () => set(o => { o.on = o.on === false; }, true) }),
       v.on !== false && !outlet ? h("input", { type:"range", min:1, max:100, value: v.dim ?? 60, title:"Ljusstyrka " + (v.dim ?? 60) + " %", oninput: e => { e.target.title = "Ljusstyrka " + e.target.value + " %"; set(o => { o.dim = +e.target.value; }); } }) : h("span"),
       v.on !== false && kinds.length > 1 ? h("select", { class:"in", onchange: e => set(o => { o.kind = e.target.value; if (o.kind === "white" && o.temp == null) o.temp = 35; if (o.kind === "color" && !o.color) o.color = "#ff8a3d"; }, true) }, kinds.map(([k, t]) => h("option", { value: k, text: t, selected: (v.kind || "") === k }))) : h("span"),
       v.on !== false && v.kind === "white" ? h("input", { type:"range", min:0, max:100, value: v.temp ?? 35, title:"Varmt till kallt", oninput: e => set(o => { o.temp = +e.target.value; }) })
         : v.on !== false && v.kind === "color" ? h("input", { type:"color", value: /^#[0-9a-f]{6}$/i.test(v.color || "") ? v.color : "#ff8a3d", oninput: e => set(o => { o.color = e.target.value; }) }) : h("span"),
-      h("button", { class:"try", title:"Prova på lampan nu", onclick: () => { tryLamps(sc, [l.id]); toast("Skickar till " + l.name + "…", 1500); } }, icon("play")));
-    return row;
+      h("button", { class:"try", title:"Prova på lampan nu", onclick: () => { tryLamps(ph, [l.id]); toast("Skickar till " + l.name + "…", 1500); } }, icon("play")),
+      on && !outlet ? h("button", { class:"try" + (openAdv.has(key + l.id) || v.fade || (v.from && v.from.use) ? " adv" : ""), title:"Övergång och startläge", onclick: () => { const k = key + l.id; openAdv.has(k) ? openAdv.delete(k) : openAdv.add(k); draw(); } }, icon("clock")) : h("span"));
+    if (!on || outlet || !openAdv.has(key + l.id)) return row;
+    const fr = v.from || {};
+    const setFrom = (fn, re) => set(o => { o.from = o.from || { use:true, dim:1, kind:"" }; fn(o.from); }, re);
+    return h("div", {}, row, h("div", { class:"lampAdv" },
+      h("div", {}, h("span", { class:"lbl", text: v.on === false ? "Tona ned och släck under" : "Tona till läget under" }), durIn(v.fade, sec => set(o => { if (sec) o.fade = sec; else delete o.fade; })),
+        h("span", { class:"note", style:{ margin:0 }, text:"0 = direkt" })),
+      v.on === false ? null : h("div", {}, h("label", { style:{ display:"inline-flex", alignItems:"center", gap:"6px" } },
+        h("input", { type:"checkbox", checked: !!fr.use, onchange: e => set(o => { o.from = Object.assign({ dim:1, kind:"" }, o.from || {}, { use: e.target.checked }); }, true) }), "Börja från"),
+        ...(fr.use ? lookEdit(fr, l, setFrom) : [h("span", { class:"note", style:{ margin:0 }, text:"annars från hur lampan står (släckt lampa börjar på 1 %)" })]))));
+  };
+  const musicEd = (ph, key, box = ed) => {
+    const mu = ph.music = ph.music || { do:"" };
+    const mset = (fn, re) => m(() => fn(ph.music), re, key + "mu");
+    box.append(field("Gör", h("select", { class:"in", onchange: e => mset(x => { x.do = e.target.value; if (x.do === "play" && !x.src) x.src = "playlist"; }, true) },
+      [["","Rör inte musiken"],["play","Spela"],["pause","Pausa"],["vol","Ändra volymen"],["fadeout","Tona ut och pausa"]].map(([k, t]) => h("option", { value: k, text: t, selected: (mu.do || "") === k })))));
+    if (mu.do){
+      // högtalarna: den först valda styr uppspelningen, övriga spelar tillsammans med den
+      const chosen = [mu.room, ...(mu.with || [])].filter(Boolean), all = [...new Set([...roomNames(), ...chosen])];
+      const setRooms = list => mset(x => { x.room = list[0] || ""; x.with = list.slice(1); }, true);
+      box.append(h("div", { class:"fRow top" }, h("label", { text:"Högtalare" }), h("div", { class:"ctl" },
+        ...all.map(r => h("label", { class:"spk" + (chosen.includes(r) ? " on" : ""), title: chosen[0] === r && chosen.length > 1 ? "Den här högtalaren styr uppspelningen, de andra spelar tillsammans med den" : "" },
+          h("input", { type:"checkbox", checked: chosen.includes(r), onchange: e => setRooms(e.target.checked ? [...chosen, r] : chosen.filter(x => x !== r)) }), r)),
+        h("button", { class:"lnk mut", title:"Hämta listan över högtalare från hubben igen", text:"uppdatera", onclick: () => { fetch("/api/send?c=lamps-read").catch(() => {}); toast("Ber hubben om högtalarna…"); setTimeout(async () => { await loadGroups(); draw(); }, 5000); } }))));
+      box.append(h("div", { class:"note", style:{ margin:"-2px 0 8px 114px" }, text: chosen.length ? (chosen.length > 1 && mu.do === "play" ? "Högtalarna grupperas och spelar samma sak." : "") : "Ingen vald = väckningsrummet i hub_config.json på Pi:n." }));
+    }
+    if (mu.do === "play"){
+      box.append(field("Spela", h("select", { class:"in", onchange: e => mset(x => { x.src = e.target.value; x.value = ""; }, true) },
+        [["playlist","Spellista"],["fav","Sonos-favorit"],["resume","Fortsätt där den var"]].map(([k, t]) => h("option", { value: k, text: t, selected: (mu.src || "playlist") === k })))));
+      if ((mu.src || "playlist") !== "resume") ed.append(field((mu.src || "playlist") === "fav" ? "Favorit" : "Spellista",
+        h("input", { class:"in w", value: mu.value || "", placeholder: mu.src === "fav" ? "Namnet som det står i Sonos-appen" : "Spotify-länk (tomt = väckningsspellistan på Pi:n)", oninput: e => mset(x => { x.value = e.target.value.trim(); }) })));
+    }
+    if (mu.do === "play" || mu.do === "vol"){
+      box.append(field("Volym", h("input", { class:"in n", type:"number", min:0, max:100, value: mu.vol ?? "", placeholder:"–", style:{ width:"70px" }, oninput: e => mset(x => { x.vol = e.target.value === "" ? null : clamp(+e.target.value || 0, 0, 100); }) }),
+        h("span", { class:"note", style:{ margin:0 }, text: mu.do === "play" ? "tomt = behåll (eller väckningsvolymen, om spellistan är tom)" : "0 till 100" })));
+    }
+    if (mu.do === "play" || mu.do === "vol" || mu.do === "fadeout") ed.append(field(mu.do === "fadeout" ? "Tona ut under" : "Tona under",
+      durIn(mu.fade, sec => mset(x => { x.fade = sec || null; })),
+      h("span", { class:"note", style:{ margin:0 }, text: mu.do === "fadeout" ? "sedan pausas musiken och volymen återställs till nästa gång" : mu.do === "vol" ? "från nuvarande volym till den nya" : "volymen tonas upp till vald volym" })));
+    if (mu.do === "play" && mu.fade) ed.append(field("Börja på volym", h("input", { class:"in n", type:"number", min:0, max:100, value: mu.volFrom ?? "", placeholder:"0", style:{ width:"70px" }, oninput: e => mset(x => { x.volFrom = e.target.value === "" ? null : clamp(+e.target.value || 0, 0, 100); }) })));
+  };
+  const screenEd = (ph, key, box = ed) => {
+    // --- skärmen ---
+    // äldre scener har ett färdigt val här (väckning, öppna, stäng); det visas som stegen det motsvarar
+    const scr = screenObj(ph.screen);
+    const sset = (k, v) => m(() => { const o = screenObj(ph.screen); if (v) o[k] = v; else delete o[k]; ph.screen = o; }, false, key + "screen-" + k);
+    SCREEN_FIELDS.forEach(([k, label, opts]) => ed.append(field(label, h("select", { class:"in", onchange: e => sset(k, e.target.value) },
+      opts.map(([v, t]) => h("option", { value: v, text: t, selected: String(scr[k] || "") === String(v) }))))));
+  };
+  const openParts = new Set();
+  // en del av tidslinjen (ett steg eller slutet): lampor, musik, skärmen, en annan scen
+  const phaseEd = (sc, ph, key, box) => {
+    ph.lights = ph.lights || {};
+    box.append(h("div", { class:"phSub", text:"Lampor" }));
+    Object.keys(ph.lights).forEach(id => { const l = LAMPS.find(x => String(x.id) === String(id)) || { id, name:"Lampa " + id, room:"" }; box.append(lampRow(sc, l, ph, key)); });
+    box.append(h("select", { class:"in", style:{ marginTop:"4px" }, onchange: e => { const id = e.target.value; if (!id) return; const prev = sc.lights[id]; m(() => { ph.lights[id] = Object.assign({ on:true, dim:60, kind:"" }, prev ? { kind: prev.kind, temp: prev.temp, color: prev.color, dim: prev.dim } : {}, { use:true }); }, true); } },
+      [h("option", { value:"", text:"+ Lägg till lampa…" }), ...LAMPS.filter(l => !ph.lights[l.id]).map(l => h("option", { value: l.id, text: (l.room ? l.room + " · " : "") + l.name }))]));
+    const adds = [];
+    const part = (name, has, fn) => { const k = key + name; if (has || openParts.has(k)){ box.append(h("div", { class:"phSub", text: name })); fn(); } else adds.push(h("button", { class:"lnk", text:"+ " + name, onclick: () => { openParts.add(k); draw(); } })); };
+    part("Musik", ph.music && ph.music.do, () => musicEd(ph, key, box));
+    part("Skärmen", ph.screen && Object.keys(screenObj(ph.screen)).length, () => screenEd(ph, key, box));
+    part("Starta en annan scen", ph.scene, () => box.append(field("Scen", h("select", { class:"in w", onchange: e => m(() => { ph.scene = e.target.value; }, true) },
+      [h("option", { value:"", text:"(ingen)" }), ...deck.scenes.filter(x => x.id !== sc.id).map(x => h("option", { value: x.id, text: x.name, selected: x.id === ph.scene }))]))));
+    if (adds.length) box.append(h("div", { style:{ display:"flex", gap:"14px", marginTop:"8px" } }, ...adds));
+  };
+  const timelineEd = sc => {
+    ed.append(h("h4", { text:"Under scenen" }));
+    ed.append(h("div", { class:"note", text:"Det ovan händer när scenen startar. Här lägger du till sådant som ska hända en stund senare, räknat från start." }));
+    (sc.steps || []).forEach((st, n) => {
+      const card = h("div", { class:"phCard" });
+      card.append(h("div", { class:"phHd" }, h("b", { text:"Efter" }), durIn((st.at || 0) * 60, sec => m(() => { st.at = sec / 60; }, false, "st" + n + "at"), 1440),
+        h("span", { style:{ flex:1 } }), h("button", { class:"mini", title:"Ta bort steget", onclick: () => m(() => { sc.steps.splice(n, 1); }, true) }, icon("cross"))));
+      phaseEd(sc, st, "s" + n + ":", card); ed.append(card);
+    });
+    ed.append(h("button", { class:"sbtnS", onclick: () => m(() => { sc.steps = sc.steps || []; const last = sc.steps.reduce((a, x) => Math.max(a, +x.at || 0), 0); sc.steps.push({ at: last + 5, lights:{} }); }, true) }, icon("plus"), "Lägg till steg"));
+    ed.append(h("h4", { text:"Slut" }));
+    const en = sc.end = sc.end || { use:false, after:30, lights:{} };
+    ed.append(h("div", { class:"phHd" }, h("label", { style:{ display:"inline-flex", alignItems:"center", gap:"6px" } },
+      h("input", { type:"checkbox", checked: !!en.use, onchange: e => m(() => { en.use = e.target.checked; }, true) }), h("b", { text:"Scenen tar slut efter" })),
+      durIn((en.after || 0) * 60, sec => m(() => { en.after = sec / 60; }, false, "endafter"), 1440)));
+    if (en.use){ const card = h("div", { class:"phCard" }); card.append(h("div", { class:"note", text:"Det här händer när tiden har gått ut (eller när scenen avslutas med en knapp som hoppar till slutet)." })); phaseEd(sc, en, "end:", card); ed.append(card); }
+    else ed.append(h("div", { class:"note", text:"Utan slut är scenen klar när alla steg och övergångar är gjorda." }));
+    ed.append(h("h4", { text:"Medan scenen pågår" }));
+    ed.append(field("Startas igen", h("select", { class:"in w", onchange: e => m(() => { sc.again = e.target.value; }) },
+      [["restart","Börja om från början"],["end","Hoppa till slutet"],["stop","Avbryt (utan slutet)"],["ignore","Gör ingenting"]].map(([v, t]) => h("option", { value: v, text: t, selected: (sc.again || "restart") === v })))));
+    ed.append(field("Ändras för hand", h("select", { class:"in w", onchange: e => m(() => { sc.manual = e.target.value; }) },
+      [["release","Scenen släpper det som ändrats, resten fortsätter"],["stop","Hela scenen avbryts"],["keep","Scenen fortsätter styra ändå"]].map(([v, t]) => h("option", { value: v, text: t, selected: (sc.manual || "release") === v })))));
+    ed.append(h("div", { class:"note", text:"Gäller när någon släcker, dimrar eller ändrar volymen för hand medan en övergång pågår. Ingen knapp behövs: scenen kan också startas av en tid under Tider." }));
   };
   let lastShown = null;
   const draw = () => {
@@ -2369,9 +2509,15 @@ function sceneModal(openId){
     const isJ = JALUSI_IDS.includes(sc.id);
     ed.append(h("div", { style:{ display:"flex", gap:"8px", alignItems:"center", flexWrap:"wrap" } },
       h("input", { class:"in", style:{ flex:"1 1 180px", fontSize:"15px", fontWeight:600 }, value: sc.name, oninput: e => m(() => { sc.name = e.target.value || "Scen"; }, false, "name") }),
-      h("button", { class:"sbtnS pri", title:"Kör scenen nu", onclick: async () => { clearTimeout(saveT); await publish(); fetch("/api/send?c=" + encodeURIComponent("scene:" + sc.id)).catch(() => {}); toast(LIVE.hub.online ? "Kör scenen…" : "Skickad. Scener körs av hubben, och ingen hubb är ansluten just nu.", 3500); } }, icon("play"), "Prova"),
+      h("button", { class:"sbtnS pri", title:"Kör scenen nu", onclick: async () => { clearTimeout(saveT); await publish(); fetch("/api/send?c=" + encodeURIComponent("scene:" + sc.id)).catch(() => {}); toast(LIVE.hub.online ? "Kör scenen…" : "Skickad. Scener körs av hubben, och ingen hubb är ansluten just nu.", 3500); setTimeout(async () => { await loadGroups(); if (sceneSel === sc.id) draw(); }, 3000); } }, icon("play"), "Prova"),
       h("button", { class:"sbtnS", title:"Ställ in lamporna som du vill ha dem, och hämta sedan in läget hit", onclick: () => captureLamps(sc, draw) }, icon("refresh"), "Hämta lampornas läge nu"),
       isJ ? null : h("button", { class:"sbtnS", title:"Ta bort scenen", onclick: () => { if (!confirmDel(sc)) return; m(() => { deck.scenes.splice(deck.scenes.indexOf(sc), 1); }); sceneSel = null; sceneModal(); } }, icon("cross"), "Ta bort")));
+    const run = RUNS.find(r => r.id === sc.id);
+    if (run) ed.append(h("div", { class:"runBox" }, h("b", { text:"Pågår" }),
+      h("span", { text:" sedan " + hhmmOf(run.t0) + (run.end ? ", slutar " + hhmmOf(run.end) : "") + (run.next && run.next !== run.end ? ", nästa steg " + hhmmOf(run.next) : "") }),
+      h("span", { style:{ flex:1 } }),
+      h("button", { class:"sbtnS", onclick: () => stopScene(sc.id, true, draw) }, "Hoppa till slutet"),
+      h("button", { class:"sbtnS", onclick: () => stopScene(sc.id, false, draw) }, icon("stop"), "Avbryt")));
     if (isJ) ed.append(h("div", { class:"note", text:"Den här scenen körs av jalusisensorn (" + (sc.id === "jalusi-open" ? "när jalusin öppnas" : "när jalusin stängs") + "). Tomma musikfält betyder väckningsinställningarna i hub_config.json på Pi:n." }));
     // --- belysning ---
     ed.append(h("h4", { text:"Belysning, lampa för lampa" }));
@@ -2400,40 +2546,12 @@ function sceneModal(openId){
     ed.append(h("button", { class:"sbtnS", disabled: !Object.keys(GROUPS).length, onclick: () => m(() => { (sc.moods = sc.moods || []).push({ group: defGroup(), mood: (GROUPS[defGroup()] || [])[0] || "" }); }, true) }, icon("plus"), "Lägg till Trådfri-scen"));
     // --- musik ---
     ed.append(h("h4", { text:"Musik (Sonos)" }));
-    const mu = sc.music = sc.music || { do:"" }, dl = "dlr" + (++dlN);
-    const mset = (fn, re) => m(() => fn(sc.music), re, "mu");
-    ed.append(field("Gör", h("select", { class:"in", onchange: e => mset(x => { x.do = e.target.value; if (x.do === "play" && !x.src) x.src = "playlist"; }, true) },
-      [["","Rör inte musiken"],["play","Spela"],["pause","Pausa"],["vol","Ändra bara volymen"]].map(([k, t]) => h("option", { value: k, text: t, selected: (mu.do || "") === k })))));
-    if (mu.do){
-      // högtalarna: den först valda styr uppspelningen, övriga spelar tillsammans med den
-      const chosen = [mu.room, ...(mu.with || [])].filter(Boolean), all = [...new Set([...roomNames(), ...chosen])];
-      const setRooms = list => mset(x => { x.room = list[0] || ""; x.with = list.slice(1); }, true);
-      ed.append(h("div", { class:"fRow top" }, h("label", { text:"Högtalare" }), h("div", { class:"ctl" },
-        ...all.map(r => h("label", { class:"spk" + (chosen.includes(r) ? " on" : ""), title: chosen[0] === r && chosen.length > 1 ? "Den här högtalaren styr uppspelningen, de andra spelar tillsammans med den" : "" },
-          h("input", { type:"checkbox", checked: chosen.includes(r), onchange: e => setRooms(e.target.checked ? [...chosen, r] : chosen.filter(x => x !== r)) }), r)),
-        h("button", { class:"lnk mut", title:"Hämta listan över högtalare från hubben igen", text:"uppdatera", onclick: () => { fetch("/api/send?c=lamps-read").catch(() => {}); toast("Ber hubben om högtalarna…"); setTimeout(async () => { await loadGroups(); draw(); }, 5000); } }))));
-      ed.append(h("div", { class:"note", style:{ margin:"-2px 0 8px 114px" }, text: chosen.length ? (chosen.length > 1 && mu.do === "play" ? "Högtalarna grupperas och spelar samma sak." : "") : "Ingen vald = väckningsrummet i hub_config.json på Pi:n." }));
-    }
-    if (mu.do === "play"){
-      ed.append(field("Spela", h("select", { class:"in", onchange: e => mset(x => { x.src = e.target.value; x.value = ""; }, true) },
-        [["playlist","Spellista"],["fav","Sonos-favorit"],["resume","Fortsätt där den var"]].map(([k, t]) => h("option", { value: k, text: t, selected: (mu.src || "playlist") === k })))));
-      if ((mu.src || "playlist") !== "resume") ed.append(field((mu.src || "playlist") === "fav" ? "Favorit" : "Spellista",
-        h("input", { class:"in w", value: mu.value || "", placeholder: mu.src === "fav" ? "Namnet som det står i Sonos-appen" : "Spotify-länk (tomt = väckningsspellistan på Pi:n)", oninput: e => mset(x => { x.value = e.target.value.trim(); }) })));
-    }
-    if (mu.do === "play" || mu.do === "vol"){
-      ed.append(field("Volym", h("input", { class:"in n", type:"number", min:0, max:100, value: mu.vol ?? "", placeholder:"–", style:{ width:"70px" }, oninput: e => mset(x => { x.vol = e.target.value === "" ? null : clamp(+e.target.value || 0, 0, 100); }) }),
-        h("span", { class:"note", style:{ margin:0 }, text: mu.do === "play" ? "tomt = behåll (eller väckningsvolymen, om spellistan är tom)" : "0 till 100" })));
-    }
-    if (mu.do === "play") ed.append(field("Tona in", h("input", { class:"in n", type:"number", min:0, max:120, value: mu.fade ?? "", placeholder:"–", style:{ width:"70px" }, oninput: e => mset(x => { x.fade = e.target.value === "" ? null : clamp(+e.target.value || 0, 0, 120); }) }),
-      h("span", { class:"note", style:{ margin:0 }, text:"sekunder från tyst till vald volym (kräver att Volym är ifylld)" })));
+    musicEd(sc, "");
     // --- skärmen ---
     ed.append(h("h4", { text:"Blaupunkt-skärmen" }));
-    // äldre scener har ett färdigt val här (väckning, öppna, stäng); det visas som stegen det motsvarar
-    const scr = screenObj(sc.screen);
-    const sset = (k, v) => m(() => { const o = screenObj(sc.screen); if (v) o[k] = v; else delete o[k]; sc.screen = o; }, false, "screen-" + k);
-    SCREEN_FIELDS.forEach(([k, label, opts]) => ed.append(field(label, h("select", { class:"in", onchange: e => sset(k, e.target.value) },
-      opts.map(([v, t]) => h("option", { value: v, text: t, selected: String(scr[k] || "") === String(v) }))))));
+    screenEd(sc, "");
     ed.append(h("div", { class:"note", text:"Stegen körs uppifrån och ned. Musik gäller det som spelas på skärmen (radion eller Spotify). Visa sida gäller när inget spelas, och kanal är visualiseringen medan musik spelar." }));
+    timelineEd(sc);
     ed.append(h("div", { class:"note", style:{ marginTop:"14px" }, text:"Lägg scenen på en knapp med åtgärden Kör egen scen i listan Scener. Scener körs av hubben, så den behöver vara igång." }));
   };
   openModal("Scener", h("div", { class:"scWrap" }, list, ed), [h("button", { class:"sbtnS", text:"Klar", onclick: () => { closeModal(); renderAll(); } })], true);
@@ -2488,6 +2606,110 @@ function renderEncInspector(ins, v){
     cols.append(card);
   });
   ins.append(side, cols);
+}
+
+// ---------- tider och lampregler (körs av hubben, se timeline.py) ----------
+const DAY_NAMES = ["Mån","Tis","Ons","Tor","Fre","Lör","Sön"];
+function durInG(val, onv, max = 240){ const tot = +val || 0, mm = Math.floor(tot / 60), ss = Math.round(tot % 60);
+  const a = h("input", { class:"in n", type:"number", min:0, max, value: mm || "", placeholder:"0", style:{ width:"58px" } }), b = h("input", { class:"in n", type:"number", min:0, max:59, value: ss || "", placeholder:"0", style:{ width:"52px" } });
+  const ch = () => onv(clamp(+a.value || 0, 0, max) * 60 + clamp(+b.value || 0, 0, 59));
+  a.oninput = ch; b.oninput = ch; return h("span", { style:{ display:"inline-flex", alignItems:"center", gap:"4px" } }, a, "min", b, "s"); }
+function lookEditG(o, set){
+  return [h("label", { class:"note", style:{ margin:0 }, text:"Ljus" }), h("input", { type:"range", min:1, max:100, value: o.dim ?? 60, title:"Ljusstyrka " + (o.dim ?? 60) + " %", style:{ width:"120px" }, oninput: e => { e.target.title = "Ljusstyrka " + e.target.value + " %"; e.target.nextSibling.textContent = e.target.value + " %"; set(x => { x.dim = +e.target.value; }); } }),
+    h("span", { class:"note", style:{ margin:0, minWidth:"34px" }, text: (o.dim ?? 60) + " %" }),
+    h("select", { class:"in", onchange: e => set(x => { x.kind = e.target.value; if (x.kind === "white" && x.temp == null) x.temp = 35; if (x.kind === "color" && !x.color) x.color = "#ff8a3d"; }, true) },
+      [["","Behåll färg"],["white","Vitt"],["color","Färg"]].map(([k, t]) => h("option", { value: k, text: t, selected: (o.kind || "") === k }))),
+    o.kind === "white" ? h("span", { style:{ display:"inline-flex", alignItems:"center", gap:"4px" } }, h("small", { text:"varm" }), h("input", { type:"range", min:0, max:100, value: o.temp ?? 35, style:{ width:"110px" }, oninput: e => set(x => { x.temp = +e.target.value; }) }), h("small", { text:"kall" }))
+      : o.kind === "color" ? h("input", { type:"color", value: /^#[0-9a-f]{6}$/i.test(o.color || "") ? o.color : "#ff8a3d", oninput: e => set(x => { x.color = e.target.value; }) }) : null]; }
+// en tidpunkt: klockslag, eller soluppgång/solnedgång med förskjutning
+function whenEd(w, set){
+  const kind = w.kind || "time", off = +w.offset || 0;
+  const out = [h("select", { class:"in", onchange: e => set(x => { x.kind = e.target.value; if (x.kind === "time" && !x.time) x.time = "07:00"; }, true) },
+    [["time","Klockslag"],["sunrise","Soluppgång"],["sunset","Solnedgång"]].map(([k, t]) => h("option", { value: k, text: t, selected: kind === k })))];
+  if (kind === "time") out.push(h("input", { class:"in", type:"time", value: w.time || "07:00", onchange: e => set(x => { x.time = e.target.value || "07:00"; }) }));
+  else out.push(h("input", { class:"in n", type:"number", min:0, max:600, value: Math.abs(off) || "", placeholder:"0", style:{ width:"64px" }, oninput: e => set(x => { x.offset = (x.offset < 0 ? -1 : 1) * clamp(+e.target.value || 0, 0, 600); }) }),
+    "min", h("select", { class:"in", onchange: e => set(x => { x.offset = Math.abs(+x.offset || 0) * (e.target.value === "-" ? -1 : 1); }) },
+      [["+","efter"],["-","före"]].map(([v, t]) => h("option", { value: v, text: t, selected: (off < 0 ? "-" : "+") === v }))));
+  return out;
+}
+function daysEd(o, set){
+  const on = d => !o.days || !o.days.length || o.days.includes(d);
+  const toggle = d => set(x => { const cur = x.days && x.days.length ? new Set(x.days) : new Set([0,1,2,3,4,5,6]); cur.has(d) ? cur.delete(d) : cur.add(d); x.days = [...cur].sort(); if (x.days.length === 7) x.days = []; }, true);
+  return h("span", { class:"days" }, ...DAY_NAMES.map((n, d) => h("button", { class: on(d) ? "on" : "", text: n, onclick: () => toggle(d) })),
+    h("button", { class:"lnk", text:"alla", onclick: () => set(x => { x.days = []; }, true) }), h("button", { class:"lnk", text:"vardagar", onclick: () => set(x => { x.days = [0,1,2,3,4]; }, true) }),
+    h("button", { class:"lnk", text:"helger", onclick: () => set(x => { x.days = [5,6]; }, true) }));
+}
+function schedulesModal(){
+  deck.schedules = Array.isArray(deck.schedules) ? deck.schedules : [];
+  const body = h("div", { class:"tlWrap" });
+  const draw = () => {
+    body.innerHTML = "";
+    body.append(h("div", { class:"note", text:"Scener som körs av sig själva vid en viss tid, utan knapp. Hubben på Pi:n håller tiden; var den avstängd vid tiden körs scenen ändå om det var mindre än 10 minuter sedan. Soluppgång och solnedgång räknas för platsen i väderinställningen på Blaupunkt-sidan." }));
+    if (!deck.scenes || !deck.scenes.length) body.append(h("div", { class:"insEmpty", html:"<b>Inga scener än</b><br>Bygg en scen under Scener först." }));
+    deck.schedules.forEach((sch, n) => {
+      const set = (fn, re) => { mutate(() => fn(sch), { co:"sched" + n, re:false }); if (re) draw(); };
+      const nx = UPCOMING.find(u => u.id === sch.id);
+      body.append(h("div", { class:"phCard" + (sch.on === false ? " dim" : "") },
+        h("div", { class:"phHd" },
+          h("label", { class:"sw", title:"På/av" }, h("input", { type:"checkbox", checked: sch.on !== false, onchange: e => set(x => { x.on = e.target.checked; }, true) }), h("i")),
+          h("select", { class:"in w", style:{ flex:"1 1 200px" }, onchange: e => set(x => { x.scene = e.target.value; }) },
+            [h("option", { value:"", text:"(välj scen)" }), ...(deck.scenes || []).map(s => h("option", { value: s.id, text: s.name, selected: s.id === sch.scene }))]),
+          h("button", { class:"sbtnS", title:"Kör scenen nu", disabled: !sch.scene, onclick: () => { fetch("/api/send?c=" + encodeURIComponent("scene:" + sch.scene)).catch(() => {}); toast("Kör scenen…", 1500); } }, icon("play")),
+          h("button", { class:"mini", title:"Ta bort", onclick: () => { mutate(() => { deck.schedules.splice(n, 1); }); draw(); } }, icon("cross"))),
+        h("div", { class:"phHd" }, h("b", { text:"När" }), ...whenEd(sch.when || {}, (fn, re) => set(x => { x.when = x.when || { kind:"time", time:"07:00" }; fn(x.when); }, re))),
+        h("div", { class:"phHd" }, h("b", { text:"Dagar" }), daysEd(sch, set)),
+        h("div", { class:"note", text: sch.on === false ? "Avstängd." : nx ? "Nästa gång: " + hhmmOf(nx.at) : "Nästa gång visas när hubben har läst in tiden." })));
+    });
+    body.append(h("button", { class:"sbtnS", onclick: () => { mutate(() => { deck.schedules.push({ id: C.uid(), on:true, scene: (deck.scenes[0] || {}).id || "", when:{ kind:"time", time:"07:00" }, days:[0,1,2,3,4] }); }); draw(); } }, icon("plus"), "Ny tid"));
+  };
+  openModal("Tider", body, [h("button", { class:"sbtnS", text:"Klar", onclick: closeModal })], true);
+  draw(); loadGroups().then(draw);
+}
+function rulesModal(){
+  deck.lampRules = Array.isArray(deck.lampRules) ? deck.lampRules : [];
+  const body = h("div", { class:"tlWrap" }), open = new Set();
+  const draw = () => {
+    body.innerHTML = "";
+    body.append(h("div", { class:"note", text:"En lampregel tänder aldrig något. Den bestämmer vilken färg och ljusstyrka en lampa får när den tänds under en viss tid, hur den än tänds: knapp, fjärrkontroll, IKEA-appen eller en scen. Står flera regler på samma lampa vinner den som står högst. Lampor som en pågående scen styr lämnas i fred." }));
+    deck.lampRules.forEach((r, n) => {
+      const set = (fn, re) => { mutate(() => fn(r), { co:"rule" + n, re:false }); if (re) draw(); };
+      const lamps = new Set((r.lamps || []).map(String));
+      const names = LAMPS.filter(l => lamps.has(String(l.id))).map(l => l.name);
+      const card = h("div", { class:"phCard" + (r.on === false ? " dim" : "") },
+        h("div", { class:"phHd" },
+          h("label", { class:"sw", title:"På/av" }, h("input", { type:"checkbox", checked: r.on !== false, onchange: e => set(x => { x.on = e.target.checked; }, true) }), h("i")),
+          h("input", { class:"in", style:{ flex:"1 1 180px", fontWeight:600 }, value: r.name || "", placeholder:"Namn, t.ex. Kvällsljus", oninput: e => set(x => { x.name = e.target.value; }) }),
+          h("button", { class:"mini", title:"Flytta upp (högre prioritet)", disabled: n === 0, onclick: () => { mutate(() => { deck.lampRules.splice(n - 1, 0, deck.lampRules.splice(n, 1)[0]); }); draw(); } }, "▲"),
+          h("button", { class:"mini", title:"Flytta ned", disabled: n === deck.lampRules.length - 1, onclick: () => { mutate(() => { deck.lampRules.splice(n + 1, 0, deck.lampRules.splice(n, 1)[0]); }); draw(); } }, "▼"),
+          h("button", { class:"mini", title:"Ta bort", onclick: () => { mutate(() => { deck.lampRules.splice(n, 1); }); draw(); } }, icon("cross"))),
+        h("div", { class:"phHd" }, h("b", { text:"Lampor" }), h("span", { class:"note", style:{ margin:0, flex:1 }, text: names.length ? names.join(", ") : "Inga valda" }),
+          h("button", { class:"lnk", text: open.has(n) ? "klar" : "välj", onclick: () => { open.has(n) ? open.delete(n) : open.add(n); draw(); } })));
+      if (open.has(n)){
+        const byRoom = {}; LAMPS.filter(l => !l.outlet).forEach(l => { (byRoom[l.room || "Övrigt"] = byRoom[l.room || "Övrigt"] || []).push(l); });
+        const pick = h("div", { class:"lampPick" });
+        Object.entries(byRoom).forEach(([room, ls]) => pick.append(h("div", {}, h("b", { text: room }),
+          ...ls.map(l => h("label", { class:"spk" + (lamps.has(String(l.id)) ? " on" : "") }, h("input", { type:"checkbox", checked: lamps.has(String(l.id)),
+            onchange: e => set(x => { const s2 = new Set((x.lamps || []).map(String)); e.target.checked ? s2.add(String(l.id)) : s2.delete(String(l.id)); x.lamps = [...s2]; }, true) }), l.name)))));
+        if (!LAMPS.length) pick.append(h("div", { class:"note", text:"Lamplistan har inte kommit från hubben än." }));
+        card.append(pick);
+      }
+      card.append(
+        h("div", { class:"phHd" }, h("b", { text:"Från" }), ...whenEd(r.from || {}, (fn, re) => set(x => { x.from = x.from || { kind:"time", time:"18:00" }; fn(x.from); }, re)),
+          h("b", { text:"till" }), ...whenEd(r.to || {}, (fn, re) => set(x => { x.to = x.to || { kind:"time", time:"23:00" }; fn(x.to); }, re))),
+        h("div", { class:"phHd" }, h("b", { text:"Dagar" }), daysEd(r, set)),
+        h("div", { class:"phHd" }, h("b", { text:"Lampan får" }), ...lookEditG(r.set || {}, (fn, re) => set(x => { x.set = x.set || { dim:60, kind:"" }; fn(x.set); }, re))),
+        h("div", { class:"phSub", text:"Avancerat" }),
+        h("div", { class:"phHd" }, h("label", { class:"chkL" }, h("input", { type:"checkbox", checked: !!(r.glide && r.glide.use), onchange: e => set(x => { x.glide = Object.assign({ dim:20, kind:"white", temp:0 }, x.glide || {}, { use: e.target.checked }); }, true) }), "Glid gradvis under perioden till"),
+          ...(r.glide && r.glide.use ? lookEditG(r.glide, (fn, re) => set(x => fn(x.glide), re)) : [h("span", { class:"note", style:{ margin:0 }, text:"t.ex. från starkt kallvitt kl 18 till svagt varmvitt kl 23" })])),
+        h("div", { class:"phHd" }, h("label", { class:"chkL" }, h("input", { type:"checkbox", checked: !!r.alsoOn, onchange: e => set(x => { x.alsoOn = e.target.checked; }, true) }), "Ändra även lampor som redan lyser när perioden börjar, under"),
+          durInG((+r.alsoOnFade || 0) * 60, sec => set(x => { x.alsoOnFade = sec / 60; }), 240)),
+        h("div", { class:"phHd" }, h("label", { class:"chkL" }, h("input", { type:"checkbox", checked: r.manualHold !== false, onchange: e => set(x => { x.manualHold = e.target.checked; }, true) }), "Lampor som dimras för hand lämnas i fred tills de släcks")));
+      body.append(card);
+    });
+    body.append(h("button", { class:"sbtnS", onclick: () => { mutate(() => { deck.lampRules.push({ id: C.uid(), on:true, name:"", lamps:[], from:{ kind:"sunset", offset:-30 }, to:{ kind:"time", time:"23:00" }, days:[], set:{ dim:60, kind:"white", temp:20 }, manualHold:true }); }); open.add(deck.lampRules.length - 1); draw(); } }, icon("plus"), "Ny lampregel"));
+  };
+  openModal("Lampregler", body, [h("button", { class:"sbtnS", text:"Klar", onclick: closeModal })], true);
+  draw();
 }
 
 // ---------- ikonväljaren ----------
@@ -2735,7 +2957,7 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) poll
 (async function init(){
   $("#brandIc").innerHTML = iconSvg("back"); $("#profIc").innerHTML = iconSvg("layers");
   $("#undoBtn").innerHTML = iconSvg("up-level"); $("#redoBtn").innerHTML = iconSvg("up-level"); $("#redoBtn").firstChild.style.transform = "scaleX(-1)";
-  $("#deviceBtn").innerHTML = iconSvg("gear"); $("#scenesIc").innerHTML = iconSvg("sparkles"); $("#scenesBtn").onclick = () => sceneModal();
+  $("#deviceBtn").innerHTML = iconSvg("gear"); $("#scenesIc").innerHTML = iconSvg("sparkles"); $("#scenesBtn").onclick = () => sceneModal(); $("#schedIc").innerHTML = iconSvg("clock"); $("#schedBtn").onclick = schedulesModal; $("#rulesIc").innerHTML = iconSvg("bulb"); $("#rulesBtn").onclick = rulesModal;
   $("#inputsIc").innerHTML = iconSvg("antenna"); $("#inputsBtn").onclick = inputsModal;
   $("#undoBtn").onclick = () => doUndo(undo, redo); $("#redoBtn").onclick = () => doUndo(redo, undo);
   $("#deviceBtn").onclick = deviceModal; $("#hubChip").onclick = deviceModal; $("#profileBtn").onclick = profileMenu;
