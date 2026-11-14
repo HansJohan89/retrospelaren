@@ -185,7 +185,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
   filter:var(--sign-dim) var(--sign-fx,drop-shadow(0 0 0 transparent));
   font-family:Arial,"Helvetica Neue",Helvetica,sans-serif;font-weight:700;box-shadow:0 .8vh 2.4vh rgba(0,0,0,.55);min-height:0}
 .sign.pal{filter:var(--cover-filter) var(--sign-dim) var(--sign-fx,drop-shadow(0 0 0 transparent))}
-.sign .sh{flex:none;background:var(--dt);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:1.5vh;padding:calc(1.5vh * var(--sgP,1)) 3.4vh calc(1.5vh * var(--sgP,1)) 2vh;font-size:calc(1.95em * var(--sgH,1));line-height:1.1}
+.sign .sh{flex:none;background:var(--dt);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:1.5vh;padding:calc(1.5vh * var(--sgP,1)) 3.4vh calc(1.5vh * var(--sgP,1)) 2vh;font-size:calc(1.95em * var(--sgH,1));font-weight:var(--sgWH,700);line-height:1.1}
 .sign .sh .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sign .sh .to{display:block;font-size:.55em;font-weight:400;opacity:.95;margin-top:.2em}
 .sign .sh img{height:1.35em;flex:none;margin:-.15em 0;filter:var(--logo-fx,none)}
@@ -195,9 +195,9 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .bus.sign li{font-size:1.05em;display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:1.4vh;padding:calc(1vh * var(--sgP,1)) 0;border-bottom:max(1px,.22vh) solid var(--dt)}
 .bus.sign li:last-child{border-bottom:none}
 .bus.sign .bdg svg{width:calc(1.75em * var(--sgB,1));height:calc(1.75em * var(--sgB,1));display:block}
-.bus.sign .ln{border:none;padding:0;text-align:left;font-size:calc(1.15em * var(--sgL,1));min-width:2.4ch}
-.bus.sign .ds{font-size:calc(1em * var(--sgD,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bus.sign .tm{font-size:calc(1em * var(--sgT,1))}
+.bus.sign .ln{border:none;padding:0;text-align:left;font-size:calc(1.15em * var(--sgL,1));font-weight:var(--sgWL,700);min-width:2.4ch}
+.bus.sign .ds{font-size:calc(1em * var(--sgD,1));font-weight:var(--sgWD,700);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bus.sign .tm{font-size:calc(1em * var(--sgT,1));font-weight:var(--sgWT,700)}
 .bus.sign .tm small{color:#666;font-weight:400}
 .bus.sign li.soon .tm{color:var(--dt)}
 .bus.sign li.x{opacity:.45}
@@ -665,6 +665,9 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <label class="chk"><input type="checkbox" id="signOrig"> Hållplatsskylten i Dalatrafiks färger (annars bildrörets färgläge)</label>
       <div class="lbl" style="margin-top:10px">Hållplatsskylten</div>
       <div id="signSl"></div>
+      <div class="row" id="signBold" style="flex-wrap:wrap;gap:4px 14px"><span class="lbl">Fet text:</span>
+        <label class="chk"><input type="checkbox" data-sb="bHead"> Namnfältet</label><label class="chk"><input type="checkbox" data-sb="bLine"> Linjenummer</label>
+        <label class="chk"><input type="checkbox" data-sb="bDest"> Destination</label><label class="chk"><input type="checkbox" data-sb="bTime"> Avgångstid</label></div>
       <label class="chk"><input type="checkbox" id="signFit"> Krymp texten automatiskt så att alla avgångar får plats</label>
       <button class="btn" id="signReset" style="margin-top:6px">Återställ skylten</button>
       <div class="note" id="busStatus"></div>
@@ -830,7 +833,7 @@ S.look = Object.assign({}, LOOK_DEF, S.look || {});
 S.edge = Object.assign({}, EDGE_DEF, S.edge || {});
 const IDLE_DEF = { wx:true, news:true, test:true, secs:40, artSecs:15, feed:"svt", own:"" };
 const BUS_DEF = { on:true, id:"", name:"", to:"", toName:"" };
-const SIGN_DEF = { size:100, head:100, line:100, dest:100, time:100, icon:100, pad:100, rows:4, fit:true };
+const SIGN_DEF = { size:100, head:100, line:100, dest:100, time:100, icon:100, pad:100, rows:4, fit:true, bHead:true, bLine:true, bDest:true, bTime:true };
 const PHOTO_DEF = { on:true, albums:"", secs:12, orig:false };
 const HOME_DEF = { on:true, clock:true, wx:true, bus:true, news:true, aik:true, photo:false };
 S.idle = Object.assign({}, IDLE_DEF, S.idle || {});
@@ -2011,7 +2014,7 @@ function renderBus(max){
   const head = `<div class="sh"><span class="nm">${esc(stopName(b.name) || "Hållplats")}</span>${logo}</div>`;
   const foot = `<div class="sf">&nbsp;</div>`;
   const z = S.bus.sz || SIGN_DEF, pc = v => (+v || 100) / 100;
-  const vars = `--sgS:${pc(z.size)};--sgH:${pc(z.head)};--sgL:${pc(z.line)};--sgD:${pc(z.dest)};--sgT:${pc(z.time)};--sgB:${pc(z.icon)};--sgP:${pc(z.pad)}`;
+  const vars = `--sgS:${pc(z.size)};--sgH:${pc(z.head)};--sgL:${pc(z.line)};--sgD:${pc(z.dest)};--sgT:${pc(z.time)};--sgB:${pc(z.icon)};--sgP:${pc(z.pad)};--sgWH:${z.bHead === false ? 400 : 700};--sgWL:${z.bLine === false ? 400 : 700};--sgWD:${z.bDest === false ? 400 : 700};--sgWT:${z.bTime === false ? 400 : 700}`;
   const wrap = inner => `<div class="bus sign fill${pal}${z.fit === false ? " nofit" : ""}" style="${vars}">${head}${inner}${foot}</div>`;
   if (!b.id) return wrap(`<div class="msg">Välj hållplats under S → När inget spelar.</div>`);
   if (DEP.err) return wrap(`<div class="msg">${DEP.nokey ? "RESROBOT_API_KEY saknas på servern." : esc(DEP.err)}</div>`);
@@ -3591,6 +3594,7 @@ function buildControls(){
   for (const [k, l, lo, hi] of [["size","Hela skylten %",50,200],["head","Namnfältet %",50,200],["line","Linjenummer %",50,250],["dest","Destination %",50,250],
       ["time","Avgångstid %",50,250],["icon","Bussikon %",0,250],["pad","Radavstånd %",30,250],["rows","Antal avgångar",1,10]])
     syncers.push(slider($("#signSl"), k, l, sz, lo, hi, signRedraw));
+  $("#signBold").addEventListener("change", e => { const k = e.target.dataset.sb; if (!k) return; S.bus.sz[k] = e.target.checked; saveS(); signRedraw(); });
   $("#signFit").addEventListener("change", e => { S.bus.sz.fit = e.target.checked; saveS(); signRedraw(); });
   $("#signReset").addEventListener("click", () => { S.bus.sz = Object.assign({}, SIGN_DEF); saveS(); syncAll(); signRedraw(); });
   syncers.push(slider($("#lookSl"), "bodySize", "Brödtext %", lk, 60, 160, applyLook));
@@ -3699,7 +3703,7 @@ function syncAll(){
   $("#edSteps").checked = !!S.edge.steps; $("#stepsGoal").value = S.edge.stepsGoal;
   $("#edDate").checked = S.edge.date; $("#edWeek").checked = S.edge.week; $("#edClock").checked = S.edge.clock; $("#edWx").checked = S.edge.wx;
   $("#wxPlace").value = S.edge.place;
-  $("#richOnly").checked = S.idle.richOnly !== false; $("#signFit").checked = S.bus.sz.fit !== false;
+  $("#richOnly").checked = S.idle.richOnly !== false; $("#signFit").checked = S.bus.sz.fit !== false; document.querySelectorAll("#signBold [data-sb]").forEach(c => { c.checked = S.bus.sz[c.dataset.sb] !== false; });
   $("#idBus").checked = S.bus.on; $("#signOrig").checked = S.bus.signOrig !== false;
   $("#idHome").checked = S.home.on; document.querySelectorAll("#homeSeg button").forEach(b => b.classList.toggle("on", !!S.home[b.dataset.v]));
   $("#idPhoto").checked = S.photo.on; $("#albums").value = S.photo.albums; $("#photoOrig").checked = !!S.photo.orig; $("#idFb").checked = S.idle.fb; $("#fbSrc").value = S.foot.src; $("#fbMins").value = S.foot.mins;
