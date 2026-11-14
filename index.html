@@ -175,33 +175,34 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #pgWx .wxB.wxBN{display:grid;grid-template-columns:minmax(0,1fr) 29vw;grid-template-rows:minmax(0,1fr);gap:4vh;align-items:stretch}
 #pgWx .wxB.wxBN.noSign{grid-template-columns:1fr}
 /* Skylten fyller hela den nedre radens höjd (bredare och större än förut), aldrig mer än vad som får plats */
-#pgWx .wxB.wxBN .sign{height:100%;max-height:100%;font-size:2vh;flex:none;align-self:stretch}
+#pgWx .wxB.wxBN .sign{height:100%;max-height:100%;font-size:calc(2vh * var(--sgS,1));flex:none;align-self:stretch}
 #pgWx .wxB.wxBN .artWide{height:100%;min-height:0;display:flex}
 #pgWx .wxB.wxBN .artWide .art{grid-template-columns:.62fr 1fr}
 #pgWx .wxRow,#pgWx .kick{flex:none}
 /* Hållplatsskylt i Dalatrafiks stil: rött namnfält, vita rader med röda linjer, rött fält med webb och telefon */
+.tile.tsign .sign{font-size:calc(1em * var(--sgS,1))}
 .sign{--dt:#e00034;background:#f4f1ea;color:#161616;border:max(2px,.3vh) solid var(--dt);border-radius:1.4vh;overflow:hidden;text-shadow:var(--sign-ts,none);letter-spacing:0;
   filter:var(--sign-dim) var(--sign-fx,drop-shadow(0 0 0 transparent));
   font-family:Arial,"Helvetica Neue",Helvetica,sans-serif;font-weight:700;box-shadow:0 .8vh 2.4vh rgba(0,0,0,.55);min-height:0}
 .sign.pal{filter:var(--cover-filter) var(--sign-dim) var(--sign-fx,drop-shadow(0 0 0 transparent))}
-.sign .sh{flex:none;background:var(--dt);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:1.5vh;padding:1.5vh 3.4vh 1.5vh 2vh;font-size:1.95em;line-height:1.1}
+.sign .sh{flex:none;background:var(--dt);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:1.5vh;padding:calc(1.5vh * var(--sgP,1)) 3.4vh calc(1.5vh * var(--sgP,1)) 2vh;font-size:calc(1.95em * var(--sgH,1));line-height:1.1}
 .sign .sh .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sign .sh .to{display:block;font-size:.55em;font-weight:400;opacity:.95;margin-top:.2em}
 .sign .sh img{height:1.35em;flex:none;margin:-.15em 0;filter:var(--logo-fx,none)}
 .sign .bdg svg{filter:var(--logo-fx,none)}
 .bus.sign ul{padding:.4vh 2vh;gap:0;display:flex;flex-direction:column}
 .bus.sign.fill li{flex:1 0 auto;align-content:center}
-.bus.sign li{font-size:1.05em;display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:1.4vh;padding:1vh 0;border-bottom:max(1px,.22vh) solid var(--dt)}
+.bus.sign li{font-size:1.05em;display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:1.4vh;padding:calc(1vh * var(--sgP,1)) 0;border-bottom:max(1px,.22vh) solid var(--dt)}
 .bus.sign li:last-child{border-bottom:none}
-.bus.sign .bdg svg{width:1.75em;height:1.75em;display:block}
-.bus.sign .ln{border:none;padding:0;text-align:left;font-size:1.15em;min-width:2.4ch}
-.bus.sign .ds{font-size:1em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bus.sign .tm{font-size:1em}
+.bus.sign .bdg svg{width:calc(1.75em * var(--sgB,1));height:calc(1.75em * var(--sgB,1));display:block}
+.bus.sign .ln{border:none;padding:0;text-align:left;font-size:calc(1.15em * var(--sgL,1));min-width:2.4ch}
+.bus.sign .ds{font-size:calc(1em * var(--sgD,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bus.sign .tm{font-size:calc(1em * var(--sgT,1))}
 .bus.sign .tm small{color:#666;font-weight:400}
 .bus.sign li.soon .tm{color:var(--dt)}
 .bus.sign li.x{opacity:.45}
 .bus.sign .msg{color:#444;padding:1.6vh;font-weight:400}
-.sign .sf{flex:none;background:var(--dt);padding:.5vh 1.8vh;font-size:.78em;margin-top:auto}
+.sign .sf{flex:none;background:var(--dt);padding:calc(.5vh * var(--sgP,1)) 1.8vh;font-size:.78em;margin-top:auto}
 .tile.tsign{padding:0;border:none;background:none}
 .tile.tsign .sign{height:100%}
 .fbBox{display:flex;flex-direction:column;min-height:0;min-width:0}
@@ -662,6 +663,10 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <div class="row"><input type="search" id="busToQ" placeholder="Framme vid (valfritt), t.ex. Falu lasarett"><button class="btn" id="busToBtn">Sök</button></div>
       <div class="row"><select id="busToSel"><option value="">Ingen – visa vart bussen går</option></select></div>
       <label class="chk"><input type="checkbox" id="signOrig"> Hållplatsskylten i Dalatrafiks färger (annars bildrörets färgläge)</label>
+      <div class="lbl" style="margin-top:10px">Hållplatsskylten</div>
+      <div id="signSl"></div>
+      <label class="chk"><input type="checkbox" id="signFit"> Krymp texten automatiskt så att alla avgångar får plats</label>
+      <button class="btn" id="signReset" style="margin-top:6px">Återställ skylten</button>
       <div class="note" id="busStatus"></div>
       <label class="chk"><input type="checkbox" id="idNews"> Nyheter</label>
       <label class="chk"><input type="checkbox" id="idPhoto"> Foton från Google Foto</label>
@@ -825,6 +830,7 @@ S.look = Object.assign({}, LOOK_DEF, S.look || {});
 S.edge = Object.assign({}, EDGE_DEF, S.edge || {});
 const IDLE_DEF = { wx:true, news:true, test:true, secs:40, artSecs:15, feed:"svt", own:"" };
 const BUS_DEF = { on:true, id:"", name:"", to:"", toName:"" };
+const SIGN_DEF = { size:100, head:100, line:100, dest:100, time:100, icon:100, pad:100, rows:4, fit:true };
 const PHOTO_DEF = { on:true, albums:"", secs:12, orig:false };
 const HOME_DEF = { on:true, clock:true, wx:true, bus:true, news:true, aik:true, photo:false };
 S.idle = Object.assign({}, IDLE_DEF, S.idle || {});
@@ -837,6 +843,7 @@ if (!Array.isArray(S.idle.feeds)){
 }
 if (!Array.isArray(S.idle.ownFeeds)) S.idle.ownFeeds = [];
 S.bus = Object.assign({}, BUS_DEF, S.bus || {});
+S.bus.sz = Object.assign({}, SIGN_DEF, S.bus.sz || {});
 S.photo = Object.assign({}, PHOTO_DEF, S.photo || {});
 S.home = Object.assign({}, HOME_DEF, S.home || {});
 if (S.idle.fb === undefined) S.idle.fb = true;
@@ -1996,13 +2003,16 @@ function busBadge(mode){
   return red ? `<span class="bdg"><svg viewBox="0 0 48 48" style="color:#e00034"><rect x="3" y="3" width="42" height="42" rx="10" fill="#e00034"/>${BUS_PICTO}</svg></span>`
              : `<span class="bdg"><svg viewBox="0 0 48 48" style="color:#2e9b48"><g fill="#2e9b48"><circle cx="24" cy="24" r="17"/>${bump}</g>${BUS_PICTO}</svg></span>`;
 }
-function renderBus(max = 4){
+function renderBus(max){
   const b = S.bus;
+  if (max == null) max = (S.bus.sz && S.bus.sz.rows) || 4;
   const pal = S.bus.signOrig === false ? " pal" : "";
   const logo = SIGN_LOGO ? `<img src="${SIGN_LOGO}" alt="">` : "";
   const head = `<div class="sh"><span class="nm">${esc(stopName(b.name) || "Hållplats")}</span>${logo}</div>`;
   const foot = `<div class="sf">&nbsp;</div>`;
-  const wrap = inner => `<div class="bus sign fill${pal}">${head}${inner}${foot}</div>`;
+  const z = S.bus.sz || SIGN_DEF, pc = v => (+v || 100) / 100;
+  const vars = `--sgS:${pc(z.size)};--sgH:${pc(z.head)};--sgL:${pc(z.line)};--sgD:${pc(z.dest)};--sgT:${pc(z.time)};--sgB:${pc(z.icon)};--sgP:${pc(z.pad)}`;
+  const wrap = inner => `<div class="bus sign fill${pal}${z.fit === false ? " nofit" : ""}" style="${vars}">${head}${inner}${foot}</div>`;
   if (!b.id) return wrap(`<div class="msg">Välj hållplats under S → När inget spelar.</div>`);
   if (DEP.err) return wrap(`<div class="msg">${DEP.nokey ? "RESROBOT_API_KEY saknas på servern." : esc(DEP.err)}</div>`);
   const now = Date.now();
@@ -2333,7 +2343,7 @@ function homeTile(k){
       <div class="row2">${wxIcon(WX.c, WX.day)}<div><div class="big">${Math.round(WX.t)}°</div><div class="sub">${WX_TEXT(WX.c)}<br>${Math.round(WX.hi)}° / ${Math.round(WX.lo)}°</div></div></div>
       <div class="hrs">${hrs}</div></div>`;
   }
-  if (k === "bus") return `<div class="tile tsign">${renderBus(4)}</div>`;
+  if (k === "bus") return `<div class="tile tsign">${renderBus()}</div>`;
   if (k === "news"){
     const it = NEWS.items; if (!it.length) return `<div class="tile"><div class="h">Nyheter</div><div class="sub">Inga nyheter hämtade.</div></div>`;
     const a = it[BOARD.newsIdx % it.length]; ensureImg(a); SEEN.show("news", newsKey(a));
@@ -2505,7 +2515,8 @@ function wxCramped(el){
   sign.style.fontSize = ""; sign.classList.remove("fill"); sign.style.height = "100%";
   const fs = parseFloat(getComputedStyle(sign).fontSize);
   sign.style.fontSize = (fs * 0.72) + "px";
-  const need = Math.min(4, ul.children.length);
+  const need = Math.min((S.bus.sz && S.bus.sz.rows) || 4, ul.children.length);
+  if (S.bus.sz && S.bus.sz.fit === false) return false;
   let h = 0; for (let i = 0; i < need; i++) h += ul.children[i].getBoundingClientRect().height;
   const cs = getComputedStyle(ul), pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
   const cramped = h + pad > ul.clientHeight + 1;
@@ -2516,7 +2527,8 @@ function wxCramped(el){
 function fitSign(sign){
   const ul = sign.querySelector("ul"); if (!ul) return;
   sign.style.fontSize = ""; sign.classList.remove("fill"); sign.style.height = "100%";
-  const fs = parseFloat(getComputedStyle(sign).fontSize), need = Math.min(4, ul.children.length);
+  if (sign.classList.contains("nofit")){ sign.style.height = ""; sign.classList.add("fill"); return; }
+  const fs = parseFloat(getComputedStyle(sign).fontSize), need = Math.min((S.bus.sz && S.bus.sz.rows) || 4, ul.children.length);
   // Listans egen utfyllnad räknas med, annars kan sista avgången bli några pixlar för hög och plockas bort
   const cs = getComputedStyle(ul), pad = () => parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
   const rowsH = () => { let h = pad(); for (let i = 0; i < need; i++) h += ul.children[i].getBoundingClientRect().height; return h; };
@@ -3565,6 +3577,12 @@ function buildControls(){
   for (const [k, l] of FX_PIC) syncers.push(slider($("#fxPic"), k, l, fxObj, 0, 100, fxChange));
   for (const [k, l] of FX_DIST) syncers.push(slider($("#fxDist"), k, l, fxObj, 0, 100, fxChange));
   syncers.push(slider($("#lookSl"), "titleSize", "Titeltext %", lk, 60, 160, applyLook));
+  const sz = () => S.bus.sz, signRedraw = () => { document.querySelectorAll("#board .pg").forEach(el => { el._h = ""; }); renderBoard(); };
+  for (const [k, l, lo, hi] of [["size","Hela skylten %",50,200],["head","Namnfältet %",50,200],["line","Linjenummer %",50,250],["dest","Destination %",50,250],
+      ["time","Avgångstid %",50,250],["icon","Bussikon %",0,250],["pad","Radavstånd %",30,250],["rows","Antal avgångar",1,10]])
+    syncers.push(slider($("#signSl"), k, l, sz, lo, hi, signRedraw));
+  $("#signFit").addEventListener("change", e => { S.bus.sz.fit = e.target.checked; saveS(); signRedraw(); });
+  $("#signReset").addEventListener("click", () => { S.bus.sz = Object.assign({}, SIGN_DEF); saveS(); syncAll(); signRedraw(); });
   syncers.push(slider($("#lookSl"), "bodySize", "Brödtext %", lk, 60, 160, applyLook));
   syncers.push(slider($("#lookSl"), "size", "Övrig text % (väder/nyheter m.m.)", lk, 60, 160, applyLook));
   syncers.push(slider($("#lookSl"), "edgeSize", "Datum och klocka %", lk, 50, 160, applyLook));
@@ -3671,7 +3689,7 @@ function syncAll(){
   $("#edSteps").checked = !!S.edge.steps; $("#stepsGoal").value = S.edge.stepsGoal;
   $("#edDate").checked = S.edge.date; $("#edWeek").checked = S.edge.week; $("#edClock").checked = S.edge.clock; $("#edWx").checked = S.edge.wx;
   $("#wxPlace").value = S.edge.place;
-  $("#richOnly").checked = S.idle.richOnly !== false;
+  $("#richOnly").checked = S.idle.richOnly !== false; $("#signFit").checked = S.bus.sz.fit !== false;
   $("#idBus").checked = S.bus.on; $("#signOrig").checked = S.bus.signOrig !== false;
   $("#idHome").checked = S.home.on; document.querySelectorAll("#homeSeg button").forEach(b => b.classList.toggle("on", !!S.home[b.dataset.v]));
   $("#idPhoto").checked = S.photo.on; $("#albums").value = S.photo.albums; $("#photoOrig").checked = !!S.photo.orig; $("#idFb").checked = S.idle.fb; $("#fbSrc").value = S.foot.src; $("#fbMins").value = S.foot.mins;
@@ -3736,7 +3754,7 @@ function applyRemoteSettings(ns){
       $("#vizRotSeg").querySelectorAll("input[type=checkbox]").forEach(cb => { cb.checked = !S.vizRot || S.vizRot[cb.dataset.v] !== false; }); });
     // allt som påverkar vad som visas på tavlan: hämta om allt, det är billigt och säkert
     if ([...changed].some(k => !VISUAL_KEYS.has(k))){
-      if (has("bus")) DEP = { items:[], at:0, err:"", nokey:false };
+      if (has("bus") && (!old.bus || old.bus.id !== S.bus.id || old.bus.to !== S.bus.to)) DEP = { items:[], at:0, err:"", nokey:false };
       [loadWeather, loadNews, loadPhotos, loadFootball, loadHockey, loadAikNews, loadPlex, loadDeps, loadSteps].forEach(f => step(f));
       BOARD.until = 0;
     }
