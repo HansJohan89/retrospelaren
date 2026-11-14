@@ -443,6 +443,7 @@ def save_state(patch):
             if patch[k] is None:
                 d.pop(k, None)
             elif k == "settings" and isinstance(patch[k], dict):
+                before = json.dumps(d.get("settings") or {}, sort_keys=True)
                 merged = dict(d.get("settings") or {})
                 for sk, sv in patch[k].items():
                     if sv is None:
@@ -450,8 +451,21 @@ def save_state(patch):
                     else:
                         merged[sk] = sv
                 d["settings"] = merged
+                if json.dumps(merged, sort_keys=True) != before:
+                    d["settingsRev"] = int(d.get("settingsRev") or 0) + 1
             else:
                 d[k] = patch[k]
+        # Ändringar i inställningarna skickas som en djup patch: bara de fält som ändrats,
+        # ner på lägsta nivå. Två skärmar som ändrar olika saker samtidigt skriver då inte
+        # över varandra (det gjorde de när hela objekt skickades).
+        sp = patch.get("settingsPatch")
+        if isinstance(sp, dict) and sp:
+            cur = d.get("settings") or {}
+            before = json.dumps(cur, sort_keys=True)
+            merged = _deep_merge(cur, sp)
+            d["settings"] = merged
+            if json.dumps(merged, sort_keys=True) != before:
+                d["settingsRev"] = int(d.get("settingsRev") or 0) + 1
         try:
             os.makedirs(DATA_DIR, exist_ok=True)
             tmp = STATE_FILE + ".tmp"
@@ -460,7 +474,20 @@ def save_state(patch):
             os.replace(tmp, STATE_FILE)
         except OSError as e:
             return {"ok": False, "error": str(e)}
-    return {"ok": True}
+    return {"ok": True, "settings": d.get("settings") or {}, "settingsRev": int(d.get("settingsRev") or 0)}
+
+
+def _deep_merge(base, patch):
+    """patch: {"$del": true} tar bort fältet, objekt slås ihop rekursivt, allt annat ersätter."""
+    out = dict(base) if isinstance(base, dict) else {}
+    for k, v in patch.items():
+        if isinstance(v, dict) and v.get("$del") is True:
+            out.pop(k, None)
+        elif isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = _deep_merge(out[k], v)
+        else:
+            out[k] = v
+    return out
 
 
 def get_sonos_now():

@@ -728,14 +728,47 @@ const $ = s => document.querySelector(s);
 // Railway-volymen), så de överlever omstarter och är desamma på alla enheter. Spotify-inloggningen
 // stannar i webbläsaren.
 const SHARED = ["settings", "favs", "lastStation"];
-let REMOTE_IN = false;           // sant medan inställningar från en annan skärm läggs in (skickas då inte tillbaka)
-let SRV_SETTINGS = "";            // inställningarna som de senast såg ut på servern
-const remote = { pend:{}, t:0, at:0,
-  push(k, v){ if (REMOTE_IN) return; this.at = Date.now(); this.pend[k] = v === undefined ? null : v; clearTimeout(this.t); this.t = setTimeout(() => this.flush(), 600); },
-  flush(){
-    if (!Object.keys(this.pend).length) return;
-    const body = JSON.stringify(this.pend); this.pend = {}; clearTimeout(this.t);
-    try{ fetch("/api/state", { method:"POST", headers:{ "Content-Type":"application/json" }, body, keepalive:true }).catch(() => {}); }catch(e){}
+// Servern är facit. Alla skärmar visar det som står där; en ändring på en skärm skickas som en
+// djup patch (bara de fält som faktiskt ändrats) så att två skärmar aldrig skriver över varandras
+// ändringar med gamla värden. Efter varje sparning, och var tredje sekund, läggs serverns version in.
+let REMOTE_IN = false;           // sant medan serverns inställningar läggs in (skickas då inte tillbaka)
+let SRV = { rev:-1, settings:null };   // senast kända serverkopia av inställningarna
+const clone = v => v === undefined ? undefined : JSON.parse(JSON.stringify(v));
+const jsonEq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const isObj = v => !!v && typeof v === "object" && !Array.isArray(v);
+function diffDeep(base, cur){
+  if (isObj(base) && isObj(cur)){
+    const out = {}; let n = 0;
+    for (const k of Object.keys(cur)){ if (cur[k] === undefined) continue; const d = diffDeep(base[k], cur[k]); if (d !== undefined){ out[k] = d; n++; } }
+    for (const k of Object.keys(base)) if (cur[k] === undefined){ out[k] = { $del:true }; n++; }
+    return n ? out : undefined;
+  }
+  return jsonEq(base, cur) ? undefined : clone(cur);
+}
+const remote = { pend:{}, t:0, at:0, busy:false,
+  push(k, v){ if (REMOTE_IN) return; this.at = Date.now(); this.pend[k] = v === undefined ? null : v; this.later(500); },
+  later(ms){ clearTimeout(this.t); this.t = setTimeout(() => this.flush(), ms); },
+  async flush(){
+    if (this.busy){ this.later(300); return; }
+    const pend = this.pend, keys = Object.keys(pend); if (!keys.length) return;
+    this.pend = {}; clearTimeout(this.t);
+    const body = {};
+    for (const k of keys){
+      if (k === "settings"){ const d = diffDeep(SRV.settings || {}, pend.settings || {}); if (d) body.settingsPatch = d; }
+      else body[k] = pend[k];
+    }
+    if (!Object.keys(body).length) return;
+    this.busy = true;
+    try{
+      const txt = JSON.stringify(body);
+      const r = await fetch("/api/state", { method:"POST", headers:{ "Content-Type":"application/json" }, body:txt, keepalive: txt.length < 60000 });
+      const j = await r.json(); if (!j.ok) throw new Error(j.error || "fel");
+      if (j.settings){ SRV = { rev:j.settingsRev, settings:j.settings };
+        if (!("settings" in this.pend) && typeof applyRemoteSettings === "function") applyRemoteSettings(j.settings); }
+    }catch(e){
+      keys.forEach(k => { if (!(k in this.pend)) this.pend[k] = pend[k]; });   // försök igen
+      this.later(3000);
+    }finally{ this.busy = false; }
   }
 };
 addEventListener("pagehide", () => remote.flush());
@@ -750,9 +783,9 @@ const store = {
     const x = new XMLHttpRequest(); x.open("GET", "/api/state?t=" + Date.now(), false); x.send();
     if (x.status !== 200) return;
     const srv = JSON.parse(x.responseText || "{}");
-    if (!Object.keys(srv).length){ SHARED.forEach(k => { const v = store.get(k, undefined); if (v !== undefined) remote.push(k, v); }); return; }
+    SRV = { rev: srv.settingsRev || 0, settings: srv.settings || {} };
+    if (!srv.settings){ SHARED.forEach(k => { const v = store.get(k, undefined); if (v !== undefined) remote.push(k, v); }); }
     SHARED.forEach(k => { try{ if (k in srv) localStorage.setItem("rs." + k, JSON.stringify(srv[k])); }catch(e){} });
-    SRV_SETTINGS = JSON.stringify(srv.settings || null);
   }catch(e){}
 })();
 const S = Object.assign({
@@ -2316,7 +2349,7 @@ const imgsOf = node => [...node.querySelectorAll("img")].map(i => i.getAttribute
 async function prepHtml(h){
   const tpl = document.createElement("template"); tpl.innerHTML = h;
   const imgs = [...tpl.content.querySelectorAll("img")].filter(i => i.getAttribute("src"));
-  const ok = await Promise.all(imgs.map(i => preloadImg(i.src)));
+  const ok = await Promise.all(imgs.map(i => Promise.race([preloadImg(i.src), wait(4000).then(() => false)])));   // högst 4 s, sedan visas sidan utan bilden
   imgs.forEach((i, n) => { if (ok[n]) return;
     const art = i.closest(".art"), im = i.closest(".im");
     if (art && im){ im.remove(); art.classList.add("noimg"); } else i.style.visibility = "hidden"; });
@@ -2358,23 +2391,38 @@ function patchNodes(prevNode, newNode, liveNode){
   }
   return true;
 }
-async function setPage(el, h){
-  if (el._h === h) return;
-  el._h = h; const tok = el._tok = (el._tok || 0) + 1;
-  const shown = el.classList.contains("on") && el.style.opacity !== "0" && el.childNodes.length && el._prev;
-  if (!shown) el.style.opacity = "0";                 // en sida som just ska visas: dold tills den är klar
-  const tpl = await prepHtml(h);
-  if (el._tok !== tok) return;
+// Varje sida har en egen arbetare: den bygger alltid den senast begärda versionen och visar den
+// när bilderna är klara. Kommer en ny version medan den förra förbereds visas den förra ändå
+// först (en sida kan aldrig fastna osynlig för att innehållet ändras oftare än det hinner laddas).
+function setPage(el, h){
+  el._want = h;
+  if (el._busy || el._h === h) return;
+  el._busy = true;
+  (async () => {
+    try{
+      while (el._want !== el._h){
+        const want = el._want;
+        let tpl;
+        try{ tpl = await prepHtml(want); }catch(e){ tpl = document.createElement("template"); tpl.innerHTML = want; }
+        showPage(el, tpl);
+        el._h = want;
+      }
+    } finally { el._busy = false; }
+  })();
+}
+function showPage(el, tpl){
   const fresh = tpl.content, keep = fresh.cloneNode(true);
-  if (shown && el._prev && el._prev.childNodes.length === fresh.childNodes.length && el.childNodes.length === fresh.childNodes.length){
+  const visible = el.classList.contains("on") && el._shown && el._prev && el.childNodes.length;
+  if (visible && el._prev.childNodes.length === fresh.childNodes.length && el.childNodes.length === fresh.childNodes.length){
     const live = [...el.childNodes], pv = [...el._prev.childNodes], nw = [...fresh.childNodes];
     for (let i = 0; i < nw.length; i++)
       if (!patchNodes(pv[i], nw[i], live[i])) crossReplace(live[i], nw[i].cloneNode(true));
     el._prev = keep; afterLayout(el); return;
   }
-  if (shown){
+  if (visible){
     // ny uppbyggnad: hela innehållet tonas över
-    const wrapOld = document.createElement("div"); wrapOld.style.cssText = "position:absolute;inset:0;display:flex;flex-direction:column;gap:inherit;pointer-events:none;transition:opacity .6s";
+    const wrapOld = document.createElement("div"); wrapOld.className = "xfOld";
+    wrapOld.style.cssText = "position:absolute;inset:0;display:flex;flex-direction:column;gap:inherit;pointer-events:none;transition:opacity .6s";
     wrapOld.append(...el.childNodes); el.append(wrapOld);
     el.classList.remove("tight"); el.prepend(...fresh.childNodes); el._prev = keep; afterLayout(el);
     requestAnimationFrame(() => requestAnimationFrame(() => { wrapOld.style.opacity = "0"; }));
@@ -2383,8 +2431,14 @@ async function setPage(el, h){
   }
   el.classList.remove("tight"); el.replaceChildren(...fresh.childNodes); el._prev = keep;
   afterLayout(el);
+  revealPage(el);
+}
+// Tona fram en sida som är på och har innehåll
+function revealPage(el){
+  if (!el.classList.contains("on") || !el.childNodes.length) return;
+  el._shown = true;
   el.style.transition = "opacity .6s";
-  requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => { if (el._tok === tok) el.style.opacity = "1"; })));
+  requestAnimationFrame(() => requestAnimationFrame(() => { if (el.classList.contains("on")) el.style.opacity = "1"; }));
 }
 function layoutPage(el, h){
   el.classList.remove("tight"); el.innerHTML = h;
@@ -2464,10 +2518,12 @@ function pageOn(el, on){
   clearTimeout(el._leaveT);
   if (on){
     el.classList.remove("leaving"); el.classList.add("on");
-    if (el.style.opacity !== "0"){ el.style.transition = "none"; el.style.opacity = "0"; void el.offsetWidth; el.style.transition = "opacity .6s";
-      requestAnimationFrame(() => requestAnimationFrame(() => { if (el.classList.contains("on") && !el._loading) el.style.opacity = "1"; })); }
+    el.style.transition = "none"; el.style.opacity = "0"; void el.offsetWidth; el._shown = false;
+    // har sidan redan innehåll som stämmer tonas den fram direkt, annars när arbetaren är klar
+    if (!el._busy && el._h && el._h === el._want) revealPage(el);
   } else {
-    el.classList.remove("on"); el.classList.add("leaving"); el.style.transition = "opacity .6s"; el.style.opacity = "0";
+    el.classList.remove("on"); el.classList.add("leaving"); el._shown = false;
+    el.style.transition = "opacity .6s"; el.style.opacity = "0";
     el._leaveT = setTimeout(() => el.classList.remove("leaving"), 650);
   }
 }
@@ -2501,7 +2557,7 @@ function boardStep(idle, now){
     if (BOARD.page && next !== BOARD.page) channelNoise(380);
     BOARD.page = next; BOARD.until = now + S.idle.secs*1000;
     BOARD.newsUntil = now + S.idle.artSecs*1000;
-    if (next === "news"){ $("#pgNews").innerHTML = ""; $("#pgNews")._h = ""; }
+    if (next === "news"){ const n = $("#pgNews"); if (!n._busy){ n.replaceChildren(); n._h = ""; n._prev = null; } }
     if (next === "hem"){ BOARD.homePhoto = (BOARD.homePhoto || 0) + 1; BOARD.photoUntil = now + S.photo.secs*1000; }
     if (next === "foto"){ showPhoto(); BOARD.photoUntil = now + S.photo.secs*1000; }
     if (next === "wx" && S.bus.on && S.bus.id && Date.now() - DEP.at > 45e3) loadDeps();
@@ -3595,44 +3651,54 @@ document.addEventListener("mousemove", () => { document.body.classList.remove("h
 // ================= inställningar från andra skärmar =================
 // Ändrar man något på sidan på datorn ska skärmen i skåpet följa med direkt, utan att någon
 // behöver röra den. Sidan frågar servern med några sekunders mellanrum och lägger in det nya.
+const VISUAL_KEYS = new Set(["look", "palette", "fx", "crt", "info", "warm", "volume", "viz", "vizRot", "autoChannel",
+  "source", "vizInput", "genre", "clientId", "wakeDevice", "wakePlaylistUri", "wakePlaylistName"]);
 function applyRemoteSettings(ns){
-  const before = {}; Object.keys(Object.assign({}, S, ns)).forEach(k => { before[k] = JSON.stringify(S[k]); });
-  const changed = new Set(Object.keys(before).filter(k => k in ns && JSON.stringify(ns[k]) !== before[k]));
+  if (!isObj(ns)) return;
+  const changed = new Set(Object.keys(ns).filter(k => !jsonEq(ns[k], S[k])));
   if (!changed.size) return;
+  const old = {}; changed.forEach(k => { old[k] = S[k]; });
   REMOTE_IN = true;
   try{
-    changed.forEach(k => { S[k] = ns[k]; });
+    changed.forEach(k => { S[k] = clone(ns[k]); });
     try{ localStorage.setItem("rs.settings", JSON.stringify(S)); }catch(e){}
     const has = (...ks) => ks.some(k => changed.has(k));
-    if (has("look")){ loadFonts(); applyLook(); }
-    if (has("palette")) setPalette(S.palette);
-    if (has("fx", "crt", "palette")) applyFxStatic();
-    if (has("info", "look")) applyInfoVis();
-    if (has("edge", "idle")) loadWeather();
-    if (has("idle")) loadNews();
-    if (has("photo")) loadPhotos();
-    if (has("foot", "idle")){ loadFootball(); loadHockey(); }
-    if (has("sportNews", "idle")) loadAikNews();
-    if (has("bus")){ DEP = { items:[], at:0, err:"", nokey:false }; loadDeps(); }
-    if (has("idle", "home", "photo", "foot", "bus")) BOARD.until = 0;
+    const step = f => { try{ f(); }catch(e){ console.warn("inställning", e); } };
+    if (has("look")) step(() => { loadFonts(); applyLook(); });
+    if (has("palette")) step(() => setPalette(S.palette));
+    if (has("fx", "crt", "palette", "warm", "look")) step(applyFxStatic);
+    step(applyInfoVis);
+    if (has("volume")) step(() => { $("#vol").value = S.volume; if (outGain) outGain.gain.value = S.volume; });
+    if (has("viz")) step(() => channelNoise(420));
+    if (has("source") && state.started) step(() => { const src = S.source; S.source = old.source; setSource(src); });
+    if (has("vizInput")) step(applyVizInput);
+    if (has("genre")) step(() => loadStations(S.genre));
+    step(() => { $("#spClient").value = S.clientId || ""; $("#autoCh").checked = !!S.autoChannel;
+      $("#vizRotSeg").querySelectorAll("input[type=checkbox]").forEach(cb => { cb.checked = !S.vizRot || S.vizRot[cb.dataset.v] !== false; }); });
+    // allt som påverkar vad som visas på tavlan: hämta om allt, det är billigt och säkert
+    if ([...changed].some(k => !VISUAL_KEYS.has(k))){
+      if (has("bus")) DEP = { items:[], at:0, err:"", nokey:false };
+      [loadWeather, loadNews, loadPhotos, loadFootball, loadHockey, loadAikNews, loadPlex, loadDeps, loadSteps].forEach(f => step(f));
+      BOARD.until = 0;
+    }
     document.querySelectorAll("#board .pg").forEach(el => { el._h = ""; });
-    renderBoard(); renderEdges();
-    syncAll();
-    segOn("#vizSeg", String(S.viz)); segOn("#srcSeg", S.source);
+    step(renderBoard); step(renderEdges); step(syncAll);
+    step(() => { segOn("#vizSeg", String(S.viz)); segOn("#srcSeg", S.source); segOn("#vinSeg", S.vizInput); segOn("#genreSeg", S.genre); });
   } finally { REMOTE_IN = false; }
 }
 async function pollSettings(){
   try{
     const srv = await (await fetch("/api/state?t=" + Date.now(), { cache:"no-store" })).json();
-    const js = JSON.stringify(srv.settings || null);
-    if (js === SRV_SETTINGS) return;
-    // nyss ändrat här: vänta tills vår egen ändring har kommit fram till servern
-    if (Object.keys(remote.pend).length || Date.now() - remote.at < 3000) return;
-    SRV_SETTINGS = js;
-    if (srv.settings && typeof srv.settings === "object") applyRemoteSettings(srv.settings);
+    if (!isObj(srv.settings)) return;
+    // egen ändring på väg: vänta, svaret på sparningen lägger in serverns version
+    if (Object.keys(remote.pend).length || remote.busy) return;
+    const rev = srv.settingsRev || 0;
+    if (rev === SRV.rev && jsonEq(srv.settings, SRV.settings)) return;
+    SRV = { rev, settings: srv.settings };
+    applyRemoteSettings(srv.settings);
   }catch(e){}
 }
-setInterval(pollSettings, 4000);
+setInterval(pollSettings, 3000);
 
 // ================= ny version =================
 // När en ny version av sidan har lagts ut laddar sidan om sig själv, så att skärmen i skåpet
@@ -3658,6 +3724,7 @@ function watchVersion(){
 
 // ================= init =================
 (async function init(){
+  saveS();     // fyll i nya standardvärden/omskrivningar på servern, så alla skärmar har exakt samma
   $("#spRedirect").textContent = SP.redirect;
   $("#spClient").value = S.clientId;
   $("#vol").value = S.volume;
