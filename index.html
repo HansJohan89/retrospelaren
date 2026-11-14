@@ -128,6 +128,10 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 .plexTx{flex:1;min-width:0;display:flex;flex-direction:column;gap:1.6vh}
 .plexT{font-family:var(--fT),serif;font-size:2.6em;line-height:1.08}
 .plexM{color:var(--mid);font-size:.85em;letter-spacing:.06em}
+.plexR{display:flex;align-items:center;gap:.45em;font-size:2em;line-height:1}
+.plexR .imdbB{background:#f5c518;color:#000;font-family:Arial,Helvetica,sans-serif;font-weight:900;font-size:.62em;padding:.12em .32em;border-radius:.14em;letter-spacing:-.02em}
+.plexR b{font-weight:700}
+.plexR .of{color:var(--mid);font-size:.5em}
 .plexS{line-height:1.45;display:-webkit-box;-webkit-line-clamp:7;-webkit-box-orient:vertical;overflow:hidden}
 .plexNext{margin-top:auto;display:flex;gap:1.6vh;height:17vh}
 .plexNext img{height:100%;aspect-ratio:2/3;object-fit:cover;opacity:.55;filter:var(--cover-filter);border:1px solid var(--dim)}
@@ -1896,6 +1900,31 @@ function feedList(){
   (S.idle.ownFeeds || []).forEach(f => { if (f && f.url) out.push({ name: f.name || "Egen källa", src: f.name || "Egen källa", url: f.url }); });
   return out;
 }
+// ---------- visat nyligen ----------
+// Varje skärm minns vad den har visat (nyheter, filmer). Det som inte visats kommer först,
+// sedan det som visades för längst sedan, så samma sak inte dyker upp om och om igen.
+const SEEN = { m:{}, t:0,
+  load(ns){ if (!this.m[ns]) this.m[ns] = store.get("seen." + ns, {}); return this.m[ns]; },
+  when(ns, k){ return k ? (this.load(ns)[k] || 0) : 0; },
+  mark(ns, k){
+    if (!k) return; const d = this.load(ns); d[k] = Date.now();
+    const ks = Object.keys(d); if (ks.length > 800) ks.sort((a, b) => d[a] - d[b]).slice(0, ks.length - 800).forEach(x => { delete d[x]; });
+    clearTimeout(this.t); this.t = setTimeout(() => { for (const n in this.m) store.set("seen." + n, this.m[n]); }, 3000);
+  },
+  // det som visas just nu räknas som visat först när det legat framme en stund (inte om sidan byts direkt)
+  cur:{},
+  show(ns, k){ if (k && (!this.cur[ns] || this.cur[ns].k !== k)) this.cur[ns] = { k, at: Date.now() }; },
+  commit(ns){ const c = this.cur[ns]; if (c && Date.now() - c.at > 1500) this.mark(ns, c.k); this.cur[ns] = null; },
+  order(ns, items, key, keepFirst){
+    const d = this.load(ns);
+    const un = items.filter(x => !d[key(x)]), sn = items.filter(x => d[key(x)]).sort((a, b) => d[key(a)] - d[key(b)]);
+    const out = un.concat(sn);
+    if (keepFirst){ const i = out.findIndex(x => key(x) === key(keepFirst)); if (i > 0) out.unshift(out.splice(i, 1)[0]); }
+    return out;
+  }
+};
+const newsKey = a => (a && (a.title || a.link) || "").trim().toLowerCase();
+const plexKey = m => m ? String(m.key || m.title || "") : "";
 async function loadNews(){
   // Vädersidan visar en nyhet från samma flöde, så det hämtas även när bara "Väder i detalj" är på
   // och "Nyheter" som egen sida är avstängd.
@@ -1914,6 +1943,10 @@ async function loadNews(){
   const seen = new Set(), items = [];
   for (let i = 0; items.length < 40 && lists.some(l => i < l.length); i++)
     for (const l of lists){ const x = l[i]; if (!x) continue; const k = (x.title || "").trim().toLowerCase(); if (k && !seen.has(k)){ seen.add(k); items.push(x); } }
+  if (items.length){
+    const old = NEWS.items, cur = old.length && ["news", "wx", "hem"].includes(BOARD.page) ? old[BOARD.newsIdx % old.length] : null;
+    items.splice(0, items.length, ...SEEN.order("news", items, newsKey, cur)); BOARD.newsIdx = 0;
+  }
   if (items.length) NEWS = { items, at:Date.now(), src: [...new Set(res.filter(r => r.items).map(r => r.f.src))].join(", ") };
   const bad = res.filter(r => r.err).map(r => r.f.name);
   $("#newsStatus").textContent = `${items.length} rubriker från ${res.filter(r => r.items).length} av ${feeds.length} flöden, hämtade ${hhmm(new Date())}.` + (bad.length ? " Svarade inte: " + bad.join(", ") + "." : "");
@@ -2053,6 +2086,7 @@ async function ensureImg(x){
 function renderNewsPage(){
   const it = NEWS.items; if (!it.length) return "";
   const cur = BOARD.newsIdx % it.length, a = it[cur];
+  SEEN.show("news", newsKey(a));
   ensureImg(a); ensureImg(it[(cur + 1) % it.length]);
   if (a.img){ const pre = new Image(); pre.src = "/api/img?url=" + encodeURIComponent(a.img); }
   const nx = it[(cur + 1) % it.length]; if (nx.img){ const pre = new Image(); pre.src = "/api/img?url=" + encodeURIComponent(nx.img); }
@@ -2249,18 +2283,22 @@ function renderHkPage(){ return renderSportPage(HOCKEY.ok && HOCKEY.teams[0], "H
 let PLEX = { items:[], total:0, at:0 };
 async function loadPlex(){
   try{ const j = await (await fetch("/api/plex", { cache:"no-store" })).json();
-    if (Array.isArray(j.items)){ PLEX = { items:j.items, total:j.total || j.items.length, at:j.at || 0 };
+    if (Array.isArray(j.items)){
+      const old = PLEX.items, cur = old.length && BOARD.page === "plex" ? old[(BOARD.plexIdx || 0) % old.length] : null;
+      PLEX = { items: SEEN.order("plex", j.items, plexKey, cur), total:j.total || j.items.length, at:j.at || 0 }; BOARD.plexIdx = 0;
       const st = $("#plexStatus"); if (st) st.textContent = PLEX.items.length ? `${PLEX.total} osedda filmer i Plex.` : (j.error || "Inga filmtips än."); } }catch(e){}
 }
 function plexDur(m){ if (!m) return ""; const h = Math.floor(m / 60), mm = m % 60; return h ? `${h} h ${mm} min` : `${mm} min`; }
 function renderPlexPage(){
   const it = PLEX.items; if (!it.length) return "";
   const i = (BOARD.plexIdx || 0) % it.length, m = it[i];
-  const meta = [m.year, plexDur(m.minutes), (m.genres || []).join(", "), m.rating ? "★ " + Number(m.rating).toFixed(1) : ""].filter(Boolean).join("  ·  ");
+  SEEN.show("plex", plexKey(m));
+  const meta = [m.year, plexDur(m.minutes), (m.genres || []).join(", "), m.imdb == null && m.rating ? "★ " + Number(m.rating).toFixed(1) : ""].filter(Boolean).join("  ·  ");
+  const imdb = m.imdb != null ? `<div class="plexR"><span class="imdbB">IMDb</span><b>${Number(m.imdb).toFixed(1).replace(".", ",")}</b><span class="of">/ 10</span></div>` : "";
   const next = [1, 2, 3, 4, 5].map(k => it[(i + k) % it.length]).filter((x, k) => it.length > k + 1);
   return `<div class="kick"><span>Filmtips · osedda i Plex</span><span>${i + 1} / ${it.length}</span></div>
     <div class="plexMain">${m.poster ? `<img class="plexPoster" src="${esc(m.poster)}" alt="">` : ""}
-      <div class="plexTx"><div class="plexT">${esc(m.title)}</div><div class="plexM">${esc(meta)}</div>
+      <div class="plexTx"><div class="plexT">${esc(m.title)}</div>${imdb}<div class="plexM">${esc(meta)}</div>
         ${m.director ? `<div class="plexM">Regi: ${esc(m.director)}</div>` : ""}<div class="plexS">${esc(m.summary)}</div>
         ${next.length ? `<div class="plexNext">${next.map(n => n.poster ? `<img src="${esc(n.poster)}" alt="">` : "").join("")}</div>` : ""}</div></div>`;
 }
@@ -2283,7 +2321,7 @@ function homeTile(k){
   if (k === "bus") return `<div class="tile tsign">${renderBus(4)}</div>`;
   if (k === "news"){
     const it = NEWS.items; if (!it.length) return `<div class="tile"><div class="h">Nyheter</div><div class="sub">Inga nyheter hämtade.</div></div>`;
-    const a = it[BOARD.newsIdx % it.length]; ensureImg(a);
+    const a = it[BOARD.newsIdx % it.length]; ensureImg(a); SEEN.show("news", newsKey(a));
     return `<div class="tile"><div class="h">${esc(a.src || NEWS.src)}${a.date ? " · " + hhmm(new Date(a.date)) : ""}</div>
       <div class="nw">${a.img ? `<img src="/api/img?url=${encodeURIComponent(a.img)}" alt="" onerror="this.remove()">` : ""}<div class="t2">${esc(a.title)}</div></div></div>`;
   }
@@ -2555,8 +2593,12 @@ function boardStep(idle, now){
     BOARD.idx = (BOARD.idx + 1) % pages.length;
     const next = pages[BOARD.idx];
     if (BOARD.page && next !== BOARD.page) channelNoise(380);
+    SEEN.commit("news"); SEEN.commit("plex");
     BOARD.page = next; BOARD.until = now + S.idle.secs*1000;
     BOARD.newsUntil = now + S.idle.artSecs*1000;
+    // det som visades förra gången sidan var framme hoppas över
+    if (["news", "wx", "hem"].includes(next) && NEWS.items.length && SEEN.when("news", newsKey(NEWS.items[BOARD.newsIdx % NEWS.items.length]))) BOARD.newsIdx++;
+    if (next === "plex" && PLEX.items.length && SEEN.when("plex", plexKey(PLEX.items[(BOARD.plexIdx || 0) % PLEX.items.length]))) BOARD.plexIdx = (BOARD.plexIdx || 0) + 1;
     if (next === "news"){ const n = $("#pgNews"); if (!n._busy){ n.replaceChildren(); n._h = ""; n._prev = null; } }
     if (next === "hem"){ BOARD.homePhoto = (BOARD.homePhoto || 0) + 1; BOARD.photoUntil = now + S.photo.secs*1000; }
     if (next === "foto"){ showPhoto(); BOARD.photoUntil = now + S.photo.secs*1000; }
@@ -2564,10 +2606,10 @@ function boardStep(idle, now){
     renderBoard(); renderEdges();
   }
   if (BOARD.page === "foto" && now > BOARD.photoUntil){ showPhoto(); BOARD.photoUntil = now + S.photo.secs*1000; }
-  if (BOARD.page === "hem" && now > BOARD.newsUntil){ BOARD.newsIdx++; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
+  if (BOARD.page === "hem" && now > BOARD.newsUntil){ SEEN.commit("news"); BOARD.newsIdx++; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
   if (BOARD.page === "hem" && S.home.photo && now > BOARD.photoUntil){ BOARD.homePhoto = (BOARD.homePhoto || 0) + 1; BOARD.photoUntil = now + S.photo.secs*1000; renderBoard(); }
-  if ((BOARD.page === "news" || BOARD.page === "wx") && now > BOARD.newsUntil){ BOARD.newsIdx++; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
-  if (BOARD.page === "plex" && now > BOARD.newsUntil){ BOARD.plexIdx = (BOARD.plexIdx || 0) + 1; BOARD.newsUntil = now + Math.max(S.idle.artSecs, 12)*1000; renderBoard(); }
+  if ((BOARD.page === "news" || BOARD.page === "wx") && now > BOARD.newsUntil){ SEEN.commit("news"); BOARD.newsIdx++; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
+  if (BOARD.page === "plex" && now > BOARD.newsUntil){ SEEN.commit("plex"); BOARD.plexIdx = (BOARD.plexIdx || 0) + 1; BOARD.newsUntil = now + Math.max(S.idle.artSecs, 12)*1000; renderBoard(); }
   if (BOARD.page === "fotboll" && now > BOARD.newsUntil){ BOARD.fbNewsIdx = (BOARD.fbNewsIdx || 0) + 1; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
   if (BOARD.page === "hockey" && now > BOARD.newsUntil){ BOARD.hkNewsIdx = (BOARD.hkNewsIdx || 0) + 1; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
   return BOARD.page;

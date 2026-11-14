@@ -261,7 +261,7 @@ def plex_base():
 
 
 def plex_list():
-    """Osedda filmer, hälften de senast tillagda och resten slumpade. Sparas en halvtimme."""
+    """Alla osedda filmer (högst 300), senast tillagda först. Sparas en halvtimme."""
     import random
     with PLEX_LOCK:
         if PLEX_STATE["list"] is not None and time.time() - PLEX_STATE["list_at"] < 1800:
@@ -278,18 +278,67 @@ def plex_list():
                     if not m.get("viewCount") and not m.get("viewOffset"):
                         movies.append(m)
         movies.sort(key=lambda m: m.get("addedAt") or 0, reverse=True)
-        n = 40
-        pick = movies[:n // 2]
-        rest = movies[n // 2:]
-        pick += random.sample(rest, min(len(rest), n - len(pick)))
+        # Hela listan skickas (nyast först); sidan själv håller reda på vad som redan visats.
+        pick = movies[:300]
+        for m in pick:
+            v = _imdb_of(m)
+            if v is None:
+                v = PLEX_IMDB.get(str(m.get("ratingKey") or ""))
+            m["_imdb"] = round(v, 1) if v is not None else None
         img = lambda p, w, h: ("/api/plex-img?w=%d&h=%d&p=%s" % (w, h, urllib.parse.quote(p, safe=""))) if p else ""
         items = [{"title": m.get("title") or "", "year": m.get("year"), "summary": m.get("summary") or "",
                   "minutes": round((m.get("duration") or 0) / 60000), "rating": m.get("audienceRating") or m.get("rating"),
+                  "imdb": m.get("_imdb"), "key": str(m.get("ratingKey") or ""),
                   "genres": [g.get("tag") for g in (m.get("Genre") or [])][:3],
                   "director": ", ".join(d.get("tag") for d in (m.get("Director") or [])[:1]),
                   "added": m.get("addedAt"), "poster": img(m.get("thumb"), 400, 600), "art": img(m.get("art"), 960, 540)} for m in pick]
         PLEX_STATE.update(list={"items": items, "total": len(movies), "at": time.time(), "src": "server"}, list_at=time.time(), err="")
+        # IMDb-betyg som inte fanns i listan hämtas film för film i bakgrunden och fylls i efterhand
+        missing = [(m, it) for m, it in zip(pick, items) if it["imdb"] is None and str(m.get("ratingKey") or "") not in PLEX_IMDB]
+        if missing:
+            def bg():
+                _imdb_fill(base, [m for m, _ in missing])
+                for m, it in missing:
+                    it["imdb"] = m.get("_imdb")
+            __import__("threading").Thread(target=bg, daemon=True).start()
         return PLEX_STATE["list"]
+PLEX_IMDB = {}     # ratingKey -> IMDb-betyg (eller None), sparas så varje film bara frågas en gång
+
+
+def _imdb_of(m):
+    """IMDb-betyget ur Plex-metadata: Rating-listan, eller audienceRating/rating om bilden säger imdb."""
+    for r in m.get("Rating") or []:
+        if str(r.get("image", "")).startswith("imdb://") and r.get("value") is not None:
+            return float(r["value"])
+    for v, im in (("audienceRating", "audienceRatingImage"), ("rating", "ratingImage")):
+        if m.get(v) is not None and str(m.get(im, "")).startswith("imdb://"):
+            return float(m[v])
+    return None
+
+
+def _imdb_fill(base, movies):
+    from concurrent.futures import ThreadPoolExecutor
+
+    def one(m):
+        k = str(m.get("ratingKey") or "")
+        v = _imdb_of(m)
+        if v is None and k:
+            if k in PLEX_IMDB:
+                v = PLEX_IMDB[k]
+            else:
+                try:
+                    with _plex_open(base + "/library/metadata/" + k, timeout=10) as r:
+                        md = ((json.loads(r.read().decode("utf-8")).get("MediaContainer") or {}).get("Metadata") or [{}])[0]
+                    v = _imdb_of(md)
+                    PLEX_IMDB[k] = v
+                except Exception:
+                    v = None
+        m["_imdb"] = round(v, 1) if v is not None else None
+
+    with ThreadPoolExecutor(8) as ex:
+        list(ex.map(one, movies))
+
+
 SONOS_ART_LOCK = __import__("threading").Lock()
 
 
