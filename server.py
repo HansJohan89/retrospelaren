@@ -63,6 +63,8 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 UA = "Retrospelaren/1.0"
+# en del tidningar (DN) svarar bara vanliga webbläsare
+BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
 RADIO_MIRRORS = [
     "https://de1.api.radio-browser.info",
     "https://fi1.api.radio-browser.info",
@@ -828,7 +830,7 @@ def og_fetch(url):
         return cached if isinstance(cached, dict) else {"img": cached, "desc": ""}
     img = desc = ""
     try:
-        with open_url(url, timeout=7) as r:
+        with open_url(url, {"User-Agent": BROWSER_UA}, timeout=7) as r:
             page = r.read(600 * 1024).decode("utf-8", "ignore")
         for pat in (r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)',
                     r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']',
@@ -1227,7 +1229,7 @@ class Handler(SimpleHTTPRequestHandler):
         if not url.startswith(("http://", "https://")):
             return self._json({"error": "ogiltig url"}, 400)
         try:
-            with open_url(url, {"Accept": "application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.9, */*;q=0.5"}, timeout=10) as r:
+            with open_url(url, {"User-Agent": BROWSER_UA, "Accept": "application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.9, */*;q=0.5"}, timeout=10) as r:
                 raw = r.read(3 * 1024 * 1024)
             root = ET.fromstring(raw)
         except Exception as e:
