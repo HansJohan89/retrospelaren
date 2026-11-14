@@ -39,7 +39,7 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 /* highlights: ett klipp över hela bilden (under bildrörets effekter) */
 #hl{position:absolute;inset:0;z-index:4;background:#000;display:none;opacity:0;transition:opacity .6s}
 #hl.on{display:block}#hl.show{opacity:1}
-#hl video,#hl iframe{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:contain;background:#000}
+#hl video,#hl iframe{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:contain;background:#000;filter:saturate(var(--vsat,1))}
 #hl .cap{position:absolute;left:5%;top:5%;right:5%;z-index:2;font-family:var(--fT),serif;font-size:4.2vh;color:#fff;text-shadow:0 0 1.2vh #000,0 0 .3vh #000;transition:opacity 1.2s;pointer-events:none}
 #hl .cap small{display:block;font-family:var(--fB),monospace;font-size:.5em;letter-spacing:.25em;text-transform:uppercase;opacity:.85;margin-bottom:.6vh}
 #hl .cap.gone{opacity:0}
@@ -814,9 +814,9 @@ const S = Object.assign({
   vizInput: "sim", clientId: "", genre: "tag=60s", volume: 0.8,
   wakeDevice: "Tavlan", wakePlaylistUri: "", wakePlaylistName: ""
 }, store.get("settings", {}));
-const FX_DEF = { bright:50, contrast:55, blur:15, persist:20, curve:50, vignette:55, glare:40, scan:45,
+const FX_DEF = { bright:50, contrast:55, sat:50, vsat:50, blur:15, persist:20, curve:50, vignette:55, glare:40, scan:45,
   flicker:20, snow:6, hum:18, jitter:8, wobble:0, roll:8, interf:12, ghost:8, chroma:0 };
-const FX_PIC = [["bright","Ljusstyrka"],["contrast","Kontrast"],["blur","Mjukhet"],["persist","Efterglöd"],["curve","Välvning"],
+const FX_PIC = [["bright","Ljusstyrka"],["contrast","Kontrast"],["sat","Färgmättnad"],["vsat","Färgmättnad, klipp och sändningar"],["blur","Mjukhet"],["persist","Efterglöd"],["curve","Välvning"],
   ["vignette","Vinjett"],["glare","Glasreflex"],["scan","Linjer"]];
 const FX_DIST = [["flicker","Flimmer"],["snow","Snö (brus)"],["hum","Brumband"],["jitter","Skakning"],["wobble","Vågiga linjer"],
   ["roll","Bildrullning"],["interf","Tillfälliga störningar"],["ghost","Spökbild"],["chroma","Färgfransar"]];
@@ -1084,7 +1084,15 @@ function glow(c, b){ ctx.shadowColor = c; ctx.shadowBlur = b*DPR; }
 // fx=0 i adressen: alla skärmeffekter av (för att mäta vad de kostar på Pi:n)
 const FX_OFF = new URLSearchParams(location.search).get("fx") === "0";
 const FX_ZERO = new Set();       // effekter som tillfälligt är avstängda (prestandatestet ?bench=1)
-const fxv = k => FX_OFF || FX_ZERO.has(k) || FX_ZERO.has("alla") ? (k === "bright" || k === "contrast" ? 0.5 : 0) : (S.fx[k] || 0)/100;
+const FX_MID = new Set(["bright", "contrast", "sat", "vsat"]);      // reglage där mitten (50) är neutralt
+const fxv = k => FX_OFF || FX_ZERO.has(k) || FX_ZERO.has("alla") ? (FX_MID.has(k) ? 0.5 : 0) : (S.fx[k] ?? (FX_MID.has(k) ? 50 : 0))/100;
+// Färgmättnad: 50 = som färgläget är gjort, 0 = svartvitt, 100 = dubbelt så starkt
+const satK = () => fxv("sat") * 2, vsatK = () => fxv("vsat") * 2;
+function satHex(hex, k){
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(hex || "")); if (!m || Math.abs(k - 1) < 0.01) return hex;
+  const c = [1, 2, 3].map(i => parseInt(m[i], 16)), L = 0.299*c[0] + 0.587*c[1] + 0.114*c[2];
+  return "#" + c.map(v => Math.round(Math.max(0, Math.min(255, L + (v - L) * k))).toString(16).padStart(2, "0")).join("");
+}
 const persistK = () => 1 - fxv("persist")*0.85;          // hur mycket av förra bilden som suddas
 function clearBg(){ fade(Math.min(1, persistK()*1.05)); }
 
@@ -1536,6 +1544,9 @@ const FX = { burst:0, burstUntil:0, burstKind:"", roll:0, rollStart:0, rollDur:0
 
 function applyFxStatic(){
   const v = fxv, r = document.documentElement.style;
+  // färgmättnaden ändrar färglägets färger och bildernas filter: räknas om när den ändras
+  if (applyFxStatic.sat !== undefined && Math.abs(applyFxStatic.sat - satK()) > 0.001){ setPalette(S.palette); return; }
+  r.setProperty("--vsat", (satK() * vsatK()).toFixed(3));
   r.setProperty("--scan", (v("scan")*0.55).toFixed(3));
   r.setProperty("--vig", (v("vignette")*0.95).toFixed(3));
   r.setProperty("--glare", (v("glare")*0.16).toFixed(3));
@@ -2870,7 +2881,7 @@ function accentFrom(img){
       const r=d[i],g=d[i+1],b=d[i+2], mx=Math.max(r,g,b), mn=Math.min(r,g,b), sat = mx ? (mx-mn)/mx : 0, sc = sat*(mx/255);
       if (sc > bs && mx > 90){ bs = sc; best = [r,g,b]; }
     }
-    P.accent = best && bs > 0.25 ? toHex(...best) : base.accent;
+    P.accent = satHex(best && bs > 0.25 ? toHex(...best) : base.accent, satK());
   }catch(e){ P.accent = base.accent; }
 }
 
@@ -3316,9 +3327,11 @@ function setViz(n, noisy){
 function setPalette(name){
   if (!PALETTES[name]) return;
   S.palette = name; saveS(); P = Object.assign({}, PALETTES[name]);
+  const sk = satK(); applyFxStatic.sat = sk;
+  for (const k of Object.keys(P)) if (k !== "cover" && typeof P[k] === "string" && P[k][0] === "#") P[k] = satHex(P[k], sk);
   const r = document.documentElement.style;
   for (const k of ["bg","ink","mid","dim","accent"]) r.setProperty("--" + k, P[k]);
-  r.setProperty("--cover-filter", P.cover);
+  r.setProperty("--cover-filter", P.cover + (Math.abs(sk - 1) > 0.01 ? ` saturate(${sk.toFixed(2)})` : ""));
   segOn("#palSeg", name);
   if (name === "farg" && elCov.src) accentFrom(elCov);
   ctx.fillStyle = P.bg; ctx.fillRect(0,0,W,H);
@@ -3417,6 +3430,7 @@ function runCmd(c){
   else if (c.startsWith("palette:")) setPalette(c.slice(8));
   else if (c.startsWith("page:")) showIdlePage(c.slice(5));
   else if (c.startsWith("hl:")) showHighlights(c.slice(3));
+  else if (c.startsWith("svt:")) showSvtProgram(c.slice(4));
   else if (c.startsWith("sp:")){ try { spDeck(JSON.parse(c.slice(3))); } catch(e){} }
   else if (c.startsWith("screen:")){ try { runScreen(JSON.parse(c.slice(7))); } catch(e){} }
 }
@@ -3822,8 +3836,19 @@ setInterval(pollSettings, 3000);
 const HL = { on:false, hls:null, t:0, wasBlank:false, item:null };
 const hlTeam = () => ((S.sportNews && S.sportNews.fb && S.sportNews.fb.must) || "AIK").split(",")[0].trim() || "AIK";
 function loadScript(src){ return new Promise((res, rej) => { const el = document.createElement("script"); el.src = src; el.onload = res; el.onerror = rej; document.head.append(el); }); }
+// Senaste sändningen av ett SVT-program (svt:rapport, svt:sportnytt …), i samma spelare
+async function showSvtProgram(prog){
+  if (prog === "stop" || (HL.on && HL.prog === prog)) return hideHighlights();
+  osd("Hämtar " + prog + "…");
+  let d;
+  try { d = await (await fetch("/api/svtlatest?p=" + encodeURIComponent(prog), { cache:"no-store" })).json(); }
+  catch(e){ osd("SVT Play svarar inte"); return; }
+  if (!d.item){ osd(d.error || "Inget avsnitt hittades"); return; }
+  await playItem(d.item, prog);
+}
 async function showHighlights(which){
   if (which === "stop" || (which === "toggle" && HL.on)) return hideHighlights();
+  if (HL.on && HL.prog === "hl") return hideHighlights();
   osd("Hämtar höjdpunkter…");
   let d;
   try { d = await (await fetch("/api/highlights?team=" + encodeURIComponent(hlTeam()), { cache:"no-store" })).json(); }
@@ -3832,9 +3857,12 @@ async function showHighlights(which){
   // visas bara med knappen "Highlights, hockey"
   const it = which === "fb" ? d.fb : which === "hk" ? d.hk : d.fb;
   if (!it){ osd(which === "fb" ? "Inga fotbollshöjdpunkter just nu" : which === "hk" ? "Inga hockeyhöjdpunkter just nu" : "Inga höjdpunkter just nu"); return; }
+  await playItem(it, "hl");
+}
+async function playItem(it, prog){
   hideHighlights(true);
   const el = $("#hl"); el.innerHTML = "";
-  HL.on = true; HL.item = it; HL.wasBlank = state.blanked;
+  HL.on = true; HL.item = it; HL.prog = prog; HL.wasBlank = state.blanked;
   if (state.blanked){ $("#blank").classList.remove("on"); state.blanked = false; }
   el.append(Object.assign(document.createElement("div"), { className:"cap", innerHTML: `<small>${esc(it.program || "Höjdpunkter")}</small>${esc(it.title)}` }));
   setTimeout(() => { const c = el.querySelector(".cap"); if (c) c.classList.add("gone"); }, 6000);

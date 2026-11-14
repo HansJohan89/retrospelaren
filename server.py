@@ -863,6 +863,54 @@ def shrink_image(data, ctype, maxw):
         return data, ctype
 
 
+SVT_LATEST = {}
+
+
+def svt_latest(prog):
+    """Senaste färdigsända avsnittet av ett program på SVT Play (t.ex. rapport, sportnytt).
+    Programsidan listar avsnitten nyast först; ett avsnitt räknas när det har sänts klart."""
+    import re
+    from datetime import datetime, timezone
+    prog = re.sub(r"[^a-z0-9-]", "", prog.lower())[:60] or "rapport"
+    hit = SVT_LATEST.get(prog)
+    if hit and time.time() - hit[0] < 120:
+        return hit[1]
+    out = {"item": None, "error": ""}
+    try:
+        with open_url("https://www.svtplay.se/" + prog, {"User-Agent": BROWSER_UA}, timeout=12) as r:
+            page = r.read(4 * 1024 * 1024).decode("utf-8", "ignore")
+        ids = []
+        for vid in re.findall(r"/video/(\w+)/" + re.escape(prog) + r"\b", page):
+            if vid not in ids:
+                ids.append(vid)
+        now = datetime.now(timezone.utc)
+        best = None
+        for vid in ids[:6]:
+            try:
+                j = _get_json("https://api.svt.se/video/" + vid, timeout=10)
+            except Exception:
+                continue
+            frm = (j.get("rights") or {}).get("validFrom") or ""
+            try:
+                start = datetime.fromisoformat(frm)
+            except ValueError:
+                continue
+            secs = j.get("contentDuration") or 0
+            if (now - start).total_seconds() < secs + 60:      # sänds fortfarande, eller inte börjat
+                continue
+            item = {"src": "svt", "id": vid, "title": j.get("episodeTitle") or "", "program": j.get("programTitle") or prog,
+                    "at": frm, "secs": secs}
+            if best is None or item["at"] > best["at"]:
+                best = item
+        out["item"] = best
+        if not best:
+            out["error"] = "Hittar inget sänt avsnitt av %s på SVT Play." % prog
+    except Exception as e:
+        out["error"] = "SVT Play: %s" % e
+    SVT_LATEST[prog] = (time.time(), out)
+    return out
+
+
 HL_CACHE = {}
 HL_YT_HOCKEY = "UCXwGjjrSiyHPTHXJlvYrEtQ"     # HockeyAllsvenskans egen YouTube-kanal (highlights efter varje match)
 
@@ -1097,6 +1145,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json(get_sonos_now())
             if path == "/api/sonos-art":
                 return self._sonos_art(q.get("v", [""])[0])
+            if path == "/api/svtlatest":
+                return self._json(svt_latest(q.get("p", ["rapport"])[0] or "rapport"))
             if path == "/api/highlights":
                 return self._json(highlights(q.get("team", ["AIK"])[0] or "AIK", q.get("fresh", [""])[0] == "1"))
             if path == "/api/plex":
