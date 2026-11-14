@@ -123,6 +123,14 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #board .pg{position:absolute;inset:0;display:none;flex-direction:column;gap:3vh}
 #board .pg.on{display:flex}
 #board .pg.leaving{display:flex;pointer-events:none}
+.plexMain{flex:1;min-height:0;display:flex;gap:4.5vh;align-items:stretch}
+.plexPoster{height:100%;max-height:68vh;aspect-ratio:2/3;object-fit:cover;border:max(2px,.3vh) solid var(--mid);filter:var(--cover-filter);flex:none}
+.plexTx{flex:1;min-width:0;display:flex;flex-direction:column;gap:1.6vh}
+.plexT{font-family:var(--fT),serif;font-size:2.6em;line-height:1.08}
+.plexM{color:var(--mid);font-size:.85em;letter-spacing:.06em}
+.plexS{line-height:1.45;display:-webkit-box;-webkit-line-clamp:7;-webkit-box-orient:vertical;overflow:hidden}
+.plexNext{margin-top:auto;display:flex;gap:1.6vh;height:17vh}
+.plexNext img{height:100%;aspect-ratio:2/3;object-fit:cover;opacity:.55;filter:var(--cover-filter);border:1px solid var(--dim)}
 #board .kick{font-size:.8em;letter-spacing:.35em;text-transform:uppercase;color:var(--mid);display:flex;justify-content:space-between;gap:2vh;
   border-bottom:max(1px,.2vh) solid var(--dim);padding-bottom:1vh;white-space:nowrap;overflow:hidden}
 .wxNow{display:flex;align-items:center;gap:3vh}
@@ -461,7 +469,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <div id="queue"></div>
       <div id="dial"><canvas id="dialC"></canvas></div>
       <div id="photo"></div>
-      <div id="board"><div class="pg" id="pgWx"></div><div class="pg" id="pgNews"></div><div class="pg" id="pgFb"></div><div class="pg" id="pgHk"></div><div class="pg" id="pgHome"></div></div>
+      <div id="board"><div class="pg" id="pgWx"></div><div class="pg" id="pgNews"></div><div class="pg" id="pgFb"></div><div class="pg" id="pgHk"></div><div class="pg" id="pgHome"></div><div class="pg" id="pgPlex"></div></div>
       <div id="osd"></div>
     </div></div>
     <div id="hum"></div>
@@ -663,6 +671,8 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <div class="note" id="fbStatus"></div>
       <div class="note" id="hkStatus"></div>
       <div id="sportNewsCfg"></div>
+      <label class="chk"><input type="checkbox" id="idPlex"> Filmtips från Plex (osedda filmer)</label>
+      <div class="note" id="plexStatus"></div>
       <label class="chk"><input type="checkbox" id="idTest"> Testbild</label>
       <div id="idleSl"></div>
       <div class="lbl" style="margin-top:12px">Nyhetskällor (kryssa i så många du vill)</div>
@@ -1844,6 +1854,7 @@ function idlePages(){
   if (S.photo.on && PHOTOS.urls.length) p.push("foto");
   if (S.idle.fb && FOOT.ok) p.push("fotboll");
   if (S.idle.fb && HOCKEY.ok) p.push("hockey");
+  if (S.idle.plex && PLEX.items.length) p.push("plex");
   if (S.idle.test || !p.length) p.push("test");
   return p;
 }
@@ -2200,6 +2211,27 @@ function renderSportPage(T, label, newsKey){
 function renderFbPage(){ return renderSportPage(FOOT.ok && FOOT.teams[0], "Fotboll", "fb"); }
 function renderHkPage(){ return renderSportPage(HOCKEY.ok && HOCKEY.teams[0], "Hockey", "hk"); }
 
+// ---------- filmtips från Plex ----------
+// Hubben på Pi:n hämtar osedda filmer från Plex-servern hemma och lägger upp dem på servern.
+let PLEX = { items:[], total:0, at:0 };
+async function loadPlex(){
+  try{ const j = await (await fetch("/api/plex", { cache:"no-store" })).json();
+    if (Array.isArray(j.items)){ PLEX = { items:j.items, total:j.total || j.items.length, at:j.at || 0 };
+      const st = $("#plexStatus"); if (st) st.textContent = PLEX.items.length ? `${PLEX.total} osedda filmer i Plex.` : "Inga filmtips än. Hubben på Pi:n behöver Plex-uppgifter i hub_config.json."; } }catch(e){}
+}
+function plexDur(m){ if (!m) return ""; const h = Math.floor(m / 60), mm = m % 60; return h ? `${h} h ${mm} min` : `${mm} min`; }
+function renderPlexPage(){
+  const it = PLEX.items; if (!it.length) return "";
+  const i = (BOARD.plexIdx || 0) % it.length, m = it[i];
+  const meta = [m.year, plexDur(m.minutes), (m.genres || []).join(", "), m.rating ? "★ " + Number(m.rating).toFixed(1) : ""].filter(Boolean).join("  ·  ");
+  const next = [1, 2, 3, 4, 5].map(k => it[(i + k) % it.length]).filter((x, k) => it.length > k + 1);
+  return `<div class="kick"><span>Filmtips · osedda i Plex</span><span>${i + 1} / ${it.length}</span></div>
+    <div class="plexMain">${m.poster ? `<img class="plexPoster" src="${esc(m.poster)}" alt="">` : ""}
+      <div class="plexTx"><div class="plexT">${esc(m.title)}</div><div class="plexM">${esc(meta)}</div>
+        ${m.director ? `<div class="plexM">Regi: ${esc(m.director)}</div>` : ""}<div class="plexS">${esc(m.summary)}</div>
+        ${next.length ? `<div class="plexNext">${next.map(n => n.poster ? `<img src="${esc(n.poster)}" alt="">` : "").join("")}</div>` : ""}</div></div>`;
+}
+
 // ---------- hemskärm: valbara rutor ----------
 const HOME_TILES = ["clock", "wx", "bus", "news", "aik", "photo"];
 function homeTile(k){
@@ -2445,6 +2477,9 @@ function renderBoard(){
   const fb = $("#pgFb"), hk = $("#pgHk");
   if (BOARD.page === "fotboll") setPage(fb, renderFbPage());
   if (BOARD.page === "hockey") setPage(hk, renderHkPage());
+  const px = $("#pgPlex");
+  if (BOARD.page === "plex") setPage(px, renderPlexPage());
+  pageOn(px, BOARD.page === "plex");
   const hm = $("#pgHome");
   if (BOARD.page === "hem") setPage(hm, renderHomePage());
   pageOn(hm, BOARD.page === "hem");
@@ -2453,7 +2488,7 @@ function renderBoard(){
   $("#photo").classList.toggle("on", BOARD.page === "foto");
   $("#photo").classList.toggle("orig", !!S.photo.orig);
   pageOn(wx, BOARD.page === "wx"); pageOn(nw, BOARD.page === "news");
-  $("#board").classList.toggle("on", ["wx", "news", "fotboll", "hockey", "hem"].includes(BOARD.page));
+  $("#board").classList.toggle("on", ["wx", "news", "fotboll", "hockey", "hem", "plex"].includes(BOARD.page));
 }
 // körs varje bildruta; returnerar vilken sida som ska visas just nu ("" när musik spelar)
 function boardStep(idle, now){
@@ -2475,6 +2510,7 @@ function boardStep(idle, now){
   if (BOARD.page === "hem" && now > BOARD.newsUntil){ BOARD.newsIdx++; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
   if (BOARD.page === "hem" && S.home.photo && now > BOARD.photoUntil){ BOARD.homePhoto = (BOARD.homePhoto || 0) + 1; BOARD.photoUntil = now + S.photo.secs*1000; renderBoard(); }
   if ((BOARD.page === "news" || BOARD.page === "wx") && now > BOARD.newsUntil){ BOARD.newsIdx++; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
+  if (BOARD.page === "plex" && now > BOARD.newsUntil){ BOARD.plexIdx = (BOARD.plexIdx || 0) + 1; BOARD.newsUntil = now + Math.max(S.idle.artSecs, 12)*1000; renderBoard(); }
   if (BOARD.page === "fotboll" && now > BOARD.newsUntil){ BOARD.fbNewsIdx = (BOARD.fbNewsIdx || 0) + 1; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
   if (BOARD.page === "hockey" && now > BOARD.newsUntil){ BOARD.hkNewsIdx = (BOARD.hkNewsIdx || 0) + 1; BOARD.newsUntil = now + S.idle.artSecs*1000; renderBoard(); }
   return BOARD.page;
@@ -3466,7 +3502,7 @@ function buildControls(){
   $("#busQ").addEventListener("keydown", e => { if (e.key === "Enter") $("#busBtn").click(); });
   $("#busSel").addEventListener("change", e => { const o = e.target.selectedOptions[0]; if (!o || !o.value) return;
     S.bus.id = o.value; S.bus.name = o.textContent; saveS(); DEP = { items:[], at:0, err:"", nokey:false }; loadDeps(); });
-  for (const [id, key] of [["#idWx","wx"],["#idNews","news"],["#idTest","test"]])
+  for (const [id, key] of [["#idWx","wx"],["#idNews","news"],["#idTest","test"],["#idPlex","plex"]])
     $(id).addEventListener("change", e => { S.idle[key] = e.target.checked; saveS(); BOARD.until = 0;
       if (key === "wx") loadWeather(); if (key === "news" || key === "wx") loadNews(); });
   // nyhetskällor: en grupp per källa med kryssrutor för kategorierna
@@ -3525,7 +3561,7 @@ function syncAll(){
   $("#idPhoto").checked = S.photo.on; $("#albums").value = S.photo.albums; $("#photoOrig").checked = !!S.photo.orig; $("#idFb").checked = S.idle.fb; $("#fbSrc").value = S.foot.src; $("#fbMins").value = S.foot.mins;
   if (S.bus.id) $("#busSel").innerHTML = `<option value="${esc(S.bus.id)}">${esc(S.bus.name)}</option>`;
   if (S.bus.to) $("#busToSel").innerHTML = `<option value="">Ingen – visa vart bussen går</option><option value="${esc(S.bus.to)}" selected>${esc(S.bus.toName)}</option>`;
-  $("#idWx").checked = S.idle.wx; $("#idNews").checked = S.idle.news; $("#idTest").checked = S.idle.test;
+  $("#idWx").checked = S.idle.wx; $("#idNews").checked = S.idle.news; $("#idTest").checked = S.idle.test; $("#idPlex").checked = !!S.idle.plex;
   document.querySelectorAll("#sportNewsCfg .spCfg").forEach(box => { const c = S.sportNews[box.dataset.k];
     box.querySelectorAll("[data-f]").forEach(i => { if (i.type === "checkbox") i.checked = !!c[i.dataset.f]; else if (document.activeElement !== i) i.value = c[i.dataset.f] || ""; });
     box.querySelectorAll("[data-sfeed]").forEach(i => { i.checked = (c.feeds || []).includes(i.dataset.sfeed); });
@@ -3618,6 +3654,7 @@ setInterval(pollSettings, 4000);
   loadFootball(); setInterval(loadFootball, 5*60*1000);
   loadHockey(); setInterval(loadHockey, 5*60*1000);
   loadAikNews(); setInterval(loadAikNews, 10*60*1000);
+  loadPlex(); setInterval(loadPlex, 10*60*1000);
   setInterval(renderBoard, 15*1000);
   loadDeps(); setInterval(() => { if (S.bus.on && S.bus.id && (BOARD.page === "wx" || Date.now() - DEP.at > 5*60e3)) loadDeps(); }, 60*1000);
   segOn("#vizSeg", String(S.viz)); segOn("#srcSeg", S.source); segOn("#vinSeg", S.vizInput); segOn("#genreSeg", S.genre);

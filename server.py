@@ -212,6 +212,7 @@ def save_deck(data):
 # Skivomslag som hubben hämtat från en Sonos-högtalare (som bara går att nå hemma) och lagt upp
 # här, så att sidan kan visa dem. Bara i minnet, de senaste 30.
 SONOS_ART = {}
+PLEX_LIST = {}                    # filmtips från Plex, skickade av hubben (bara i minnet)
 SONOS_ART_LOCK = __import__("threading").Lock()
 
 
@@ -228,7 +229,7 @@ def set_sonos_art(data):
     v = hashlib.sha1(raw).hexdigest()[:16]
     with SONOS_ART_LOCK:
         SONOS_ART[v] = (ctype, raw)
-        while len(SONOS_ART) > 30:
+        while len(SONOS_ART) > 200:
             SONOS_ART.pop(next(iter(SONOS_ART)))
     return {"url": "/api/sonos-art?v=" + v}
 
@@ -789,6 +790,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json(get_sonos_now())
             if path == "/api/sonos-art":
                 return self._sonos_art(q.get("v", [""])[0])
+            if path == "/api/plex":
+                return self._json(PLEX_LIST or {"items": []})
             if path == "/api/tradfri-list":
                 return self._json(get_tradfri_list())
             if path == "/api/ping":
@@ -805,7 +808,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         path = urllib.parse.urlparse(self.path).path
-        if path not in ("/api/state", "/api/sonos-now", "/api/tradfri-list", "/api/deck", "/api/deck/live", "/api/sonos-art"):
+        if path not in ("/api/state", "/api/sonos-now", "/api/tradfri-list", "/api/deck", "/api/deck/live", "/api/sonos-art", "/api/plex"):
             return self._json({"error": "hittades inte"}, 404)
         limit = DECK_MAX_BYTES if path == "/api/deck" else 2500 * 1024 if path == "/api/sonos-art" else 512 * 1024
         try:
@@ -821,6 +824,10 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json(set_sonos_now(data))
         if path == "/api/sonos-art":
             return self._json(set_sonos_art(data))
+        if path == "/api/plex":
+            if isinstance(data.get("items"), list) and len(data["items"]) <= 200:
+                PLEX_LIST.clear(); PLEX_LIST.update({"items": data["items"], "total": data.get("total"), "at": time.time()})
+            return self._json({"ok": True})
         if path == "/api/tradfri-list":
             return self._json(set_tradfri_list(data))
         if path == "/api/deck":
