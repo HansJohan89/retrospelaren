@@ -72,7 +72,10 @@ RADIO_MIRRORS = [
 SSL_CTX = ssl.create_default_context()
 CMD_LOCK = __import__("threading").Lock()
 CMD_COND = __import__("threading").Condition(CMD_LOCK)   # väcker den som väntar på nästa kommando
-CMD_STATE = {"id": 0, "list": []}
+# Kommandonumren börjar på klockslaget i tiondels sekunder, så att de fortsätter uppåt även efter
+# en omstart av servern. Annars väntar öppna sidor och hubben på nummer som redan passerat, och
+# missar allt tills de laddas om.
+CMD_STATE = {"id": int(time.time() * 10), "list": []}
 # Vad Sonos (Vardagsrum) spelar just nu - rapporteras in av monitor.py (som
 # styr Sonos lokalt, se den filens kommentarer för varför: Sonos syns aldrig
 # i Spotifys eget webb-API), och läses av sidan som ett eget, separat spår
@@ -110,8 +113,8 @@ DECK_LIVE_FILE = os.path.join(DATA_DIR, "deck-live.json")
 DECK_LOCK = __import__("threading").RLock()
 DECK_COND = __import__("threading").Condition(DECK_LOCK)
 DECK_CACHE = {"loaded": False, "rev": 0, "deck": None, "faces": {}}
-DECK_LIVE = {"seq": 0, "loaded": False, "nav": None, "navRev": 0, "st": {}, "stRev": 0, "vals": {}, "valsRev": 0,
-             "ev": [], "evId": 0, "hub": {"at": 0}}
+DECK_LIVE = {"seq": int(time.time() * 10), "loaded": False, "nav": None, "navRev": 0, "st": {}, "stRev": 0, "vals": {}, "valsRev": 0,
+             "ev": [], "evId": int(time.time() * 10), "hub": {"at": 0}}   # evId: se CMD_STATE
 DECK_HUB_MAX_AGE_S = 8     # hubben räknas som frånkopplad om den inte hörts av på så här länge
 DECK_EV_KEEP = 80
 DECK_MAX_BYTES = 16 * 1024 * 1024

@@ -3187,6 +3187,7 @@ async function pollCmd(){
   try{
     const r = await fetch("/api/cmd?since=" + Math.max(0, cmdSince)); const j = await r.json();
     if (cmdSince < 0){ cmdSince = j.last; return; }  // ignorera gamla kommandon vid sidladdning
+    if (j.last < cmdSince) cmdSince = j.last;        // servern har startats om med lägre nummer
     for (const it of j.items){
       cmdSince = Math.max(cmdSince, it.id);
       // Spotify-kommandon får bara utföras av EN öppen sida (annars tar två flikar ut varandra,
