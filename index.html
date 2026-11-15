@@ -3895,7 +3895,7 @@ async function playItem(it, prog){
   HL.audio = LITE && !!S.clipRoom;
   if (HL.audio && !audioOn){
     fetch("/api/send?c=" + encodeURIComponent("clip-audio:on:" + S.clipRoom)).catch(() => {});
-    await new Promise(r => setTimeout(r, 2500));
+    await new Promise(r => setTimeout(r, 4000));    // hubben letar upp högtalaren och kopplar upp AirPlay
     if (!HL.on || HL.item !== it) return;
   }
   try { it.src === "svt" ? await playSvt(it, el) : playYt(it, el); }
