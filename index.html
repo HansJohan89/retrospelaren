@@ -3397,19 +3397,28 @@ $("#start").addEventListener("click", start);
 // ================= styrning utifrån =================
 let cmdSince = -1;
 const PAGE_ID = Math.random().toString(36).slice(2, 10);
+// En fråga åt gången, som servern håller kvar tills ett kommando kommer (högst 20 s). Förut
+// frågade sidan var 0,3 s utan att vänta in svaret, och två frågor som var ute samtidigt kunde
+// då köra samma kommando två gånger (ett tryck som stänger ett klipp öppnade det igen direkt).
+let cmdBusy = false, cmdDone = -1;
 async function pollCmd(){
+  if (cmdBusy) return;
+  cmdBusy = true;
   try{
-    const r = await fetch("/api/cmd?since=" + Math.max(0, cmdSince)); const j = await r.json();
-    if (cmdSince < 0){ cmdSince = j.last; return; }  // ignorera gamla kommandon vid sidladdning
-    if (j.last < cmdSince) cmdSince = j.last;        // servern har startats om med lägre nummer
+    const r = await fetch("/api/cmd?since=" + Math.max(0, cmdSince) + (cmdSince >= 0 ? "&wait=20" : ""), { cache:"no-store" }); const j = await r.json();
+    if (cmdSince < 0){ cmdSince = cmdDone = j.last; return; }  // ignorera gamla kommandon vid sidladdning
+    if (j.last < cmdSince) cmdSince = cmdDone = j.last;        // servern har startats om med lägre nummer
     for (const it of j.items){
       cmdSince = Math.max(cmdSince, it.id);
+      if (it.id <= cmdDone) continue;                           // redan utfört
+      cmdDone = it.id;
       // Spotify-kommandon får bara utföras av EN öppen sida (annars tar två flikar ut varandra,
       // t.ex. spela/paus två gånger). Den som först gör anspråk på kommandot hos servern kör det.
       if (it.c.startsWith("sp:")) fetch("/api/claim?id=" + it.id + "&who=" + PAGE_ID).then(r => r.json()).then(d => { if (d.ok) runCmd(it.c); }).catch(() => {});
       else runCmd(it.c);
     }
-  }catch(e){}
+  }catch(e){ await new Promise(r => setTimeout(r, 1500)); }
+  finally { cmdBusy = false; }
 }
 function runCmd(c){
   if (c === "open"){ const wasBlank = state.blanked; $("#blank").classList.remove("on"); state.blanked = false;
