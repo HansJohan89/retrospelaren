@@ -43,9 +43,8 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
 #hl .cap{position:absolute;left:5%;top:5%;right:5%;z-index:2;font-family:var(--fT),serif;font-size:4.2vh;color:#fff;text-shadow:0 0 1.2vh #000,0 0 .3vh #000;transition:opacity 1.2s;pointer-events:none}
 #hl .cap small{display:block;font-family:var(--fB),monospace;font-size:.5em;letter-spacing:.25em;text-transform:uppercase;opacity:.85;margin-bottom:.6vh}
 #hl .cap.gone{opacity:0}
-/* på Pi:n: allt annat stängs av medan ett klipp visas, så att videon och ljudet får processorn */
-.lite.clip #fx,.lite.clip #hum,.lite.clip #flick,.lite.clip #board,.lite.clip #viz,.lite.clip #crt.on::before,.lite.clip #crt.on::after{display:none!important}
-.lite.clip #crt,.lite.clip #content{transform:none!important;filter:none!important;will-change:auto}
+/* på Pi:n: det som ligger dolt bakom klippet ritas inte medan klippet visas (bildrörseffekterna ligger kvar) */
+.lite.clip #board,.lite.clip #viz{display:none!important}
 .power{position:absolute;inset:0;transform-origin:50% 50%}
 #screen.rolling .content{animation:roll .45s steps(6) 1}
 @keyframes roll{0%{transform:translateY(0)}40%{transform:translateY(-18%)}70%{transform:translateY(9%)}100%{transform:translateY(0)}}
@@ -2744,7 +2743,7 @@ function frame(nowMs){
     F.n++; if (nowMs - F.at >= 1000){ F.el.textContent = F.n + " bilder/s · ritupplösning " + Math.round(RSCALE * 100) + " %"; F.n = 0; F.at = nowMs; }
   }
   if (!W) resize();
-  if (HL.on){ if (!LITE) fxFrame(nowMs); return; }   // ett klipp visas: inget annat behöver ritas
+  if (HL.on){ fxFrame(nowMs); return; }        // ett klipp visas: bara bildrörseffekterna ritas
   const t = nowMs/1000;
   computeLevels(t);
   // interpolerad position
@@ -3906,10 +3905,10 @@ async function playSvt(it, el){
   if (!window.Hls) await loadScript("https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js").catch(() => {});
   if (!(window.Hls && Hls.isSupported())) v.src = ref.url;
   else {
-    // På Pi:n högst 540 rader: 720p och 1080p avkodas i mjukvara och då hackar både bild och ljud
+    // På Pi:n högst 720 rader (1080p orkar den inte avkoda)
     const hls = HL.hls = new Hls({ maxBufferLength: 30, capLevelToPlayerSize: !LITE, startLevel: -1 });
     if (LITE) hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      const ok = hls.levels.map((l, i) => [i, l.height || 0]).filter(([, hgt]) => hgt && hgt <= 540);
+      const ok = hls.levels.map((l, i) => [i, l.height || 0]).filter(([, hgt]) => hgt && hgt <= 720);
       if (ok.length){ const top = ok.sort((a, b) => b[1] - a[1])[0][0]; hls.autoLevelCapping = top; hls.nextLevel = top; }
     });
     hls.on(Hls.Events.ERROR, (_, data) => { if (data.fatal){ osd("SVT-klippet gick inte att spela (det visas bara i Sverige)"); hideHighlights(); } });
