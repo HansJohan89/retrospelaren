@@ -50,6 +50,8 @@ Vägar:
 Bara Pythons standardbibliotek. Inget att installera.
 """
 import argparse
+import hashlib
+import hmac
 import json
 import re
 import os
@@ -94,6 +96,30 @@ SONOS_MAX_AGE_S = 90  # om inget rapporterats in på så här länge räknas det
 TRADFRI_LOCK = __import__("threading").Lock()
 TRADFRI_LIST = {"groups": [], "at": 0}
 OG_CACHE = {}
+# Lösenord för deck-redigeraren och inställningarna (Railway-variabeln ADMIN_PASSWORD). Utan den är
+# allt öppet som förut. Den som loggat in får en kaka som gäller ett år; byts lösenordet blir alla
+# gamla kakor ogiltiga. /api/send (knappar, jalusi, macropad) och hubbens anrop påverkas inte.
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
+LOGIN_FAILS = []
+
+
+def admin_token():
+    return hmac.new(ADMIN_PASSWORD.encode("utf-8"), b"retrospelaren-admin-v1", hashlib.sha256).hexdigest()
+
+
+LOGIN_PAGE = '''<!doctype html><html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Logga in</title><style>
+:root{color-scheme:dark}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0d0f14;color:#e8e6e0;font:16px system-ui,sans-serif}
+form{background:#171a22;border:1px solid #2a2f3b;border-radius:14px;padding:26px 24px;width:min(320px,86vw);display:flex;flex-direction:column;gap:12px}
+h1{margin:0 0 4px;font-size:20px;letter-spacing:.08em}p{margin:0;color:#9aa0ad;font-size:13px}
+input{font:inherit;padding:10px 12px;border-radius:9px;border:1px solid #2a2f3b;background:#0d0f14;color:inherit}
+button{font:inherit;font-weight:600;padding:10px;border-radius:9px;border:0;background:#7c5cff;color:#fff;cursor:pointer}
+.err{color:#ff8080;min-height:1em}</style></head><body>
+<form id="f"><h1>BLAUPUNKT</h1><p>Lösenordet för knapparna och inställningarna.</p>
+<input id="pw" type="password" autocomplete="current-password" placeholder="Lösenord" autofocus>
+<button>Logga in</button><div class="err" id="err"></div></form>
+<script>document.getElementById("f").onsubmit=async e=>{e.preventDefault();const r=await fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:document.getElementById("pw").value})});
+if(r.ok)location.reload();else document.getElementById("err").textContent=r.status===429?"För många försök, vänta en minut":"Fel lösenord";};</script></body></html>'''
 RR_COUNT = []          # tidpunkter för anrop till ResRobot (för /api/ping-statistik)
 DEP_CACHE = {}
 ALBUM_CACHE = {}
@@ -1066,6 +1092,32 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         super().end_headers()
 
+    def authed(self):
+        if not ADMIN_PASSWORD:
+            return True
+        for part in (self.headers.get("Cookie") or "").split(";"):
+            k, _, v = part.strip().partition("=")
+            if k == "rs_admin" and hmac.compare_digest(v, admin_token()):
+                return True
+        return False
+
+    def login(self, data):
+        now = time.time()
+        LOGIN_FAILS[:] = [t for t in LOGIN_FAILS if now - t < 60]
+        if len(LOGIN_FAILS) >= 10:
+            return self._json({"error": "för många försök"}, 429)
+        if not ADMIN_PASSWORD or not hmac.compare_digest(str(data.get("password", "")).encode("utf-8"), ADMIN_PASSWORD.encode("utf-8")):
+            LOGIN_FAILS.append(now)
+            time.sleep(1)
+            return self._json({"error": "fel lösenord"}, 401)
+        body = b'{"ok": true}'
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Set-Cookie", "rs_admin=%s; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax" % admin_token())
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def _json(self, obj, status=200):
         body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
@@ -1094,8 +1146,18 @@ class Handler(SimpleHTTPRequestHandler):
                 self.path = "/index.html"
                 return super().do_GET()
             if path in ("/deck", "/deck.html"):
+                if not self.authed():
+                    body = LOGIN_PAGE.encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
                 self.path = "/deck.html"
                 return super().do_GET()
+            if path == "/api/auth":
+                return self._json({"required": bool(ADMIN_PASSWORD), "ok": self.authed()})
             if path == "/api/deck":
                 return self._json(get_deck())
             if path == "/api/scenes":
@@ -1179,7 +1241,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         path = urllib.parse.urlparse(self.path).path
-        if path not in ("/api/state", "/api/sonos-now", "/api/tradfri-list", "/api/deck", "/api/deck/live", "/api/sonos-art", "/api/plex"):
+        if path not in ("/api/login", "/api/state", "/api/sonos-now", "/api/tradfri-list", "/api/deck", "/api/deck/live", "/api/sonos-art", "/api/plex"):
             return self._json({"error": "hittades inte"}, 404)
         limit = DECK_MAX_BYTES if path == "/api/deck" else 2500 * 1024 if path == "/api/sonos-art" else 512 * 1024
         try:
@@ -1191,6 +1253,8 @@ class Handler(SimpleHTTPRequestHandler):
                 raise ValueError("inte ett objekt")
         except Exception as e:
             return self._json({"error": "ogiltig data: %s" % e}, 400)
+        if path == "/api/login":
+            return self.login(data)
         if path == "/api/sonos-now":
             return self._json(set_sonos_now(data))
         if path == "/api/sonos-art":
@@ -1202,9 +1266,16 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/tradfri-list":
             return self._json(set_tradfri_list(data))
         if path == "/api/deck":
+            if not self.authed():
+                return self._json({"error": "inloggning krävs"}, 401)
             return self._json(save_deck(data))
         if path == "/api/deck/live":
             return self._json(patch_deck_live(data))
+        if not self.authed() and ("settings" in data or "settingsPatch" in data):
+            # bara den som loggat in får ändra inställningarna (t.ex. skärmen i skåpet läser bara)
+            data = {k: v for k, v in data.items() if k not in ("settings", "settingsPatch")}
+            if not data:
+                return self._json({"error": "inloggning krävs"}, 401)
         return self._json(save_state(data))
 
     def _plex_img(self, q):

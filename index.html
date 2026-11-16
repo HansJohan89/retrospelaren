@@ -411,6 +411,12 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
   transform:translateX(102%);transition:transform .35s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;
   box-shadow:-10px 0 40px rgba(0,0,0,.6);font-size:15px}
 #panel.open{transform:none}
+#loginBox{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:rgba(0,0,0,.6)}
+#loginBox form{background:#171a22;border:1px solid #2a2f3b;border-radius:14px;padding:22px;width:min(320px,86vw);display:flex;flex-direction:column;gap:10px;color:#e8e6e0;font:15px system-ui,sans-serif}
+#loginBox span{color:#9aa0ad;font-size:13px}#loginBox .err{color:#ff8080;min-height:1em;font-size:13px}
+#loginBox input{font:inherit;padding:9px 11px;border-radius:8px;border:1px solid #2a2f3b;background:#0d0f14;color:inherit}
+#loginBox .row2{display:flex;gap:8px;justify-content:flex-end}#loginBox button{font:inherit;padding:8px 14px;border-radius:8px;border:0;background:#7c5cff;color:#fff;cursor:pointer}
+#loginBox button.no{background:#2a2f3b}
 #panel header{padding:18px 20px 12px;border-bottom:2px solid var(--panel-line);display:flex;align-items:baseline;justify-content:space-between}
 #panel header h2{font-family:Limelight,serif;font-weight:400;font-size:28px;margin:0}
 #panel header button{all:unset;cursor:pointer;font-size:22px;padding:0 6px}
@@ -786,6 +792,7 @@ const remote = { pend:{}, t:0, at:0, busy:false,
     try{
       const txt = JSON.stringify(body);
       const r = await fetch("/api/state", { method:"POST", headers:{ "Content-Type":"application/json" }, body:txt, keepalive: txt.length < 60000 });
+      if (r.status === 401) return;    // inte inloggad: den här skärmen får inte ändra inställningarna (försök inte igen)
       const j = await r.json(); if (!j.ok) throw new Error(j.error || "fel");
       if (j.settings){ SRV = { rev:j.settingsRev, settings:j.settings };
         if (!("settings" in this.pend) && typeof applyRemoteSettings === "function") applyRemoteSettings(j.settings); }
@@ -3541,8 +3548,29 @@ setInterval(pollCmd, 300);
 
 // ================= panel och tangenter =================
 const panel = $("#panel");
+// Inställningarna kräver inloggning när servern har ett lösenord (ADMIN_PASSWORD på Railway)
+let AUTH = { required:false, ok:true };
+fetch("/api/auth", { cache:"no-store" }).then(r => r.json()).then(j => { AUTH = j; }).catch(() => {});
+function askLogin(then){
+  if ($("#loginBox")) return;
+  const box = document.createElement("div"); box.id = "loginBox";
+  box.innerHTML = `<form><b>Inställningar</b><span>Lösenordet för knapparna och inställningarna.</span>
+    <input type="password" autocomplete="current-password" placeholder="Lösenord"><div class="err"></div>
+    <div class="row2"><button type="button" class="no">Avbryt</button><button>Logga in</button></div></form>`;
+  document.body.append(box);
+  const f = box.querySelector("form"), inp = box.querySelector("input"), err = box.querySelector(".err");
+  box.querySelector(".no").onclick = () => box.remove();
+  f.onsubmit = async e => {
+    e.preventDefault(); err.textContent = "";
+    const r = await fetch("/api/login", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ password: inp.value }) }).catch(() => null);
+    if (r && r.ok){ AUTH.ok = true; box.remove(); then(); }
+    else err.textContent = r && r.status === 429 ? "För många försök, vänta en minut" : "Fel lösenord";
+  };
+  setTimeout(() => inp.focus(), 50);
+}
 function togglePanel(open){
   const willOpen = open ?? !panel.classList.contains("open");
+  if (willOpen && AUTH.required && !AUTH.ok){ askLogin(() => togglePanel(true)); return; }
   panel.classList.toggle("open", willOpen);
   if (willOpen){
     // visa sparat varde direkt - oberoende av om forslags-listorna hinner
