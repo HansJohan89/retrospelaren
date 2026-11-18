@@ -1132,7 +1132,7 @@ class Handler(SimpleHTTPRequestHandler):
     def do_HEAD(self):
         path = urllib.parse.urlparse(self.path).path
         name = path[len("/assets/"):] if path.startswith("/assets/") else ""
-        ok = path in ("/", "/callback", "/index.html", "/deck", "/deck.html", "/api/ping") or (
+        ok = path in ("/", "/callback", "/index.html", "/deck", "/deck.html", "/app", "/api/ping") or (
             name and "/" not in name and not name.startswith(".") and os.path.isfile(os.path.join(ROOT, "assets", name)))
         self.send_response(200 if ok else 404)
         self.end_headers()
@@ -1145,7 +1145,18 @@ class Handler(SimpleHTTPRequestHandler):
             if path in ("/", "/callback", "/index.html"):
                 self.path = "/index.html"
                 return super().do_GET()
-            if path in ("/deck", "/deck.html"):
+            if path == "/app.webmanifest":
+                body = json.dumps({"name": "Blaupunkt", "short_name": "Blaupunkt", "start_url": "/app", "scope": "/",
+                                   "display": "standalone", "orientation": "portrait", "background_color": "#121316", "theme_color": "#121316",
+                                   "icons": [{"src": "/assets/app-icon-192.png", "sizes": "192x192", "type": "image/png"},
+                                             {"src": "/assets/app-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}]}).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/manifest+json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            if path in ("/deck", "/deck.html", "/app"):
                 if not self.authed():
                     body = LOGIN_PAGE.encode("utf-8")
                     self.send_response(200)

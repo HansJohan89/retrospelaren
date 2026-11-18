@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>BLAUPUNKT · Stream Controller</title>
+<link rel="manifest" href="/app.webmanifest">
+<meta name="theme-color" content="#121316">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Blaupunkt">
+<link rel="apple-touch-icon" href="/assets/app-icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Bebas+Neue&family=Inter:wght@500;700&family=JetBrains+Mono:wght@500;700&family=Limelight&family=Special+Elite&display=swap" rel="stylesheet">
@@ -339,6 +346,41 @@ input[type=checkbox]{accent-color:var(--acc);width:15px;height:15px;margin:0}
   .encSide{flex:1 1 100%;border-right:0}
   .encCols{grid-template-columns:1fr}
 }
+
+/* ---------- appen (/app) ---------- */
+body.appMode{overflow:auto;touch-action:manipulation}
+body.appMode #app{display:none}
+#appPad{display:none}
+body.appMode #appPad{display:flex;flex-direction:column;align-items:center;gap:14px;min-height:100dvh;padding:calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 20px);
+  background:radial-gradient(700px 520px at 50% 30%,#1d2026 0,#121316 75%);-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.apHead{width:min(100%,520px);display:flex;align-items:center;justify-content:space-between}
+.apBrand{font-weight:700;letter-spacing:.32em;font-size:13px;color:var(--mut)}
+.apHub{width:10px;height:10px;border-radius:50%;background:var(--dim)}.apHub.ok{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+#apTabs{width:min(100%,520px);display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}#apTabs:empty{display:none}
+.apTab{flex:none;height:34px;padding:0 14px;border-radius:17px;border:1px solid var(--line);background:var(--panel);color:var(--mut);font-weight:600}
+.apTab.on{background:var(--acc);border-color:var(--acc);color:#fff}
+#apCrumb{width:min(100%,520px);min-height:0}#apCrumb:empty{display:none}
+.apBack{height:32px;padding:0 12px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);font-weight:600}
+.apKeys{width:min(100%,520px);display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.apKey{aspect-ratio:1;border-radius:16px;background:#050506;border:1px solid #2a2d33;box-shadow:inset 0 0 0 2px #0b0c0e,0 6px 14px rgba(0,0,0,.45);overflow:hidden;transition:transform .08s}
+.apKey canvas{width:100%;height:100%;display:block}
+.apKey.down{transform:scale(.94);filter:brightness(1.25)}
+.apKey.empty{opacity:.35}
+.apBtns{width:min(100%,520px);display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.apBtnW{display:flex;flex-direction:column;align-items:center;gap:6px}
+.apBtn{width:58px;height:58px;border-radius:50%;border:1px solid #3a3f47;background:radial-gradient(circle at 40% 35%,#3a3e45,#1c1e22);box-shadow:0 4px 10px rgba(0,0,0,.5)}
+.apBtn.down{transform:scale(.92);background:radial-gradient(circle at 40% 35%,#4a4f57,#2a2d33)}
+.apBtn.unset{opacity:.3}
+.apCap{font-size:12px;color:var(--mut);text-align:center;min-height:1.4em;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.apEncs{width:min(100%,520px);display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px}
+.apEncW{display:flex;flex-direction:column;align-items:center;gap:6px}.apEncW.unset{opacity:.3}
+.apEncRow{display:flex;align-items:center;gap:2px}
+.apRot{width:26px;height:44px;border:0;background:transparent;color:var(--mut);font-size:24px;line-height:1;padding:0}
+.apKnob{width:72px;height:72px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#4a4e56,#1a1c20 70%);border:1px solid #444a53;box-shadow:0 6px 14px rgba(0,0,0,.55),inset 0 -3px 6px rgba(0,0,0,.4);touch-action:none}
+.apKnob.down{filter:brightness(1.3)}
+.apKnob .rot{width:100%;height:100%;position:relative;transition:transform .08s}
+.apKnob .rot i{position:absolute;left:50%;top:8%;width:4px;height:22%;margin-left:-2px;border-radius:2px;background:#e8e9ec;opacity:.8}
+@media (max-width:420px){.apKnob{width:62px;height:62px}.apBtn{width:52px;height:52px}}
 </style>
 </head>
 <body>
@@ -1609,6 +1651,7 @@ async function loadGroups(){
 // ---------- delat körläge (emulatorn <-> den fysiska enheten) ----------
 let pendLive = null;
 function livePatch(p){
+  if (APP && p.nav){ p = Object.assign({}, p); delete p.nav; if (!Object.keys(p).length) return; }   // appen bläddrar på egen hand
   if (!pendLive){ pendLive = {}; setTimeout(flushLive, 15); }
   if (p.nav) pendLive.nav = p.nav;
   if (p.st) pendLive.st = Object.assign(pendLive.st || {}, p.st);
@@ -1635,7 +1678,7 @@ async function pollLive(){
     const hubWas = LIVE.hub.online + "/" + LIVE.hub.device;
     LIVE.hub = j.hub || LIVE.hub;
     if (hubWas !== LIVE.hub.online + "/" + LIVE.hub.device) renderHub();
-    if (j.navRev > LIVE.navRev){
+    if (j.navRev > LIVE.navRev && !APP){
       LIVE.navRev = j.navRev;
       if (j.nav && !C.sameNav(C.normNav(deck, j.nav), engine.nav)){ engine.nav = C.normNav(deck, j.nav); renderTop(); if (mode === "use"){ renderDevice(); renderCrumb(); } }
     }
@@ -1792,6 +1835,7 @@ function renderDevice(){
   }
   applyDeviceLight();
   renderSensors();
+  if (APP) renderApp();
 }
 function pressFx(kind, i, down, remote){
   const node = kind === "key" ? el.keys[i] : kind === "btn" ? el.btns[i] : el.encs[i];
@@ -2002,6 +2046,7 @@ async function importProfile(){
   catch(e){ toast("Filen gick inte att läsa som en profil."); }
 }
 function renderHub(){
+  if (APP) setTimeout(renderApp, 0);
   const c = $("#hubChip"), hb = LIVE.hub;
   c.className = "chip" + (hb.device ? " ok" : hb.online ? " half" : "");
   $("#hubTxt").textContent = hb.device ? "Enheten ansluten" : hb.online ? "Hubb igång, ingen enhet" : "Ingen hubb";
@@ -2959,6 +3004,90 @@ window.addEventListener("resize", fitDevice);
 window.addEventListener("beforeunload", ev => { if (dirty || saving){ ev.preventDefault(); ev.returnValue = ""; } });
 document.addEventListener("visibilitychange", () => { if (!document.hidden) pollLive(); });
 
+// ---------- appen (/app): fjärrkontrollen i mobilen ----------
+// Samma knappar, sidor och rattar som Stream Controllern, men i en egen layout för en telefon.
+// Appen bläddrar mellan sidorna på egen hand (den riktiga enheten byter inte sida när du gör det
+// i telefonen); allt annat, som lägen på knappar med flera lägen, delas.
+const APP = location.pathname === "/app" || new URLSearchParams(location.search).has("app");
+const appEl = { keys:[], btns:[], bcap:[], encs:[], ecap:[] };
+function buildApp(){
+  document.body.classList.add("appMode");
+  const root = h("div", { id:"appPad" });
+  const hd = h("div", { class:"apHead" }, h("span", { class:"apBrand", text:"BLAUPUNKT" }), h("span", { id:"apHub", class:"apHub" }));
+  const tabs = h("div", { id:"apTabs" });
+  const crumb = h("div", { id:"apCrumb" });
+  const grid = h("div", { class:"apKeys" });
+  for (let i = 0; i < 6; i++){
+    const cv = h("canvas", { width: FACE, height: FACE });
+    const k = h("div", { class:"apKey", "data-i": i }, cv);
+    appEl.keys.push(k); grid.append(k);
+  }
+  const btns = h("div", { class:"apBtns" });
+  for (let i = 0; i < 3; i++){
+    const b = h("button", { class:"apBtn", "data-i": i }), cap = h("div", { class:"apCap" });
+    appEl.btns.push(b); appEl.bcap.push(cap); btns.append(h("div", { class:"apBtnW" }, b, cap));
+  }
+  const encs = h("div", { class:"apEncs" });
+  for (let i = 0; i < 3; i++){
+    const kn = h("div", { class:"apKnob" + (i === 0 ? " big" : ""), "data-i": i }, h("div", { class:"rot" }, h("i")));
+    const cap = h("div", { class:"apCap" });
+    const row = h("div", { class:"apEncRow" },
+      h("button", { class:"apRot", text:"‹", onclick: () => appRotate(i, -1) }), kn, h("button", { class:"apRot", text:"›", onclick: () => appRotate(i, 1) }));
+    appEl.encs.push(kn); appEl.ecap.push(cap); encs.append(h("div", { class:"apEncW" }, row, cap));
+  }
+  root.append(hd, tabs, crumb, grid, btns, encs, h("div", { id:"apToast" }));
+  document.body.append(root);
+  // tryck på knappar: ned och upp (håll inne fungerar som på enheten)
+  const down = (kind, i) => ev => { ev.preventDefault(); try { navigator.vibrate && navigator.vibrate(12); } catch(e){} appHeld = { kind, i }; useInput(kind, i, true); appPressFx(kind, i, true); };
+  appEl.keys.forEach((k, i) => k.addEventListener("pointerdown", down("key", i)));
+  appEl.btns.forEach((b, i) => b.addEventListener("pointerdown", down("btn", i)));
+  window.addEventListener("pointerup", () => { if (appHeld){ useInput(appHeld.kind, appHeld.i, false); appPressFx(appHeld.kind, appHeld.i, false); appHeld = null; } });
+  window.addEventListener("pointercancel", () => { if (appHeld){ useInput(appHeld.kind, appHeld.i, false); appPressFx(appHeld.kind, appHeld.i, false); appHeld = null; } });
+  // rattarna: vrid genom att dra runt, tryck genom att knacka
+  appEl.encs.forEach((kn, i) => {
+    let drag = null;
+    kn.addEventListener("pointerdown", ev => { ev.preventDefault(); const r = kn.getBoundingClientRect(); drag = { cx: r.left + r.width / 2, cy: r.top + r.height / 2, a: null, acc: 0, moved: false, x: ev.clientX, y: ev.clientY }; kn.setPointerCapture(ev.pointerId); });
+    kn.addEventListener("pointermove", ev => { if (!drag) return;
+      if (!drag.moved && Math.hypot(ev.clientX - drag.x, ev.clientY - drag.y) < 6) return;
+      const ang = Math.atan2(ev.clientY - drag.cy, ev.clientX - drag.cx) * 180 / Math.PI;
+      if (drag.a == null){ drag.a = ang; drag.moved = true; return; }
+      let d = ang - drag.a; if (d > 180) d -= 360; if (d < -180) d += 360; drag.a = ang; drag.acc += d;
+      while (Math.abs(drag.acc) >= 24){ const dir = drag.acc > 0 ? 1 : -1; drag.acc -= dir * 24; appRotate(i, dir); } });
+    kn.addEventListener("pointerup", () => { const d = drag; drag = null; if (d && !d.moved){ try { navigator.vibrate && navigator.vibrate(12); } catch(e){} useInput("encp", i, true); setTimeout(() => useInput("encp", i, false), 110); kn.classList.add("down"); setTimeout(() => kn.classList.remove("down"), 160); } });
+    kn.addEventListener("pointercancel", () => { drag = null; });
+  });
+}
+let appHeld = null;
+function appRotate(i, dir){ try { navigator.vibrate && navigator.vibrate(6); } catch(e){} useRotate(i, dir); appRenderKnob(i); }
+function appPressFx(kind, i, d){ const n = kind === "key" ? appEl.keys[i] : appEl.btns[i]; if (n) n.classList.toggle("down", d); }
+function appRenderKnob(i){ const r = appEl.encs[i] && appEl.encs[i].querySelector(".rot"); if (r) r.style.transform = `rotate(${knobAngle[i]}deg)`; }
+function renderApp(){
+  if (!APP || !deck) return;
+  const v = engine.view(), nav = engine.nav;
+  const tabs = $("#apTabs"); tabs.innerHTML = "";
+  if (v.prof.pages.length > 1) v.prof.pages.forEach((pg, i) => tabs.append(h("button", { class:"apTab" + (i === nav.pg ? " on" : ""), text: pg.name || String(i + 1),
+    onclick: () => engine.setNav({ p: nav.p, pg: i, stack: [] }) })));
+  const crumb = $("#apCrumb");
+  crumb.innerHTML = "";
+  if (nav.stack.length) crumb.append(h("button", { class:"apBack", text:"‹ Tillbaka", onclick: () => engine.setNav({ p: nav.p, pg: nav.pg, stack: nav.stack.slice(0, -1) }) }));
+  for (let i = 0; i < 6; i++){
+    const ctl = i === v.backKey ? { id:"__back", states:[{ a:{ t:"back" } }] } : v.keys[i];
+    const si = ctl && ctl.states.length > 1 ? engine.stateOf(ctl) : 0;
+    appEl.keys[i].classList.toggle("empty", !ctl);
+    paintKey(appEl.keys[i].querySelector("canvas"), ctl ? effLook(ctl.states[si]) : null);
+  }
+  for (let i = 0; i < 3; i++){
+    const c = v.page.btns[i];
+    appEl.btns[i].classList.toggle("unset", !c);
+    appEl.bcap[i].textContent = ctlTitle(c);
+    const e = v.page.encs[i];
+    appEl.ecap[i].textContent = e.name || (e.cw ? ctlTitle(e.cw) : "") || (e.press ? ctlTitle(e.press) : "");
+    appEl.encs[i].parentNode.parentNode.classList.toggle("unset", !e.cw && !e.ccw && !e.press);
+    appRenderKnob(i);
+  }
+  const hub = $("#apHub"); hub.className = "apHub" + (LIVE.hub.online ? " ok" : ""); hub.title = LIVE.hub.online ? "Hubben är ansluten" : "Ingen hubb ansluten";
+}
+
 (async function init(){
   $("#brandIc").innerHTML = iconSvg("back"); $("#profIc").innerHTML = iconSvg("layers");
   $("#undoBtn").innerHTML = iconSvg("up-level"); $("#redoBtn").innerHTML = iconSvg("up-level"); $("#redoBtn").firstChild.style.transform = "scaleX(-1)";
@@ -2976,7 +3105,8 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) poll
   try { const j = await (await fetch("/api/deck/live?ev=0", { cache:"no-store" })).json();
     LIVE.navRev = j.navRev; LIVE.stRev = j.stRev; LIVE.valsRev = j.valsRev; LIVE.vals = j.vals || {}; LIVE.evLast = j.evLast; LIVE.hub = j.hub || LIVE.hub;
     if (j.nav) engine.nav = C.normNav(deck, j.nav); engine.st = Object.assign({}, j.st || {}); } catch(e){}
-  const want = new URLSearchParams(location.search).get("mode") || prefs.get("mode", "edit");
+  const want = APP ? "use" : new URLSearchParams(location.search).get("mode") || prefs.get("mode", "edit");
+  if (APP) buildApp();
   setMode(want === "use" ? "use" : "edit");
   setSaveState("");
   if (fresh) scheduleSave();
