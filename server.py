@@ -96,6 +96,7 @@ SONOS_MAX_AGE_S = 90  # om inget rapporterats in på så här länge räknas det
 TRADFRI_LOCK = __import__("threading").Lock()
 TRADFRI_LIST = {"groups": [], "at": 0}
 OG_CACHE = {}
+CLIP_STATE = {}       # klippljudet: hubben säger när Sonos har börjat spela (sidan startar då bilden)
 # Lösenord för deck-redigeraren och inställningarna (Railway-variabeln ADMIN_PASSWORD). Utan den är
 # allt öppet som förut. Den som loggat in får en kaka som gäller ett år; byts lösenordet blir alla
 # gamla kakor ogiltiga. /api/send (knappar, jalusi, macropad) och hubbens anrop påverkas inte.
@@ -1218,6 +1219,8 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json(get_sonos_now())
             if path == "/api/sonos-art":
                 return self._sonos_art(q.get("v", [""])[0])
+            if path == "/api/clipstate":
+                return self._json(CLIP_STATE)
             if path == "/api/svtlatest":
                 return self._json(svt_latest(q.get("p", ["rapport"])[0] or "rapport"))
             if path == "/api/highlights":
@@ -1252,7 +1255,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         path = urllib.parse.urlparse(self.path).path
-        if path not in ("/api/login", "/api/state", "/api/sonos-now", "/api/tradfri-list", "/api/deck", "/api/deck/live", "/api/sonos-art", "/api/plex"):
+        if path not in ("/api/clipstate", "/api/login", "/api/state", "/api/sonos-now", "/api/tradfri-list", "/api/deck", "/api/deck/live", "/api/sonos-art", "/api/plex"):
             return self._json({"error": "hittades inte"}, 404)
         limit = DECK_MAX_BYTES if path == "/api/deck" else 2500 * 1024 if path == "/api/sonos-art" else 512 * 1024
         try:
@@ -1266,6 +1269,10 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json({"error": "ogiltig data: %s" % e}, 400)
         if path == "/api/login":
             return self.login(data)
+        if path == "/api/clipstate":
+            CLIP_STATE.clear()
+            CLIP_STATE.update({k: data.get(k) for k in ("cid", "state", "msg", "at")})
+            return self._json({"ok": True})
         if path == "/api/sonos-now":
             return self._json(set_sonos_now(data))
         if path == "/api/sonos-art":
