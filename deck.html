@@ -2460,11 +2460,20 @@ function sceneModal(openId){
       v.on !== false && v.kind === "white" ? h("input", { type:"range", min:0, max:100, value: v.temp ?? 35, title:"Varmt till kallt", oninput: e => set(o => { o.temp = +e.target.value; }) })
         : v.on !== false && v.kind === "color" ? h("input", { type:"color", value: /^#[0-9a-f]{6}$/i.test(v.color || "") ? v.color : "#ff8a3d", oninput: e => set(o => { o.color = e.target.value; }) }) : h("span"),
       h("button", { class:"try", title:"Prova på lampan nu", onclick: () => { tryLamps(ph, [l.id]); toast("Skickar till " + l.name + "…", 1500); } }, icon("play")),
-      on && !outlet ? h("button", { class:"try" + (openAdv.has(key + l.id) || v.fade || (v.from && v.from.use) ? " adv" : ""), title:"Övergång och startläge", onclick: () => { const k = key + l.id; openAdv.has(k) ? openAdv.delete(k) : openAdv.add(k); draw(); } }, icon("clock")) : h("span"));
+      on && !outlet ? h("button", { class:"try" + (openAdv.has(key + l.id) || v.fade || (v.from && v.from.use) || (v.effect && v.effect.type) ? " adv" : ""), title:"Övergång, startläge och effekt", onclick: () => { const k = key + l.id; openAdv.has(k) ? openAdv.delete(k) : openAdv.add(k); draw(); } }, icon("clock")) : h("span"));
     if (!on || outlet || !openAdv.has(key + l.id)) return row;
     const fr = v.from || {};
     const setFrom = (fn, re) => set(o => { o.from = o.from || { use:true, dim:1, kind:"" }; fn(o.from); }, re);
-    return h("div", {}, row, h("div", { class:"lampAdv" },
+    const ef = v.effect || {};
+    const EFFECTS = [["","Ingen effekt"],["storm","Åska: blixtar då och då"],["fire","Brasa: flammande sken"],["candle","Levande ljus: lugnt fladder"],
+      ["breathe","Andas: pulserar sakta"],["rainbow","Regnbåge: färgerna går runt"],["party","Fest: slumpade färger"]];
+    const effRow = v.on === false ? null : h("div", {}, h("span", { class:"lbl", text:"Effekt" }),
+      h("select", { class:"in", onchange: e => set(o => { if (e.target.value) o.effect = Object.assign({ speed:"normal" }, o.effect || {}, { type: e.target.value }); else delete o.effect; }, true) },
+        EFFECTS.map(([k, t]) => h("option", { value: k, text: t, selected: (ef.type || "") === k }))),
+      ef.type ? h("select", { class:"in", onchange: e => set(o => { o.effect.speed = e.target.value; }) },
+        [["calm","Lugn"],["normal","Normal"],["wild","Intensiv"]].map(([k, t]) => h("option", { value: k, text: t, selected: (ef.speed || "normal") === k }))) : null,
+      ef.type ? h("span", { class:"note", style:{ margin:0 }, text: ef.type === "storm" ? "färgen och ljuset ovan är skenet mellan blixtarna" : "pågår så länge scenen pågår" }) : null);
+    return h("div", {}, row, h("div", { class:"lampAdv" }, effRow,
       h("div", {}, h("span", { class:"lbl", text: v.on === false ? "Tona ned och släck under" : "Tona till läget under" }), durIn(v.fade, sec => set(o => { if (sec) o.fade = sec; else delete o.fade; })),
         h("span", { class:"note", style:{ margin:0 }, text:"0 = direkt" })),
       v.on === false ? null : h("div", {}, h("label", { style:{ display:"inline-flex", alignItems:"center", gap:"6px" } },
