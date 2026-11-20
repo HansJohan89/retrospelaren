@@ -2468,13 +2468,15 @@ function sceneModal(openId){
     const setFrom = (fn, re) => set(o => { o.from = o.from || { use:true, dim:1, kind:"" }; fn(o.from); }, re);
     const ef = v.effect || {};
     const EFFECTS = [["","Ingen effekt"],["storm","Åska: blixtar då och då"],["fire","Brasa: flammande sken"],["candle","Levande ljus: lugnt fladder"],
-      ["breathe","Andas: pulserar sakta"],["rainbow","Regnbåge: färgerna går runt"],["party","Fest: slumpade färger"]];
+      ["breathe","Andas: pulserar sakta"],["rainbow","Regnbåge: färgerna går runt"],["party","Fest: slumpade färger"],["screen","Skärmfärg: följer datorns skärm"]];
     const effRow = v.on === false ? null : h("div", {}, h("span", { class:"lbl", text:"Effekt" }),
       h("select", { class:"in", onchange: e => set(o => { if (e.target.value) o.effect = Object.assign({ speed:"normal" }, o.effect || {}, { type: e.target.value }); else delete o.effect; }, true) },
         EFFECTS.map(([k, t]) => h("option", { value: k, text: t, selected: (ef.type || "") === k }))),
       ef.type ? h("select", { class:"in", onchange: e => set(o => { o.effect.speed = e.target.value; }) },
         [["calm","Lugn"],["normal","Normal"],["wild","Intensiv"]].map(([k, t]) => h("option", { value: k, text: t, selected: (ef.speed || "normal") === k }))) : null,
-      ef.type ? h("span", { class:"note", style:{ margin:0 }, text: ef.type === "storm" ? "färgen och ljuset ovan är skenet mellan blixtarna" : "pågår så länge scenen pågår" }) : null);
+      ef.type === "screen" ? h("select", { class:"in", title:"Vilken del av skärmen lampan följer", onchange: e => set(o => { o.effect.region = e.target.value; }) },
+        [["all","Hela skärmen"],["left","Vänster kant"],["right","Höger kant"],["top","Överkant"],["bottom","Underkant"],["center","Mitten"]].map(([k, t]) => h("option", { value: k, text: t, selected: (ef.region || "all") === k }))) : null,
+      ef.type ? h("span", { class:"note", style:{ margin:0 }, text: ef.type === "storm" ? "färgen och ljuset ovan är skenet mellan blixtarna" : ef.type === "screen" ? "ljusstyrkan ovan är den högsta; Lugn/Intensiv = hur snabbt lampan följer. Kräver Skärmfärg-programmet på datorn" : "pågår så länge scenen pågår" }) : null);
     return h("div", {}, row, h("div", { class:"lampAdv" }, effRow,
       h("div", {}, h("span", { class:"lbl", text: v.on === false ? "Tona ned och släck under" : "Tona till läget under" }), durIn(v.fade, sec => set(o => { if (sec) o.fade = sec; else delete o.fade; })),
         h("span", { class:"note", style:{ margin:0 }, text:"0 = direkt" })),
