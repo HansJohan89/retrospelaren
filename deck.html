@@ -27,7 +27,7 @@ body{background:var(--bg);color:var(--tx);font:13px/1.4 "Segoe UI",system-ui,-ap
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 .ic{width:18px;height:18px;flex:none}
-#app{display:grid;grid-template-rows:52px minmax(0,1fr) auto;height:100dvh}
+#app{display:grid;grid-template-rows:minmax(52px,auto) minmax(0,1fr) auto;height:100dvh}
 
 /* ---------- överkanten ---------- */
 #top{display:flex;align-items:center;gap:10px;padding:0 14px;background:var(--panel);border-bottom:1px solid var(--line);min-width:0}
@@ -39,6 +39,8 @@ button{cursor:pointer}
 .tbtn:hover{border-color:var(--line2);background:var(--panel3)}
 .tbtn:disabled{opacity:.35;cursor:default}
 .tbtn.icon{width:32px;padding:0;justify-content:center}
+#top>.tbtn,#top>.chip,#top>.seg{flex-shrink:0}
+#top{flex-wrap:wrap;row-gap:6px;padding-top:8px;padding-bottom:8px}
 .tbtn .caret{color:var(--mut);font-size:10px;margin-left:2px}
 #profileBtn{max-width:200px}
 #profileBtn b{overflow:hidden;text-overflow:ellipsis;font-weight:600}
@@ -395,10 +397,10 @@ body.appMode #appPad{display:flex;flex-direction:column;align-items:center;gap:1
     <span class="chip" id="hubChip" title="Hubben på Raspberry Pi:n och den fysiska enheten"><i></i><span id="hubTxt">Hubb: söker…</span></span>
     <button class="tbtn icon" id="undoBtn" title="Ångra (Ctrl+Z)"></button>
     <button class="tbtn icon" id="redoBtn" title="Gör om (Ctrl+Y)"></button>
-    <button class="tbtn" id="inputsBtn" title="Fjärrkontroller, rörelsesensorer och jalusisensorn"><span id="inputsIc"></span>Sensorer</button>
-    <button class="tbtn" id="scenesBtn" title="Bygg egna scener med lampor och musik"><span id="scenesIc"></span>Scener</button>
-    <button class="tbtn" id="schedBtn" title="Scener som körs av sig själva vid vissa tider"><span id="schedIc"></span>Tider</button>
-    <button class="tbtn" id="rulesBtn" title="Färg och ljusstyrka lampor får när de tänds under vissa tider"><span id="rulesIc"></span>Lampregler</button>
+    <button class="tbtn" id="inputsBtn" title="Fjärrkontroller, rörelsesensorer och jalusisensorn"><span id="inputsIc"></span><span class="lbl">Sensorer</span></button>
+    <button class="tbtn" id="scenesBtn" title="Bygg egna scener med lampor och musik"><span id="scenesIc"></span><span class="lbl">Scener</span></button>
+    <button class="tbtn" id="schedBtn" title="Scener som körs av sig själva vid vissa tider"><span id="schedIc"></span><span class="lbl">Tider</span></button>
+    <button class="tbtn" id="rulesBtn" title="Färg och ljusstyrka lampor får när de tänds under vissa tider"><span id="rulesIc"></span><span class="lbl">Lampregler</span></button>
     <button class="tbtn icon" id="deviceBtn" title="Enhetsinställningar"></button>
     <span id="saveState"></span>
   </header>
