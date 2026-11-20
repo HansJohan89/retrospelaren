@@ -2476,6 +2476,15 @@ function sceneModal(openId){
         [["calm","Lugn"],["normal","Normal"],["wild","Intensiv"]].map(([k, t]) => h("option", { value: k, text: t, selected: (ef.speed || "normal") === k }))) : null,
       ef.type === "screen" ? h("select", { class:"in", title:"Vilken del av skärmen lampan följer", onchange: e => set(o => { o.effect.region = e.target.value; }) },
         [["all","Hela skärmen"],["left","Vänster kant"],["right","Höger kant"],["top","Överkant"],["bottom","Underkant"],["center","Mitten"]].map(([k, t]) => h("option", { value: k, text: t, selected: (ef.region || "all") === k }))) : null,
+      ef.type === "screen" ? h("div", { class:"scrSl", style:{ display:"flex", flexWrap:"wrap", gap:"6px 14px", alignItems:"center", width:"100%" } },
+        [["sat","Färgstyrka",70,"hur starka färger lampan tar, även när bilden är blek"],["bri","Ljuskänslighet",70,"hur mycket ljusstyrkan följer bildens ljus och mörker"]].map(([k, t, d, tip]) => {
+          const val = ef[k] == null ? d : ef[k];
+          const out = h("b", { text: String(val), style:{ minWidth:"26px", display:"inline-block" } });
+          return h("label", { title: tip, style:{ display:"inline-flex", alignItems:"center", gap:"6px" } }, h("span", { class:"lbl", text: t, style:{ margin:0 } }),
+            h("input", { type:"range", min:0, max:100, value: val, style:{ width:"130px" },
+              oninput: e => { out.textContent = e.target.value; },
+              onchange: e => set(o => { o.effect[k] = +e.target.value; }) }), out);
+        })) : null,
       ef.type ? h("span", { class:"note", style:{ margin:0 }, text: ef.type === "storm" ? "färgen och ljuset ovan är skenet mellan blixtarna" : ef.type === "screen" ? "ljusstyrkan ovan är den högsta; Lugn/Intensiv = hur snabbt lampan följer. Kräver Skärmfärg-programmet på datorn" : "pågår så länge scenen pågår" }) : null);
     return h("div", {}, row, h("div", { class:"lampAdv" }, effRow,
       h("div", {}, h("span", { class:"lbl", text: v.on === false ? "Tona ned och släck under" : "Tona till läget under" }), durIn(v.fade, sec => set(o => { if (sec) o.fade = sec; else delete o.fade; })),
