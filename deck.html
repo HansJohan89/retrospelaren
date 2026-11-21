@@ -2565,8 +2565,8 @@ function sceneModal(openId){
     if (en.use){ const card = h("div", { class:"phCard" }); card.append(h("div", { class:"note", text:"Det här händer när tiden har gått ut (eller när scenen avslutas med en knapp som hoppar till slutet)." })); phaseEd(sc, en, "end:", card); ed.append(card); }
     else ed.append(h("div", { class:"note", text:"Utan slut är scenen klar när alla steg och övergångar är gjorda." }));
     ed.append(h("h4", { text:"Medan scenen pågår" }));
-    ed.append(field("Startas igen", h("select", { class:"in w", onchange: e => m(() => { sc.again = e.target.value; }) },
-      [["restart","Börja om från början"],["end","Hoppa till slutet"],["stop","Avbryt (utan slutet)"],["ignore","Gör ingenting"]].map(([v, t]) => h("option", { value: v, text: t, selected: (sc.again || "restart") === v })))));
+    ed.append(field("Trycker man igen", h("select", { class:"in w", onchange: e => m(() => { sc.again = e.target.value; }) },
+      [["restore","Stäng av och återställ allt som innan"],["restart","Börja om från början"],["end","Hoppa till slutet"],["stop","Avbryt (utan slutet)"],["ignore","Gör ingenting"]].map(([v, t]) => h("option", { value: v, text: t, selected: (sc.again || "restore") === v })))));
     ed.append(field("Ändras för hand", h("select", { class:"in w", onchange: e => m(() => { sc.manual = e.target.value; }) },
       [["release","Scenen släpper det som ändrats, resten fortsätter"],["stop","Hela scenen avbryts"],["keep","Scenen fortsätter styra ändå"]].map(([v, t]) => h("option", { value: v, text: t, selected: (sc.manual || "release") === v })))));
     ed.append(h("div", { class:"note", text:"Gäller när någon släcker, dimrar eller ändrar volymen för hand medan en övergång pågår. Ingen knapp behövs: scenen kan också startas av en tid under Tider." }));
