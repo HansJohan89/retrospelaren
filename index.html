@@ -1,7 +1,8 @@
 <!doctype html>
-<html lang="sv">
+<html lang="sv" translate="no">
 <head>
 <meta charset="utf-8">
+<meta name="google" content="notranslate">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BLAUPUNKT</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3820,6 +3821,7 @@ document.addEventListener("keydown", e => {
 });
 
 let cursorTimer = 0;
+document.body.classList.add("hidecursor");      // dold från start: pekaren syns först när musen rörs
 document.addEventListener("mousemove", () => { document.body.classList.remove("hidecursor"); clearTimeout(cursorTimer); cursorTimer = setTimeout(() => document.body.classList.add("hidecursor"), 2500); });
 
 // ================= inställningar från andra skärmar =================
