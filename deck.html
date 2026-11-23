@@ -484,6 +484,9 @@ select.rmIn{appearance:auto}
 .rmAlarm.off{opacity:.55}
 .rmAlarmT{font-size:40px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.05}
 .rmLink{display:inline-block;margin-top:12px;color:#e8a33d;font-weight:600;text-decoration:none}
+#rmAmb,#rmAmbCover{display:none}
+body.rmNest.rmIdle #rmAmb{display:block;position:fixed;inset:0;width:100vw;height:100vh;border:0;z-index:60;background:#0b0b0a}
+body.rmNest.rmIdle #rmAmbCover{display:block;position:fixed;inset:0;z-index:61}
 /* liggande skärm (surfplatta, Nest Hub-storlek): flikarna i en list till vänster, två spalter */
 @media (min-width:860px) and (orientation:landscape){
   #rmShell{padding-left:96px}
@@ -1639,7 +1642,7 @@ function doUndo(from, to){
 
 // ---------- spara / läsa ----------
 function setSaveState(txt, err){ const el = $("#saveState"); el.textContent = txt; el.classList.toggle("err", !!err); }
-function scheduleSave(){ dirty = true; setSaveState("Sparar…"); clearTimeout(saveT); saveT = setTimeout(publish, 800); }
+function scheduleSave(){ if (typeof NEST !== "undefined" && NEST){ toast("Ändra det här i appen i mobilen.", 2500); return; } dirty = true; setSaveState("Sparar…"); clearTimeout(saveT); saveT = setTimeout(publish, 800); }
 async function ensureImages(){
   const all = new Set();
   C.eachCtl(deck, c => c.states.forEach(s => { const L = s.look || {}; if (L.i && L.i.data) all.add(L.i.data); if (L.b && L.b.data) all.add(L.b.data); }));
@@ -3145,7 +3148,8 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) poll
 // Samma knappar, sidor och rattar som Stream Controllern, men i en egen layout för en telefon.
 // Appen bläddrar mellan sidorna på egen hand (den riktiga enheten byter inte sida när du gör det
 // i telefonen); allt annat, som lägen på knappar med flera lägen, delas.
-const APP = location.pathname === "/app" || new URLSearchParams(location.search).has("app");
+const NEST = location.pathname === "/nestapp";          // appen på Google Nest Hub: styra går, ändra konfigurationen inte
+const APP = NEST || location.pathname === "/app" || new URLSearchParams(location.search).has("app");
 const appEl = { keys:[], btns:[], bcap:[], encs:[], ecap:[] };
 function buildApp(){
   document.body.classList.add("appMode");
@@ -3289,7 +3293,8 @@ function remoteBuild(pad){
   $("#rm-knappar", main).append(pad);
   shell.append(head, main, tabs);
   document.body.append(shell);
-  rmShow(RM.tab);
+  rmShow(NEST ? "hem" : RM.tab);
+  if (NEST) rmAmbient();
   rmTick(); rmSlow();
   setInterval(rmTick, 3000);
   setInterval(rmSlow, 120000);
@@ -3297,6 +3302,18 @@ function remoteBuild(pad){
   document.addEventListener("visibilitychange", () => { if (!document.hidden){ rmTick(); rmSlow(); } });
 }
 
+// Nest Hub: efter en stunds stillhet visas klockvyn (/nest); ett tryck tar fram appen igen
+function rmAmbient(){
+  document.body.classList.add("rmNest");
+  const amb = h("iframe", { id:"rmAmb", src:"/nest", tabindex:"-1" });
+  const cover = h("div", { id:"rmAmbCover" });
+  document.body.append(amb, cover);
+  let t = 0;
+  const wake = () => { document.body.classList.remove("rmIdle"); clearTimeout(t); t = setTimeout(() => { document.body.classList.add("rmIdle"); rmShow("hem"); }, 120000); };
+  cover.addEventListener("pointerdown", ev => { ev.preventDefault(); ev.stopPropagation(); wake(); });
+  ["pointerdown", "keydown", "wheel"].forEach(e => document.addEventListener(e, wake, true));
+  wake();
+}
 function rmShow(id){
   RM.tab = id; try { localStorage.setItem("app.tab", id); } catch(e){}
   document.querySelectorAll(".rmTab").forEach(b => b.classList.toggle("on", b.dataset.t === id));
@@ -3384,6 +3401,7 @@ function rmRender(force){
   if (!force && Date.now() < RM.busyUntil) return;          // någon drar i ett reglage just nu
   const hub = $("#rmHub"); if (hub){ hub.className = "apHub" + (LIVE.hub.online ? " ok" : ""); hub.title = LIVE.hub.online ? "Hubben är ansluten" : "Ingen hubb ansluten"; }
   const ring = ringing().length > 0;
+  if (NEST && ring && document.body.classList.contains("rmIdle")){ document.body.classList.remove("rmIdle"); if (RM.tab !== "hem"){ rmShow("hem"); return; } }
   document.querySelector('.rmTab[data-t="larm"]')?.classList.toggle("alert", ring);
   const f = { hem: rmHem, musik: rmMusik, ljus: rmLjus, scener: rmScener, larm: rmLarm }[RM.tab];
   if (f){ const p = $("#rm-" + RM.tab); const y = window.scrollY; p.innerHTML = ""; f(p); window.scrollTo(0, y); }
@@ -3571,12 +3589,12 @@ function rmLarm(p){
   if (na) p.append(h("div", { class:"rmInfo" }, h("div", { class:"rmInfoI on" }, icon("bell"), h("span", { text: (na.snooze ? "Snoozat till " : "Nästa larm ") + hhmmOf(na.at) + " (om " + rmIn(na.at) + ")" }))));
   const up = id => UPCOMING.find(x => String(x.id) === "alarm-" + id);
   for (const a of list){
-    p.append(h("div", { class:"rmCard rmAlarm" + (a.on === false ? " off" : ""), onclick: () => { RM.editAlarm = JSON.parse(JSON.stringify(a)); rmRender(true); } },
+    p.append(h("div", { class:"rmCard rmAlarm" + (a.on === false ? " off" : ""), onclick: () => { if (NEST) return; RM.editAlarm = JSON.parse(JSON.stringify(a)); rmRender(true); } },
       h("div", {}, h("div", { class:"rmAlarmT", text: a.time || "07:00" }),
         h("div", { class:"rmMut", text: [a.name, daysText(a.days), a.on !== false && up(a.id) ? hhmmOf(up(a.id).at) : ""].filter(Boolean).join(" · ") })),
       rswitch(a.on !== false, v => { a.on = v; rmSave(); rmRender(true); rmToast(v ? "Larmet är på" : "Larmet är av"); })));
   }
-  p.append(h("div", { class:"rmRow" }, rbtn("Nytt larm", () => { RM.editAlarm = { id: C.uid(), _new: true, on: true, time: "07:00", days: [0,1,2,3,4], name: "",
+  if (!NEST) p.append(h("div", { class:"rmRow" }, rbtn("Nytt larm", () => { RM.editAlarm = { id: C.uid(), _new: true, on: true, time: "07:00", days: [0,1,2,3,4], name: "",
     room: curRoom(), src: "playlist", value: "", vol: 25, fade: 10, screen: true, scene: "", stop: 60, snooze: 9, music: true }; rmRender(true); }, "pri big", "plus")));
   p.append(rmSleepCard());
 }

@@ -64,6 +64,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+import hacast                      # Nest Hub med touch: en låtsas-Home Assistant för Cast-mottagaren
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 UA = "Retrospelaren/1.0"
@@ -1140,6 +1141,9 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def do_OPTIONS(self):
+        hacast.options(self)
+
     def do_HEAD(self):
         path = urllib.parse.urlparse(self.path).path
         name = path[len("/assets/"):] if path.startswith("/assets/") else ""
@@ -1155,6 +1159,14 @@ class Handler(SimpleHTTPRequestHandler):
         try:
             if path in ("/", "/callback", "/index.html"):
                 self.path = "/index.html"
+                return super().do_GET()
+            if path == "/api/websocket":
+                return hacast.session(self)
+            if path == "/nest-card.js":
+                return hacast.card_js(self)
+            if path == "/nestapp":
+                # appen på Nest Hub (inuti Home Assistants Cast-mottagare): styra går, ändra konfigurationen inte
+                self.path = "/deck.html"
                 return super().do_GET()
             if path in ("/nest", "/nest.html"):
                 # Nest Hub-skärmen (castas dit av hubben): bara visning, ingen inloggning
@@ -1269,6 +1281,9 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         path = urllib.parse.urlparse(self.path).path
+        if path == "/auth/token":
+            n = int(self.headers.get("Content-Length") or 0)
+            return hacast.token(self, self.rfile.read(n) if 0 < n < 8192 else b"")
         if path not in ("/api/clipstate", "/api/login", "/api/state", "/api/sonos-now", "/api/tradfri-list", "/api/deck", "/api/deck/live", "/api/sonos-art", "/api/plex"):
             return self._json({"error": "hittades inte"}, 404)
         limit = DECK_MAX_BYTES if path == "/api/deck" else 2500 * 1024 if path == "/api/sonos-art" else 512 * 1024
