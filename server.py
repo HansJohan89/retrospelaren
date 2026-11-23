@@ -38,6 +38,7 @@ Vägar:
                     panelens förslag. POST: monitor.py rapporterar in den
                     (gatewayen är bara nåbar lokalt, se monitor.py)
   /deck             deck.html - konfiguratorn och emulatorn för Stream Controllern
+  /nest             nest.html - visningsskärmen som hubben castar till Google Nest Hub
   /api/claim?id=&who=  den första sidan som frågar får köra kommandot (Spotify-kommandon ska
                     bara utföras en gång även om flera flikar är öppna)
   /api/deck         GET/POST: Stream Controllerns konfiguration (profiler, sidor,
@@ -418,6 +419,7 @@ def get_scenes():
                 "inputs": deck.get("inputs") if isinstance(deck.get("inputs"), dict) else {},
                 "schedules": deck.get("schedules") if isinstance(deck.get("schedules"), list) else [],
                 "lampRules": deck.get("lampRules") if isinstance(deck.get("lampRules"), list) else [],
+                "alarms": deck.get("alarms") if isinstance(deck.get("alarms"), list) else [],
                 "place": _place()}
 
 
@@ -633,6 +635,14 @@ def set_tradfri_list(patch):
         if isinstance(patch.get("runs"), list) and len(patch["runs"]) <= 100:
             TRADFRI_LIST["runs"] = [r for r in patch["runs"] if isinstance(r, dict)]
             TRADFRI_LIST["runsAt"] = time.time()
+        if isinstance(patch.get("sonos"), dict):
+            TRADFRI_LIST["sonos"] = patch["sonos"]
+            TRADFRI_LIST["sonosAt"] = time.time()
+        # insomningstimern och snoozade larm (appen och Nest Hub visar dem)
+        if isinstance(patch.get("sleep"), dict):
+            TRADFRI_LIST["sleep"] = patch["sleep"]
+        if isinstance(patch.get("snoozed"), dict) and len(patch["snoozed"]) <= 50:
+            TRADFRI_LIST["snoozed"] = patch["snoozed"]
         if isinstance(patch.get("upcoming"), list) and len(patch["upcoming"]) <= 200:
             TRADFRI_LIST["upcoming"] = [r for r in patch["upcoming"] if isinstance(r, dict)]
         if isinstance(patch.get("states"), dict) and len(patch["states"]) <= 300:
@@ -1133,7 +1143,7 @@ class Handler(SimpleHTTPRequestHandler):
     def do_HEAD(self):
         path = urllib.parse.urlparse(self.path).path
         name = path[len("/assets/"):] if path.startswith("/assets/") else ""
-        ok = path in ("/", "/callback", "/index.html", "/deck", "/deck.html", "/app", "/api/ping") or (
+        ok = path in ("/", "/callback", "/index.html", "/deck", "/deck.html", "/app", "/nest", "/api/ping") or (
             name and "/" not in name and not name.startswith(".") and os.path.isfile(os.path.join(ROOT, "assets", name)))
         self.send_response(200 if ok else 404)
         self.end_headers()
@@ -1146,9 +1156,13 @@ class Handler(SimpleHTTPRequestHandler):
             if path in ("/", "/callback", "/index.html"):
                 self.path = "/index.html"
                 return super().do_GET()
+            if path in ("/nest", "/nest.html"):
+                # Nest Hub-skärmen (castas dit av hubben): bara visning, ingen inloggning
+                self.path = "/nest.html"
+                return super().do_GET()
             if path == "/app.webmanifest":
                 body = json.dumps({"name": "Blaupunkt", "short_name": "Blaupunkt", "start_url": "/app", "scope": "/",
-                                   "display": "standalone", "orientation": "portrait", "background_color": "#121316", "theme_color": "#121316",
+                                   "display": "standalone", "orientation": "any", "background_color": "#121316", "theme_color": "#121316",
                                    "icons": [{"src": "/assets/app-icon-192.png", "sizes": "192x192", "type": "image/png"},
                                              {"src": "/assets/app-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}]}).encode("utf-8")
                 self.send_response(200)

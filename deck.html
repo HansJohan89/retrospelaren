@@ -383,6 +383,121 @@ body.appMode #appPad{display:flex;flex-direction:column;align-items:center;gap:1
 .apKnob .rot{width:100%;height:100%;position:relative;transition:transform .08s}
 .apKnob .rot i{position:absolute;left:50%;top:8%;width:4px;height:22%;margin-left:-2px;border-radius:2px;background:#e8e9ec;opacity:.8}
 @media (max-width:420px){.apKnob{width:62px;height:62px}.apBtn{width:52px;height:52px}}
+/* ---------- appen: flikarna (Hem, Musik, Ljus, Scener, Larm, Knappar) ---------- */
+body.rmMode{background:#0e0f11}
+body.rmMode #appPad{min-height:0;padding:4px 0 8px}
+body.rmMode #appPad .apHead{display:none}
+#rmShell{--rmTab:64px;min-height:100dvh;display:flex;flex-direction:column}
+.rmHead{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:12px;padding:calc(env(safe-area-inset-top) + 10px) 18px 10px;background:rgba(14,15,17,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.rmBrand{font-weight:800;letter-spacing:.34em;font-size:13px;color:#e8a33d}
+.rmClockS{margin-left:auto;color:var(--mut);font-variant-numeric:tabular-nums;font-weight:600}
+.rmMain{flex:1;width:100%;max-width:560px;margin:0 auto;padding:14px 14px calc(var(--rmTab) + env(safe-area-inset-bottom) + 18px)}
+.rmPanel{display:none}.rmPanel.on{display:block}
+.rmTabs{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;justify-content:space-around;padding:6px 4px calc(env(safe-area-inset-bottom) + 6px);background:#15171a;border-top:1px solid var(--line)}
+.rmTab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:0;color:var(--mut);font-size:11px;font-weight:600;padding:6px 0;border-radius:12px;position:relative}
+.rmTab svg{width:22px;height:22px}
+.rmTab.on{color:#e8a33d;background:rgba(232,163,61,.1)}
+.rmTab.alert::after{content:"";position:absolute;top:4px;right:calc(50% - 16px);width:9px;height:9px;border-radius:50%;background:var(--bad);box-shadow:0 0 8px var(--bad);animation:rmPulse 1s infinite alternate}
+@keyframes rmPulse{to{opacity:.3}}
+.rmCard{background:#17191d;border:1px solid #262a30;border-radius:18px;padding:14px 16px;margin-bottom:14px}
+.rmCardT{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#e8a33d;font-weight:700;margin-bottom:10px}
+.rmSub{font-size:12px;color:var(--mut);margin:10px 0 6px;font-weight:600}
+.rmHint{font-size:12.5px;color:var(--mut);margin:6px 0}
+.rmMut{color:var(--mut);font-size:13px}
+.rmB{font-weight:700}
+.rmRow{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}
+.rmRow.tight{margin-top:0}
+.rmBtn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:0 14px;border-radius:12px;border:1px solid #30353d;background:#22262c;color:var(--tx);font-weight:650;font-size:14px}
+.rmBtn svg{width:18px;height:18px}
+.rmBtn:active{transform:scale(.96)}
+.rmBtn.pri{background:#e8a33d;border-color:#e8a33d;color:#1a1204}
+.rmBtn.bad{background:transparent;border-color:var(--bad);color:var(--bad)}
+.rmBtn.big{min-height:52px;flex:1;font-size:15px}
+.rmBtn.round{flex:none;width:52px;height:52px;padding:0;border-radius:50%}
+.rmBtn.round.big{width:66px;height:66px}
+.rmBtn.round.big svg{width:28px;height:28px}
+.rmChips{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
+.rmChip{height:36px;padding:0 14px;border-radius:18px;border:1px solid #30353d;background:#1d2025;color:var(--tx);font-weight:600;font-size:13px}
+.rmChip.on{background:#e8a33d;border-color:#e8a33d;color:#1a1204}
+.rmSw{flex:none;width:52px;height:30px;border-radius:15px;border:0;background:#3a3f47;position:relative;transition:background .15s}
+.rmSw i{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#e8e9ec;transition:left .15s}
+.rmSw.on{background:#30d158}.rmSw.on i{left:25px}
+.rmSl{display:block;margin-top:10px}
+.rmSlL{display:flex;justify-content:space-between;font-size:12.5px;color:var(--mut);margin-bottom:4px}
+.rmSlL b{color:var(--tx);font-weight:650}
+input[type=range].rmRange{width:100%;height:32px;accent-color:#e8a33d}
+.rmSetRow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid #22262c}
+.rmSetRow:first-of-type{border-top:0}
+.rmIn{flex:1;min-width:0;width:100%;height:44px;border-radius:11px;border:1px solid #30353d;background:#0f1113;color:var(--tx);padding:0 12px;font-size:15px}
+select.rmIn{appearance:auto}
+.rmField{display:block;margin-top:4px}
+.rmTime{font-size:34px;height:64px;font-weight:700;text-align:center;font-variant-numeric:tabular-nums;color-scheme:dark}
+.rmDays{display:flex;gap:6px}
+.rmDay{flex:1;height:44px;border-radius:12px;border:1px solid #30353d;background:#1d2025;color:var(--mut);font-weight:700}
+.rmDay.on{background:#e8a33d;border-color:#e8a33d;color:#1a1204}
+.rmHero{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:6px 4px 16px}
+.rmClockBig{font-size:64px;line-height:1;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.rmDate{color:var(--mut);font-size:15px;margin-top:6px;text-transform:capitalize}
+.rmWx{display:flex;align-items:center;gap:10px;text-align:right}
+.rmWx svg{width:40px;height:40px;color:#e8a33d}
+.rmWxT{font-size:30px;font-weight:800}
+.rmInfo{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.rmInfoI{display:flex;align-items:center;gap:10px;min-height:46px;padding:0 14px;border-radius:14px;background:#17191d;border:1px solid #262a30;color:var(--tx);font-size:14.5px;font-weight:600;text-align:left}
+.rmInfoI svg{width:20px;height:20px;color:var(--mut)}
+.rmInfoI.on{border-color:#e8a33d}.rmInfoI.on svg{color:#e8a33d}
+.rmNow{display:flex;gap:14px;align-items:flex-start}
+.rmNow.full{flex-direction:column;align-items:stretch}
+.rmArt{width:96px;height:96px;border-radius:12px;object-fit:cover;flex:none;background:#0b0c0e;display:flex;align-items:center;justify-content:center;color:var(--dim)}
+.rmNow.full .rmArt{width:100%;height:auto;aspect-ratio:1;max-width:320px;align-self:center}.rmNow.full .rmArt.none{max-width:120px}
+.rmArt svg{width:36px;height:36px}
+.rmNowI{flex:1;min-width:0}
+.rmNowT{font-size:17px;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rmNow.full .rmNowT{font-size:20px;white-space:normal}
+.rmCtl{display:flex;align-items:center;gap:12px;margin-top:10px}
+.rmNow.full .rmCtl{justify-content:center}
+.rmGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+.rmScene{display:flex;align-items:center;gap:9px;min-height:56px;padding:0 14px;border-radius:14px;border:1px solid #30353d;background:#1f2227;color:var(--tx);font-weight:650;font-size:14px;text-align:left}
+.rmScene svg{width:20px;height:20px;color:#e8a33d;flex:none}
+.rmScene.on{background:rgba(232,163,61,.16);border-color:#e8a33d}
+.rmList{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto}
+.rmLi{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border-radius:11px;border:1px solid #262a30;background:#1b1e22;color:var(--tx);text-align:left;font-size:14px}
+.rmLi svg{width:18px;height:18px;color:var(--mut)}
+.rmBigLine{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:650}
+.rmBigLine b{margin-left:auto;color:#e8a33d;font-size:20px}
+.rmBigLine svg{width:22px;height:22px;color:#e8a33d}
+.rmLampH{display:flex;align-items:center;gap:8px}
+.rmLampN{flex:1;display:flex;align-items:center;gap:8px;background:none;border:0;color:var(--tx);font-weight:700;font-size:15.5px;text-align:left;padding:4px 0}
+.rmLampN svg{width:20px;height:20px;color:#e8a33d}
+.rmCaret{color:var(--mut);font-size:12px}
+.rmSw8{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.rmDot{width:36px;height:36px;border-radius:50%;border:2px solid #0e0f11;box-shadow:0 0 0 1px #3a3f47}
+.rmLamps{display:flex;flex-direction:column}
+.rmLamp{padding:10px 0;border-top:1px solid #22262c}
+.rmLamp:first-child{border-top:0}
+.rmLampDot{width:12px;height:12px;border-radius:50%;flex:none}
+.rmLampNm{flex:1;font-weight:600}
+.rmRing{background:linear-gradient(135deg,#3a1d0d,#1d1308);border:1px solid #e8a33d;border-radius:18px;padding:16px;margin-bottom:14px;animation:rmGlow 1.6s infinite alternate}
+@keyframes rmGlow{to{box-shadow:0 0 24px rgba(232,163,61,.35)}}
+.rmRingT{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800}
+.rmRingT svg{width:26px;height:26px;color:#e8a33d}
+.rmAlarm{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer}
+.rmAlarm.off{opacity:.55}
+.rmAlarmT{font-size:40px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.05}
+.rmLink{display:inline-block;margin-top:12px;color:#e8a33d;font-weight:600;text-decoration:none}
+/* liggande skärm (surfplatta, Nest Hub-storlek): flikarna i en list till vänster, två spalter */
+@media (min-width:860px) and (orientation:landscape){
+  #rmShell{padding-left:96px}
+  .rmTabs{top:0;bottom:0;right:auto;width:96px;flex-direction:column;justify-content:flex-start;gap:6px;padding:calc(env(safe-area-inset-top) + 64px) 8px 12px;border-top:0;border-right:1px solid var(--line)}
+  .rmTab{flex:none;padding:10px 0;font-size:12px}
+  .rmTab svg{width:26px;height:26px}
+  .rmMain{max-width:none;padding:16px 22px 24px}
+  .rmPanel.on{columns:2;column-gap:16px}
+  .rmPanel.on > *{break-inside:avoid}
+  #rm-knappar.on{columns:1}
+  .rmHero,.rmRing{column-span:all}
+  .rmClockBig{font-size:76px}
+}
+
 </style>
 </head>
 <body>
@@ -3059,6 +3174,7 @@ function buildApp(){
   }
   root.append(hd, tabs, crumb, grid, btns, encs, h("div", { id:"apToast" }));
   document.body.append(root);
+  if (window.remoteBuild) window.remoteBuild(root);      // flikarna Hem, Musik, Ljus … runt knapparna
   // tryck på knappar: ned och upp (håll inne fungerar som på enheten)
   const down = (kind, i) => ev => { ev.preventDefault(); try { navigator.vibrate && navigator.vibrate(12); } catch(e){} appHeld = { kind, i }; useInput(kind, i, true); appPressFx(kind, i, true); };
   appEl.keys.forEach((k, i) => k.addEventListener("pointerdown", down("key", i)));
@@ -3137,6 +3253,368 @@ function renderApp(){
   setInterval(loadGroups, 60000);
   new ResizeObserver(fitDevice).observe($("#deviceWrap"));
   window.DECKDBG = { get deck(){ return deck; }, engine, LIVE, effLook, buildFaces, get sel(){ return sel; } };
+})();
+</script>
+<script id="remote">
+// ---------- appen (/app): fjärrkontrollen ----------
+// Som Tavlan-appen: flikar för Hem, Musik, Ljus, Scener, Larm och Knappar (Stream Deck-knapparna).
+// På en telefon ligger flikarna längst ned; på en liggande skärm (surfplatta, Nest Hub-storlek)
+// ligger de i en list till vänster och innehållet i två spalter.
+(function(){
+const $ = (s, root) => (root || document).querySelector(s);
+const RM = {
+  tab: (() => { try { return localStorage.getItem("app.tab") || "hem"; } catch(e){ return "hem"; } })(),
+  room: (() => { try { return localStorage.getItem("app.room") || ""; } catch(e){ return ""; } })(),
+  st: {}, now: {}, S: {}, wx: null, dep: [], busyUntil: 0, editAlarm: null, openGroup: null, lastLampsRead: 0,
+};
+const RM_TABS = [["hem","Hem","home"],["musik","Musik","note"],["ljus","Ljus","bulb"],["scener","Scener","sparkles"],["larm","Larm","bell"],["knappar","Knappar","grid"]];
+const DAY_SHORT = ["M","T","O","T","F","L","S"], DAY_LONG = ["mån","tis","ons","tor","fre","lör","sön"];
+const rmSend = cmd => { if (cmd) sendCmd(cmd); };
+const rmAct = a => rmSend(C.toCmd(a));
+const rmSave = () => scheduleSave();
+const rmBusy = (ms = 2500) => { RM.busyUntil = Date.now() + ms; };
+const pad2 = n => String(n).padStart(2, "0");
+const minsLeft = ts => Math.max(0, Math.round((ts * 1000 - Date.now()) / 60000));
+function rmToast(t){ toast(t, 2200); }
+
+function remoteBuild(pad){
+  document.body.classList.add("rmMode");
+  const shell = h("div", { id:"rmShell" });
+  const head = h("header", { class:"rmHead" },
+    h("span", { class:"rmBrand", text:"BLAUPUNKT" }), h("span", { id:"rmClockS", class:"rmClockS" }), h("span", { id:"rmHub", class:"apHub" }));
+  const tabs = h("nav", { class:"rmTabs" }, RM_TABS.map(([id, t, ic]) =>
+    h("button", { class:"rmTab", "data-t": id, onclick: () => rmShow(id) }, icon(ic), h("span", { text: t }))));
+  const main = h("main", { class:"rmMain" });
+  for (const [id] of RM_TABS) main.append(h("section", { class:"rmPanel", id:"rm-" + id }));
+  $("#rm-knappar", main).append(pad);
+  shell.append(head, main, tabs);
+  document.body.append(shell);
+  rmShow(RM.tab);
+  rmTick(); rmSlow();
+  setInterval(rmTick, 3000);
+  setInterval(rmSlow, 120000);
+  setInterval(rmClock, 10000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden){ rmTick(); rmSlow(); } });
+}
+
+function rmShow(id){
+  RM.tab = id; try { localStorage.setItem("app.tab", id); } catch(e){}
+  document.querySelectorAll(".rmTab").forEach(b => b.classList.toggle("on", b.dataset.t === id));
+  document.querySelectorAll(".rmPanel").forEach(p => p.classList.toggle("on", p.id === "rm-" + id));
+  if (id === "ljus" || id === "musik") rmLampsRead();
+  rmRender(true);
+  window.scrollTo(0, 0);
+}
+function rmLampsRead(){ if (Date.now() - RM.lastLampsRead > 8000){ RM.lastLampsRead = Date.now(); fetch("/api/send?c=lamps-read").catch(() => {}); } }
+
+async function rmTick(){
+  if (document.hidden) return;
+  try {
+    const [a, b] = await Promise.all([fetch("/api/tradfri-list", { cache:"no-store" }).then(r => r.json()), fetch("/api/sonos-now", { cache:"no-store" }).then(r => r.json())]);
+    RM.st = a || {}; RM.now = b || {};
+    GROUPS = {}; (RM.st.groups || []).forEach(g => { GROUPS[g.name] = g.moods || []; });
+    LAMPS = Array.isArray(RM.st.lamps) ? RM.st.lamps : LAMPS;
+    SPEAKERS = Array.isArray(RM.st.speakers) ? RM.st.speakers : SPEAKERS;
+    RUNS = Array.isArray(RM.st.runs) && RM.st.runsAt && Date.now() / 1000 - RM.st.runsAt < 120 ? RM.st.runs : [];
+    UPCOMING = Array.isArray(RM.st.upcoming) ? RM.st.upcoming : [];
+  } catch(e){}
+  if (RM.tab === "ljus" || RM.tab === "musik") rmLampsRead();
+  rmRender();
+}
+async function rmSlow(){
+  try { const j = await (await fetch("/api/state", { cache:"no-store" })).json(); RM.S = (j && j.settings) || {}; } catch(e){}
+  const e = Object.assign({ lat:60.6065, lon:15.6355, place:"Falun" }, RM.S.edge || {});
+  try {
+    const j = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${e.lat}&longitude=${e.lon}&current=temperature_2m,weather_code,is_day,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=1&wind_speed_unit=ms`)).json();
+    RM.wx = { t: j.current.temperature_2m, c: j.current.weather_code, day: j.current.is_day === 1, wind: j.current.wind_speed_10m,
+      hi: j.daily.temperature_2m_max[0], lo: j.daily.temperature_2m_min[0], rain: j.daily.precipitation_probability_max[0], place: e.place };
+  } catch(err){}
+  const bus = RM.S.bus || {};
+  if (bus.on !== false && bus.id){
+    try {
+      const u = bus.to ? `/api/trip?from=${encodeURIComponent(bus.id)}&to=${encodeURIComponent(bus.to)}` : "/api/departures?id=" + encodeURIComponent(bus.id);
+      const j = await (await fetch(u)).json();
+      RM.dep = Array.isArray(j) ? j : [];
+      RM.busName = String(bus.name || "").replace(/\s*\([^)]*\)\s*$/, "");
+    } catch(err){}
+  }
+  rmRender();
+}
+function rmClock(){
+  const d = new Date(), t = pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+  const s = $("#rmClockS"); if (s) s.textContent = t;
+  const big = $("#rmClockBig"); if (big) big.textContent = t;
+}
+
+// ---------- små byggstenar ----------
+const card = (title, ...kids) => h("div", { class:"rmCard" }, title ? h("div", { class:"rmCardT", text: title }) : null, ...kids);
+const rbtn = (txt, fn, cls, ic) => h("button", { class:"rmBtn" + (cls ? " " + cls : ""), onclick: fn }, ic ? icon(ic) : null, txt ? h("span", { text: txt }) : null);
+const chip = (txt, on, fn) => h("button", { class:"rmChip" + (on ? " on" : ""), text: txt, onclick: fn });
+function rswitch(on, fn){ return h("button", { class:"rmSw" + (on ? " on" : ""), role:"switch", "aria-checked": on ? "true" : "false", onclick: ev => { ev.stopPropagation(); fn(!on); } }, h("i")); }
+function slider(label, val, min, max, fn, fmt){
+  const out = h("b", { text: fmt ? fmt(val) : String(val) });
+  let t = 0;
+  const inp = h("input", { type:"range", min, max, value: val, class:"rmRange",
+    oninput: e => { rmBusy(); out.textContent = fmt ? fmt(+e.target.value) : e.target.value; clearTimeout(t); t = setTimeout(() => fn(+e.target.value), 180); },
+    onchange: e => { clearTimeout(t); fn(+e.target.value); } });
+  return h("label", { class:"rmSl" }, h("span", { class:"rmSlL" }, h("span", { text: label }), out), inp);
+}
+const wxIcon = (c, day) => c === 0 || c === 1 ? (day ? "sun" : "moon") : c <= 3 ? "weather" : c >= 71 && c <= 86 ? "snow" : c >= 95 ? "bolt" : "weather";
+const WXT = c => c===0?"Klart":c===1?"Mest klart":c===2?"Halvklart":c===3?"Mulet":(c===45||c===48)?"Dimma":(c>=51&&c<=57)?"Duggregn":(c>=61&&c<=67)?"Regn":(c>=71&&c<=77)?"Snö":(c>=80&&c<=82)?"Regnskurar":(c===85||c===86)?"Snöbyar":(c>=95)?"Åska":"";
+const daysText = d => { d = Array.isArray(d) && d.length ? d.slice().sort() : [0,1,2,3,4,5,6];
+  if (d.length === 7) return "Varje dag"; if (d.join() === "0,1,2,3,4") return "Vardagar"; if (d.join() === "5,6") return "Helger";
+  return d.map(i => DAY_LONG[i]).join(", "); };
+
+// ---------- det som är igång ----------
+const ringing = () => RUNS.filter(r => r.alarm);
+const sceneRuns = () => RUNS.filter(r => !r.alarm);
+const nextAlarm = () => {
+  const ids = new Set((deck.alarms || []).filter(a => a.on !== false).map(a => "alarm-" + a.id));
+  const list = UPCOMING.filter(u => ids.has(String(u.id))).sort((a, b) => a.at - b.at);
+  const sn = Object.entries(RM.st.snoozed || {}).map(([id, at]) => ({ id, at, snooze: true }));
+  return [...sn, ...list].sort((a, b) => a.at - b.at)[0] || null;
+};
+const alarmOf = id => (deck.alarms || []).find(a => "alarm-" + a.id === String(id) || a.id === String(id));
+const sleepOn = () => RM.st.sleep && RM.st.sleep.end && RM.st.sleep.end * 1000 > Date.now() ? RM.st.sleep : null;
+const curRoom = () => RM.room || RM.now.room || roomNames()[0] || "Vardagsrum";
+const volOf = room => { const v = ((RM.st.sonos || {}).vols || {})[room]; return v != null ? v : (LIVE.vals["vol:" + room] ?? 30); };
+
+function rmRender(force){
+  if (!deck) return;
+  if (!force && Date.now() < RM.busyUntil) return;          // någon drar i ett reglage just nu
+  const hub = $("#rmHub"); if (hub){ hub.className = "apHub" + (LIVE.hub.online ? " ok" : ""); hub.title = LIVE.hub.online ? "Hubben är ansluten" : "Ingen hubb ansluten"; }
+  const ring = ringing().length > 0;
+  document.querySelector('.rmTab[data-t="larm"]')?.classList.toggle("alert", ring);
+  const f = { hem: rmHem, musik: rmMusik, ljus: rmLjus, scener: rmScener, larm: rmLarm }[RM.tab];
+  if (f){ const p = $("#rm-" + RM.tab); const y = window.scrollY; p.innerHTML = ""; f(p); window.scrollTo(0, y); }
+  rmClock();
+}
+
+// ---------- Hem ----------
+function rmHem(p){
+  const d = new Date();
+  const top = h("div", { class:"rmHero" },
+    h("div", {}, h("div", { id:"rmClockBig", class:"rmClockBig", text: pad2(d.getHours()) + ":" + pad2(d.getMinutes()) }),
+      h("div", { class:"rmDate", text: d.toLocaleDateString("sv-SE", { weekday:"long", day:"numeric", month:"long" }) })),
+    RM.wx ? h("div", { class:"rmWx" }, icon(wxIcon(RM.wx.c, RM.wx.day)), h("div", {},
+      h("div", { class:"rmWxT", text: Math.round(RM.wx.t) + "°" }),
+      h("div", { class:"rmMut", text: WXT(RM.wx.c) + " · " + Math.round(RM.wx.hi) + "° / " + Math.round(RM.wx.lo) + "°" + (RM.wx.rain >= 30 ? " · nederbörd " + RM.wx.rain + " %" : "") }))) : null);
+  p.append(top);
+  rmAlarmBanner(p);
+  // nästa larm och insomningstimern
+  const na = nextAlarm(), sl = sleepOn();
+  const info = h("div", { class:"rmInfo" });
+  info.append(h("button", { class:"rmInfoI", onclick: () => rmShow("larm") }, icon("bell"),
+    h("span", { text: na ? (na.snooze ? "Snoozat till " : "Nästa larm ") + hhmmOf(na.at) : "Inget larm på" })));
+  info.append(h("button", { class:"rmInfoI" + (sl ? " on" : ""), onclick: () => rmShow("larm") }, icon("moon"),
+    h("span", { text: sl ? "Tystnar " + hhmmOf(sl.end) + " (" + minsLeft(sl.end) + " min)" : "Insomningstimer" })));
+  if (RM.dep.length){
+    const nx = RM.dep.filter(x => !x.canceled && new Date(x.rt || x.sched) > Date.now()).slice(0, 2);
+    if (nx.length) info.append(h("div", { class:"rmInfoI" }, icon("bus"), h("span", { text: nx.map(x => (x.line || "") + " " + new Date(x.rt || x.sched).toTimeString().slice(0, 5)).join("  ·  ") })));
+  }
+  p.append(info);
+  p.append(rmNowCard(false));
+  // scener
+  const runIds = new Set(sceneRuns().map(r => String(r.id)));
+  const scenes = (deck.scenes || []).filter(s => !String(s.id).startsWith("jalusi-"));
+  if (scenes.length) p.append(card("Scener", h("div", { class:"rmGrid" }, scenes.slice(0, 8).map(s => rmSceneBtn(s, runIds.has(String(s.id)))))));
+  // skärmen
+  p.append(card("Blaupunkt-skärmen",
+    h("div", { class:"rmRow" }, rbtn("Öppna", () => rmSend("open"), "", "tv"), rbtn("Stäng", () => rmSend("close"), "", "tv-off"), rbtn("Spela/paus", () => rmSend("playpause"), "", "playpause")),
+    h("div", { class:"rmRow" }, rbtn("Rapport", () => rmSend("svt:rapport"), "", "news"), rbtn("Sportnytt", () => rmSend("svt:sportnytt"), "", "ball"), rbtn("Höjdpunkter", () => rmSend("hl:latest"), "", "film"), rbtn("", () => rmSend("hl:stop"), "", "cross")),
+    h("div", { class:"rmChips" }, Object.entries(PAGE_NAMES).filter(([k]) => k !== "test").map(([k, t]) => chip(t, false, () => { rmAct({ t:"page", p:k }); rmToast(t); }))),
+    h("div", { class:"rmRow" }, rbtn("Kanal", () => rmAct({ t:"viz", n:"next" }), "", "wave"), rbtn("Färgläge", () => rmAct({ t:"palette", p:"next" }), "", "palette"), rbtn("Bläddra", () => rmAct({ t:"page", p:"next" }), "", "pages"))));
+}
+function rmSceneBtn(s, on){
+  return h("button", { class:"rmScene" + (on ? " on" : ""), onclick: () => { rmSend("scene:" + s.id); rmToast(on ? s.name + ": tillbaka som innan" : s.name); setTimeout(rmTick, 1500); } },
+    icon(on ? "check" : "sparkles"), h("span", { text: s.name || "Scen" }));
+}
+function rmAlarmBanner(p){
+  for (const r of ringing()){
+    const a = alarmOf(r.alarm) || {};
+    p.append(h("div", { class:"rmRing" }, h("div", { class:"rmRingT" }, icon("bell"), h("span", { text: (a.name || "Larmet") + " ringer" })),
+      h("div", { class:"rmRow" }, rbtn("Snooza " + (a.snooze || 9) + " min", () => { rmSend("alarm:snooze:" + r.alarm); setTimeout(rmTick, 1200); }, "big"),
+        rbtn("Stäng av", () => { rmSend("alarm:stop:" + r.alarm); setTimeout(rmTick, 1200); }, "big pri"))));
+  }
+}
+
+// ---------- Musik ----------
+function rmNowCard(full){
+  const n = RM.now || {}, room = full ? curRoom() : (n.room || curRoom());
+  const art = n.art ? h("img", { class:"rmArt", src: n.art, alt:"" }) : h("div", { class:"rmArt none" }, icon("note"));
+  const ctl = h("div", { class:"rmCtl" },
+    rbtn("", () => rmAct({ t:"sonos", room, op:"prev" }), "round", "prev"),
+    rbtn("", () => { rmAct({ t:"sonos", room, op:"toggle" }); setTimeout(rmTick, 1200); }, "round big pri", n.playing ? "pause" : "play"),
+    rbtn("", () => rmAct({ t:"sonos", room, op:"next" }), "round", "next"));
+  const c = h("div", { class:"rmCard rmNow" + (full ? " full" : "") }, art,
+    h("div", { class:"rmNowI" }, h("div", { class:"rmNowT", text: n.title || (n.playing ? "Spelar" : "Inget spelas") }),
+      h("div", { class:"rmMut", text: [n.artist, n.room].filter(Boolean).join(" · ") }), ctl,
+      slider("Volym " + room, volOf(room), 0, 100, v => { LIVE.vals["vol:" + room] = v; rmAct({ t:"sonos", room, op:"vol", value: v }); })));
+  return c;
+}
+function rmMusik(p){
+  const rooms = roomNames(), room = curRoom();
+  p.append(h("div", { class:"rmChips" }, rooms.map(r => chip(r, r === room, () => { RM.room = r; try { localStorage.setItem("app.room", r); } catch(e){} rmRender(true); }))));
+  p.append(rmNowCard(true));
+  // grupper
+  const sg = (RM.st.sonos || {}).groups || [];
+  const mine = sg.find(g => g.members.includes(room)) || { co: room, members: [room] };
+  const others = rooms.filter(r => r !== room);
+  p.append(card("Spela i fler rum",
+    h("div", { class:"rmHint", text: mine.members.length > 1 ? "Spelar ihop: " + mine.members.join(", ") : room + " spelar för sig själv." }),
+    h("div", { class:"rmChips" }, others.map(r => { const on = mine.members.includes(r);
+      return chip(r, on, () => { rmAct(on ? { t:"sonos", room: r, op:"ungroup" } : { t:"sonos", op:"group", rooms:[room, r] }); rmToast(on ? r + " lämnar" : r + " ansluter"); setTimeout(rmLampsRead, 2500); }); })),
+    h("div", { class:"rmRow" }, rbtn("Alla tillsammans", () => rmAct({ t:"sonos", room, op:"group-all" }), "", "group"), rbtn("Dela upp", () => rmAct({ t:"sonos", room, op:"ungroup-all" }), "", "ungroup"))));
+  // spellistor och favoriter
+  const favs = (RM.st.sonos || {}).favs || [];
+  const lists = SPOTIFY.playlists || [];
+  const pick = h("div", {});
+  if (favs.length) pick.append(h("div", { class:"rmSub", text:"Sonos-favoriter" }), h("div", { class:"rmList" }, favs.map(f => h("button", { class:"rmLi", onclick: () => { rmAct({ t:"sonos", room, op:"fav", value: f }); rmToast("Spelar " + f); } }, icon("star"), h("span", { text: f })))));
+  if (lists.length) pick.append(h("div", { class:"rmSub", text:"Spotify-spellistor" }), h("div", { class:"rmList" }, lists.map(f => h("button", { class:"rmLi", onclick: () => { rmAct({ t:"sonos", room, op:"playlist", value: f }); rmToast("Spelar " + f); } }, icon("playlist"), h("span", { text: f })))));
+  const q = h("input", { class:"rmIn", placeholder:"Spellista eller favorit, skriv namnet" });
+  pick.append(h("div", { class:"rmRow" }, q, rbtn("Spela", () => { if (q.value.trim()) rmAct({ t:"sonos", room, op: favs.includes(q.value.trim()) ? "fav" : "playlist", value: q.value.trim() }); }, "pri")));
+  if (!favs.length) pick.append(h("div", { class:"rmHint", text:"Favoriterna från Sonos dyker upp här när hubben har läst av högtalarna." }));
+  p.append(card("Spela", pick));
+  p.append(rmSleepCard());
+}
+
+// ---------- insomningstimern ----------
+let SLEEP_SET = { min: 30, fade: 5, lights: "", screen: false };
+try { Object.assign(SLEEP_SET, JSON.parse(localStorage.getItem("app.sleep") || "{}")); } catch(e){}
+function rmSleepCard(){
+  const sl = sleepOn();
+  if (sl) return card("Insomningstimer",
+    h("div", { class:"rmBigLine" }, icon("moon"), h("span", { text: (sl.room || "") + " tystnar " + hhmmOf(sl.end) }), h("b", { text: minsLeft(sl.end) + " min" })),
+    h("div", { class:"rmRow" }, rbtn("+10 min", () => { rmSend("sleep:add:10"); setTimeout(rmTick, 1200); }), rbtn("+30 min", () => { rmSend("sleep:add:30"); setTimeout(rmTick, 1200); }),
+      rbtn("Stäng av", () => { rmSend("sleep:off"); setTimeout(rmTick, 1200); }, "pri")));
+  const save = () => { try { localStorage.setItem("app.sleep", JSON.stringify(SLEEP_SET)); } catch(e){} };
+  const groups = Object.keys(GROUPS);
+  return card("Insomningstimer",
+    h("div", { class:"rmSub", text:"Musiken tystnar om" }),
+    h("div", { class:"rmChips" }, [15, 30, 45, 60, 90, 120].map(m => chip(m + " min", SLEEP_SET.min === m, () => { SLEEP_SET.min = m; save(); rmRender(true); }))),
+    h("div", { class:"rmSub", text:"Tonas ut under" }),
+    h("div", { class:"rmChips" }, [1, 5, 10, 15].map(m => chip(m + " min", SLEEP_SET.fade === m, () => { SLEEP_SET.fade = m; save(); rmRender(true); }))),
+    groups.length ? h("div", { class:"rmSub", text:"Släck även" }) : null,
+    groups.length ? h("div", { class:"rmChips" }, [chip("Inga lampor", !SLEEP_SET.lights, () => { SLEEP_SET.lights = ""; save(); rmRender(true); }),
+      ...groups.map(g => { const sel = SLEEP_SET.lights.split(",").filter(Boolean); const on = sel.includes(g);
+        return chip(g, on, () => { SLEEP_SET.lights = (on ? sel.filter(x => x !== g) : [...sel, g]).join(","); save(); rmRender(true); }); })]) : null,
+    h("div", { class:"rmSetRow" }, h("span", { text:"Stäng Blaupunkt-skärmen också" }), rswitch(SLEEP_SET.screen, v => { SLEEP_SET.screen = v; save(); rmRender(true); })),
+    h("div", { class:"rmRow" }, rbtn("Starta i " + curRoom(), () => { rmSend("sleep:" + JSON.stringify(Object.assign({ room: curRoom() }, SLEEP_SET))); rmToast("Insomningstimern är på"); setTimeout(rmTick, 1500); }, "pri big", "moon")));
+}
+
+// ---------- Ljus ----------
+const lampState = id => ((RM.st.states || {})[String(id)]) || {};
+function rmLjus(p){
+  const groups = Object.keys(GROUPS);
+  if (!groups.length && !LAMPS.length) p.append(card("", h("div", { class:"rmHint", text:"Inga lampor ännu. Hubben skickar listan när den har kontakt med Trådfri-gatewayen." })));
+  for (const g of groups){
+    const vals = LIVE.vals || {}, dim = vals["dim:" + g] ?? 70, temp = vals["temp:" + g] ?? 50;
+    const open = RM.openGroup === g;
+    const moods = GROUPS[g] || [];
+    const c = card("",
+      h("div", { class:"rmLampH" }, h("button", { class:"rmLampN", onclick: () => { RM.openGroup = open ? null : g; rmRender(true); } }, icon("bulb"), h("span", { text: g }), h("span", { class:"rmCaret", text: open ? "▴" : "▾" })),
+        rbtn("Tänd", () => rmAct({ t:"light", group: g, op:"on" })), rbtn("Släck", () => rmAct({ t:"light", group: g, op:"off" }))),
+      slider("Ljusstyrka", dim, 1, 100, v => { LIVE.vals["dim:" + g] = v; rmAct({ t:"light", group: g, op:"dim", value: v }); }, v => v + " %"),
+      open ? slider("Färgton", temp, 0, 100, v => { LIVE.vals["temp:" + g] = v; rmAct({ t:"light", group: g, op:"temp", value: v }); }, v => v < 35 ? "varm" : v > 65 ? "kall" : "neutral") : null,
+      open ? h("div", { class:"rmSw8" }, SWATCHES.map(c2 => h("button", { class:"rmDot", style:{ background: c2 }, onclick: () => rmAct({ t:"light", group: g, op:"color", value: c2 }) }))) : null,
+      open && moods.length ? h("div", { class:"rmChips" }, moods.map(m => chip(m.name || m, false, () => rmAct({ t:"light", group: g, op:"scene", value: m.name || m })))) : null);
+    p.append(c);
+  }
+  if (LAMPS.length){
+    const list = h("div", { class:"rmLamps" });
+    LAMPS.slice().sort((a, b) => String(a.name).localeCompare(String(b.name), "sv")).forEach(l => {
+      const s = lampState(l.id), on = !!s.on, id = String(l.id);
+      const set = o => { const st = RM.st.states || (RM.st.states = {}); st[id] = Object.assign({}, s, o); rmSend("lamps-set:" + JSON.stringify({ [id]: Object.assign({ on: true }, o) })); };
+      const row = h("div", { class:"rmLamp" + (on ? " on" : "") },
+        h("div", { class:"rmLampH" }, h("span", { class:"rmLampDot", style:{ background: on ? (s.kind === "color" && s.color ? s.color : "#ffd27a") : "#333" } }),
+          h("span", { class:"rmLampNm", text: l.name || id }), on ? null : h("span", { class:"rmMut", text: "släckt" }),
+          rswitch(on, v => { rmSend("lamps-set:" + JSON.stringify({ [id]: { on: v } })); const st = RM.st.states || (RM.st.states = {}); st[id] = Object.assign({}, s, { on: v }); rmRender(true); })),
+        on && !l.outlet ? slider("", s.dim || 50, 1, 100, v => set({ dim: v }), v => v + " %") : null,
+        on && l.temp && !l.color ? slider("", s.temp ?? 50, 0, 100, v => set({ kind:"white", temp: v }), v => v < 35 ? "varm" : v > 65 ? "kall" : "neutral") : null,
+        on && l.color ? h("div", { class:"rmSw8" }, ["#ffd27a", "#ffffff", ...SWATCHES.slice(2)].map(c2 => h("button", { class:"rmDot", style:{ background: c2 }, onclick: () => set(c2 === "#ffd27a" ? { kind:"white", temp: 20 } : c2 === "#ffffff" ? { kind:"white", temp: 80 } : { kind:"color", color: c2 }) }))) : null);
+      list.append(row);
+    });
+    p.append(card("Alla lampor", list));
+  }
+}
+
+// ---------- Scener ----------
+function rmScener(p){
+  const runs = sceneRuns();
+  if (runs.length) p.append(card("Igång", ...runs.map(r => h("div", { class:"rmSetRow" }, h("span", {}, icon("sparkles"), " ", r.name || r.id),
+    h("div", { class:"rmRow tight" }, r.holding ? null : rbtn("Till slutet", () => { rmSend("scene-stop:" + r.id + ":end"); setTimeout(rmTick, 1500); }),
+      rbtn("Stäng av", () => { rmSend("scene-stop:" + r.id); setTimeout(rmTick, 1500); }, "pri"))))));
+  const runIds = new Set(runs.map(r => String(r.id)));
+  const scenes = (deck.scenes || []);
+  p.append(card("Scener", scenes.length ? h("div", { class:"rmGrid" }, scenes.map(s => rmSceneBtn(s, runIds.has(String(s.id))))) : h("div", { class:"rmHint", text:"Inga scener ännu." }),
+    h("div", { class:"rmHint", text:"Tryck en gång för att starta, en gång till för att gå tillbaka till hur det var innan." })));
+  const sch = deck.schedules || [];
+  const next = id => { const u = UPCOMING.find(x => String(x.id) === String(id)); return u ? "nästa " + hhmmOf(u.at) : ""; };
+  p.append(card("Tider", sch.length ? h("div", {}, sch.map((x, i) => {
+    const sc = (deck.scenes || []).find(s => String(s.id) === String(x.scene));
+    return h("div", { class:"rmSetRow" }, h("div", {}, h("div", { class:"rmB", text: (x.name || (sc && sc.name) || "Tid") }),
+      h("div", { class:"rmMut", text: [describeWhenJs(x.when), daysText(x.days), x.on !== false ? next(x.id) : "av"].filter(Boolean).join(" · ") })),
+      rswitch(x.on !== false, v => { deck.schedules[i].on = v; rmSave(); rmRender(true); }));
+  })) : h("div", { class:"rmHint", text:"Inga tider ännu." }),
+    h("a", { class:"rmLink", href:"/deck", text:"Bygg scener och tider i deck-redigeraren →" })));
+}
+function describeWhenJs(w){ w = w || {}; const off = +w.offset || 0;
+  if ((w.kind || "time") === "time") return w.time || "00:00";
+  const s = w.kind === "sunrise" ? "soluppgång" : "solnedgång"; return off ? Math.abs(off) + " min " + (off > 0 ? "efter " : "före ") + s : s; }
+
+// ---------- Larm ----------
+function rmLarm(p){
+  rmAlarmBanner(p);
+  const list = deck.alarms || (deck.alarms = []);
+  if (RM.editAlarm){ rmAlarmEditor(p, RM.editAlarm); return; }
+  const na = nextAlarm();
+  if (na) p.append(h("div", { class:"rmInfo" }, h("div", { class:"rmInfoI on" }, icon("bell"), h("span", { text: (na.snooze ? "Snoozat till " : "Nästa larm ") + hhmmOf(na.at) + " (om " + rmIn(na.at) + ")" }))));
+  const up = id => UPCOMING.find(x => String(x.id) === "alarm-" + id);
+  for (const a of list){
+    p.append(h("div", { class:"rmCard rmAlarm" + (a.on === false ? " off" : ""), onclick: () => { RM.editAlarm = JSON.parse(JSON.stringify(a)); rmRender(true); } },
+      h("div", {}, h("div", { class:"rmAlarmT", text: a.time || "07:00" }),
+        h("div", { class:"rmMut", text: [a.name, daysText(a.days), a.on !== false && up(a.id) ? hhmmOf(up(a.id).at) : ""].filter(Boolean).join(" · ") })),
+      rswitch(a.on !== false, v => { a.on = v; rmSave(); rmRender(true); rmToast(v ? "Larmet är på" : "Larmet är av"); })));
+  }
+  p.append(h("div", { class:"rmRow" }, rbtn("Nytt larm", () => { RM.editAlarm = { id: C.uid(), _new: true, on: true, time: "07:00", days: [0,1,2,3,4], name: "",
+    room: curRoom(), src: "playlist", value: "", vol: 25, fade: 10, screen: true, scene: "", stop: 60, snooze: 9, music: true }; rmRender(true); }, "pri big", "plus")));
+  p.append(rmSleepCard());
+}
+function rmIn(ts){ const m = minsLeft(ts); return m >= 60 ? Math.floor(m / 60) + " h " + (m % 60) + " min" : m + " min"; }
+function rmAlarmEditor(p, a){
+  const rerender = () => rmRender(true);
+  const field = (label, el) => h("label", { class:"rmField" }, h("span", { class:"rmSub", text: label }), el);
+  const sel = (val, opts, fn) => h("select", { class:"rmIn", onchange: e => fn(e.target.value) }, opts.map(([v, t]) => h("option", { value: v, text: t, selected: String(val) === String(v) })));
+  const favs = (RM.st.sonos || {}).favs || [];
+  const time = h("input", { type:"time", class:"rmIn rmTime", value: a.time || "07:00", oninput: e => { a.time = e.target.value; } });
+  p.append(card(a._new ? "Nytt larm" : "Ändra larm",
+    field("Tid", time),
+    field("Dagar", h("div", { class:"rmDays" }, DAY_SHORT.map((d, i) => { const on = (a.days || []).includes(i);
+      return h("button", { class:"rmDay" + (on ? " on" : ""), text: d, title: DAY_LONG[i], onclick: () => { a.days = on ? a.days.filter(x => x !== i) : [...(a.days || []), i].sort(); rerender(); } }); }))),
+    h("div", { class:"rmChips" }, chip("Vardagar", false, () => { a.days = [0,1,2,3,4]; rerender(); }), chip("Helger", false, () => { a.days = [5,6]; rerender(); }), chip("Varje dag", false, () => { a.days = [0,1,2,3,4,5,6]; rerender(); })),
+    field("Namn", h("input", { class:"rmIn", value: a.name || "", placeholder:"t.ex. Jobb", oninput: e => { a.name = e.target.value; } }))));
+  p.append(card("Musik",
+    h("div", { class:"rmSetRow" }, h("span", { text:"Spela musik" }), rswitch(a.music !== false, v => { a.music = v; rerender(); })),
+    a.music !== false ? h("div", {},
+      field("Högtalare", sel(a.room, roomNames().map(r => [r, r]), v => { a.room = v; })),
+      field("Vad", sel(a.src || "playlist", [["playlist","Spellista"],["fav","Sonos-favorit"],["resume","Fortsätt det som spelades"]], v => { a.src = v; rerender(); })),
+      a.src === "fav" && favs.length ? field("Favorit", sel(a.value, [["", "Välj…"], ...favs.map(f => [f, f])], v => { a.value = v; }))
+        : a.src !== "resume" ? field(a.src === "fav" ? "Favoritens namn" : "Spellistans namn", h("input", { class:"rmIn", value: a.value || "", list:"rmPl", oninput: e => { a.value = e.target.value; } }),
+          h("datalist", { id:"rmPl" }, (SPOTIFY.playlists || []).map(x => h("option", { value: x })))) : null,
+      slider("Volym", a.vol ?? 25, 1, 100, v => { a.vol = v; }),
+      slider("Tonas upp under", a.fade ?? 10, 0, 30, v => { a.fade = v; }, v => v ? v + " min" : "direkt")) : null));
+  p.append(card("Mer",
+    field("Starta även scenen", sel(a.scene || "", [["", "Ingen"], ...(deck.scenes || []).map(s => [s.id, s.name])], v => { a.scene = v; })),
+    h("div", { class:"rmSetRow" }, h("span", { text:"Väck Blaupunkt-skärmen" }), rswitch(a.screen !== false, v => { a.screen = v; rerender(); })),
+    slider("Snooze", a.snooze ?? 9, 1, 30, v => { a.snooze = v; }, v => v + " min"),
+    slider("Stängs av själv efter", a.stop ?? 60, 0, 180, v => { a.stop = v; }, v => v ? v + " min" : "aldrig")));
+  p.append(h("div", { class:"rmRow" },
+    rbtn("Spara", () => { const list = deck.alarms || (deck.alarms = []); const o = Object.assign({}, a); delete o._new; if (!o.days || !o.days.length) o.days = [0,1,2,3,4,5,6];
+      const i = list.findIndex(x => x.id === o.id); if (i >= 0) list[i] = o; else list.push(o); RM.editAlarm = null; rmSave(); rmRender(true); rmToast("Larmet är sparat"); }, "pri big", "check"),
+    rbtn("Avbryt", () => { RM.editAlarm = null; rmRender(true); }, "big"),
+    a._new ? null : rbtn("Ta bort", () => { deck.alarms = (deck.alarms || []).filter(x => x.id !== a.id); RM.editAlarm = null; rmSave(); rmRender(true); }, "big bad")));
+}
+window.remoteBuild = remoteBuild;
 })();
 </script>
 </body></html>
