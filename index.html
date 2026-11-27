@@ -3983,9 +3983,11 @@ async function playItem(it, prog){
   // it.room (från Nest Hub) väljer Sonos-rummet för just det här; annars rummet i inställningarna
   const aroom = it.room || S.clipRoom;
   HL.audio = LITE && !!aroom;
+  // Be om ljudet varje gång: hubben kollar att Sonos fortfarande spelar skärmens ljud och kopplar
+  // upp igen om någon bytt till annat på Sonos under tiden (annars blev nästa klipp tyst).
+  if (HL.audio) fetch("/api/send?c=" + encodeURIComponent("clip-audio:on:" + aroom)).catch(() => {});
   if (HL.audio && (!audioOn || HL.audioRoom !== aroom)){
     HL.audioRoom = aroom;
-    fetch("/api/send?c=" + encodeURIComponent("clip-audio:on:" + aroom)).catch(() => {});
     await new Promise(r => setTimeout(r, 4000));
     if (!HL.on || HL.item !== it) return;
   }

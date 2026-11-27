@@ -1005,7 +1005,7 @@ def svt_channels():
             j = _get_json("https://api.svt.se/video/" + cid, timeout=6)
             now = (j.get("programTitle") or "").strip()
             ep = (j.get("episodeTitle") or "").strip()
-            if now and now.lower() not in (name.lower(), "svt"):
+            if now and now.lower() not in (name.lower(), "svt", "kanaler"):
                 it["now"] = now + (" – " + ep if ep and ep.lower() != now.lower() else "")
             if j.get("imageId"):
                 it["img"] = "https://www.svtstatic.se/image/wide/480/%s/" % j["imageId"]
