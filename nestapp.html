@@ -698,7 +698,7 @@ const LEARN_STEPS = [["Tryck UPP på styrkorset", "gp:nav-up"], ["Tryck NER på 
   ["Tryck R2 (höger avtryckare, undre)", "gp:next"], ["Tryck Meny (tre streck, höger i mitten)", "gp:screen"], ["Tryck Alternativ (två rutor, vänster i mitten)", "gp:tv-off"],
   ["Tryck Stadia-knappen (mitten)", "gp:nest"]];
 const LEARN = { on: false, i: 0, map: {}, last: "" };
-function learnStart(){ LEARN.on = true; LEARN.i = 0; LEARN.map = {}; send("gamepad:learn:on"); $("#learn").classList.add("on"); learnPaint(""); }
+function learnStart(){ LEARN.on = true; LEARN.i = 0; LEARN.map = {}; LEARN.prev = ""; LEARN.prevAt = 0; send("gamepad:learn:on"); $("#learn").classList.add("on"); learnPaint(""); }
 function learnStop(save){
   LEARN.on = false; $("#learn").classList.remove("on"); send("gamepad:learn:off");
   if (save){ fetch("/api/gamepad-map", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ map: LEARN.map, replace: true }) })
@@ -714,10 +714,13 @@ function learnPaint(msg, bad){
     : `<button class="btn press" data-tap="learnBack()">Ta om förra</button><button class="btn press" data-tap="learnSkip()">Hoppa över</button><button class="btn bad press" data-tap="learnStop(false)">Avbryt</button>`;
 }
 function learnGot(code){
+  // En knapp kan skicka två signaler på en gång (Stadias L2/R2): allt inom en halv sekund efter
+  // ett tryck hör till samma knapp och får samma funktion.
+  if (LEARN.prev && Date.now() - LEARN.prevAt < 500){ if (!LEARN.map[code]) LEARN.map[code] = LEARN.prev; learnPaint(""); return; }
   if (LEARN.i >= LEARN_STEPS.length) return;
   const act = LEARN_STEPS[LEARN.i][1];
   if (LEARN.map[code] && LEARN.map[code] !== act){ learnPaint("Den knappen är redan " + (GP_NAMES[LEARN.map[code]] || "") + ". Tryck en annan.", true); return; }
-  LEARN.map[code] = act; LEARN.i++;
+  LEARN.map[code] = act; LEARN.i++; LEARN.prev = act; LEARN.prevAt = Date.now();
   learnPaint("✓ " + code);
   setTimeout(() => { if (LEARN.on) learnPaint(""); }, 700);
 }
