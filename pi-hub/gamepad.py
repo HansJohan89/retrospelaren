@@ -101,7 +101,9 @@ class Gamepad:
         try:
             out = subprocess.run(["bash", "-c", "ls -l /dev/input/ | tail -n +2 | awk '{print $1, $3, $4, $NF}' | tr '\\n' ';'; echo; id; "
                                   "for m in $(bluetoothctl devices Paired 2>/dev/null | awk '{print $2}'); do bluetoothctl info $m | grep -E 'Name|Connected|Paired|Trusted|UUID: Human' | tr -s ' ' | tr '\\n' ';'; echo; done; "
-                                  "lsmod | grep -E '^uhid|^hid' | awk '{print $1}' | tr '\\n' ' '"],
+                                  "lsmod | grep -E '^uhid|^hid' | awk '{print $1}' | tr '\\n' ' '; echo; "
+                                  "journalctl -u bluetooth -n 25 --no-pager -o cat 2>&1 | tail -n 25; "
+                                  "grep -vE '^\\s*(#|$)' /etc/bluetooth/input.conf /etc/bluetooth/main.conf 2>/dev/null | tr '\\n' ';'"],
                                  capture_output=True, text=True, timeout=20).stdout
             for ln in out.splitlines():
                 if ln.strip():
