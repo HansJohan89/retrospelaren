@@ -3582,7 +3582,7 @@ async function spDeck(c){
   }
   else if (a === "like"){ const st = await now();
     if (!st.item || !st.item.id){ osd("Inget spelas"); return; }
-    r = await spApi("/me/tracks?ids=" + st.item.id, { method:"PUT" });
+    r = await spApi("/me/library?uris=" + encodeURIComponent("spotify:track:" + st.item.id), { method:"PUT" });
     if (r.status < 300) osd("Sparad i Gillade låtar"); else if (r.status === 403 || r.status === 401){ osd("Logga in på Spotify igen för att kunna gilla låtar"); return; } }
   if (r.status === 401) osd("Inte inloggad på Spotify");
   else if (r.status === 403) osd("Spotify säger nej (kräver Premium)");

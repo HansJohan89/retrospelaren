@@ -25,6 +25,7 @@ import struct
 import threading
 import time
 import urllib.parse
+import urllib.error
 import urllib.request
 
 UA = "Blaupunkt/1.0 (retrospelaren)"
@@ -35,8 +36,8 @@ CACHE = {}
 _CHIME = None
 
 # läsadresser i Spotifys webb-API som appen får fråga efter
-SP_READ = re.compile(r"^(me|me/playlists|me/tracks|me/tracks/contains|me/player/recently-played|me/top/(artists|tracks)|me/albums|"
-                     r"search|playlists/[A-Za-z0-9]+(/tracks)?|albums/[A-Za-z0-9]+(/tracks)?|artists/[A-Za-z0-9]+(/top-tracks|/albums)?)$")
+SP_READ = re.compile(r"^(me|me/playlists|me/tracks|me/tracks/contains|me/library/contains|me/player/recently-played|me/top/(artists|tracks)|me/albums|"
+                     r"search|playlists/[A-Za-z0-9]+(/tracks|/items)?|albums/[A-Za-z0-9]+(/tracks)?|artists/[A-Za-z0-9]+(/top-tracks|/albums)?)$")
 
 
 class Spotify:
@@ -127,12 +128,29 @@ class Spotify:
         path = path.strip("/")
         if not SP_READ.match(path):
             raise ValueError("Den adressen får appen inte läsa")
+        query = dict(query)
+        # Spotify tog bort några adresser i februari 2026; de gamla översätts här så äldre sidor fungerar.
+        if path == "me/tracks/contains":
+            path, query = "me/library/contains", {"uris": ",".join("spotify:track:" + i for i in str(query.get("ids", "")).split(",") if i)}
+        elif re.match(r"^playlists/[A-Za-z0-9]+/tracks$", path):
+            path = path[:-len("tracks")] + "items"
+        if path == "search":
+            try:
+                query["limit"] = str(min(10, int(query.get("limit") or 5)))   # högst 10 sedan 2026
+            except ValueError:
+                query["limit"] = "10"
         key = path + "?" + urllib.parse.urlencode(sorted(query.items()))
         hit = CACHE.get(key)
-        ttl = 10 if path.startswith("me/tracks/contains") or "recently" in path else 60
+        ttl = 10 if path.startswith("me/library/contains") or "recently" in path else 60
         if hit and time.time() - hit[0] < ttl:
+            if isinstance(hit[1], Exception):
+                raise hit[1]
             return hit[1]
-        d = self.api(path, query)
+        try:
+            d = self.api(path, query)
+        except urllib.error.HTTPError as e:
+            CACHE[key] = (time.time(), e)     # fel sparas en stund, så att appen inte frågar om och om igen
+            raise
         CACHE[key] = (time.time(), d)
         if len(CACHE) > 300:
             for k in sorted(CACHE, key=lambda k: CACHE[k][0])[:100]:
@@ -140,8 +158,8 @@ class Spotify:
         return d
 
     def like(self, tid, on):
-        self.api("me/tracks", {"ids": tid}, method="PUT" if on else "DELETE")
-        for k in [k for k in CACHE if k.startswith("me/tracks")]:
+        self.api("me/library", {"uris": "spotify:track:" + tid}, method="PUT" if on else "DELETE")
+        for k in [k for k in CACHE if k.startswith("me/tracks") or k.startswith("me/library")]:
             CACHE.pop(k, None)
         return {"ok": True, "liked": bool(on)}
 

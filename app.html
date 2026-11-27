@@ -496,7 +496,7 @@ async function renderMusic(){
   m.innerHTML = '<div class="spin"></div>';
   try {
     if (MV === "start") await renderStart(m);
-    else if (MV === "liked") await renderTracks(m, "Gillade låtar", "", null, (await sp("me/tracks", { limit: 50 })).items.map(x => x.track), "liked");
+    else if (MV === "liked") await renderTracks(m, "Gillade låtar", "", null, (await sp("me/tracks", { limit: 50 })).items.map(x => x.item || x.track), "liked");
     else if (MV === "search") renderSearch(m);
     else if (MV.startsWith("pl:")) await renderPlaylist(m, MV.slice(3));
     else if (MV.startsWith("al:")) await renderAlbum(m, MV.slice(3));
@@ -530,7 +530,7 @@ async function renderStart(m){
   m.innerHTML = `<div class="sect">${h < 10 ? "God morgon" : h < 18 ? "Hej" : "God kväll"}${D.sp.name ? ", " + esc(D.sp.name.split(" ")[0]) : ""}</div>
     ${recent.length ? `<div class="sect">Spelat nyligen</div><div class="grid">${recent.map(r => `<button class="gi" onclick="openMV('${r.kind}:${r.id}')">${cov(r.img)}<div class="t1">${esc(r.name)}</div><div class="t2">${esc(r.sub)}</div></button>`).join("")}</div>` : ""}
     <div class="sect">Dina spellistor</div>
-    <div class="grid">${PLAYLISTS.map(p => `<button class="gi" onclick="openMV('pl:${p.id}')">${cov(img(p.images))}<div class="t1">${esc(p.name)}</div><div class="t2">${(p.tracks || {}).total || ""} låtar</div></button>`).join("")}</div>
+    <div class="grid">${PLAYLISTS.map(p => `<button class="gi" onclick="openMV('pl:${p.id}')">${cov(img(p.images))}<div class="t1">${esc(p.name)}</div><div class="t2">${(p.items || p.tracks || {}).total || ""} låtar</div></button>`).join("")}</div>
     ${favsBlock()}`;
 }
 function trackRows(tracks, ctx){
@@ -546,8 +546,13 @@ async function renderTracks(m, title, sub, image, tracks, ctx){
   m.innerHTML = headBlock(image, title, sub, ctx === "liked" ? null : ctx) + (tracks.length ? trackRows(tracks, ctx === "liked" ? "" : ctx) : '<div class="empty">Inga låtar.</div>');
 }
 async function renderPlaylist(m, id){
-  const p = await sp("playlists/" + id, { fields: "name,uri,images,owner(display_name),tracks.total,tracks.items(track(id,uri,name,duration_ms,artists(name),album(images)))" });
-  await renderTracks(m, p.name, (p.owner || {}).display_name + " · " + ((p.tracks || {}).total || 0) + " låtar", img(p.images), ((p.tracks || {}).items || []).map(x => x.track), p.uri);
+  // Sedan 2026 heter spellistans låtar "items" (och varje låt "item"); bara egna spellistor visar dem.
+  const p = await sp("playlists/" + id);
+  const box = p.items || p.tracks || {};
+  const tracks = (box.items || []).map(x => x.item || x.track).filter(Boolean);
+  const total = box.total || tracks.length;
+  if (!tracks.length && !box.items) { m.innerHTML = headBlock(img(p.images), p.name, ((p.owner || {}).display_name || ""), p.uri) + '<div class="empty">Spotify visar bara låtarna i dina egna spellistor. Tryck Spela för att lyssna.</div>'; return; }
+  await renderTracks(m, p.name, (p.owner || {}).display_name + " · " + total + " låtar", img(p.images), tracks, p.uri);
 }
 async function renderAlbum(m, id){
   const a = await sp("albums/" + id);
@@ -555,8 +560,11 @@ async function renderAlbum(m, id){
   await renderTracks(m, a.name, a.artists.map(x => x.name).join(", ") + " · " + (a.release_date || "").slice(0, 4), img(a.images), tracks, a.uri);
 }
 async function renderArtist(m, id){
-  const [a, top, al] = await Promise.all([sp("artists/" + id), sp("artists/" + id + "/top-tracks", { market: "SE" }), sp("artists/" + id + "/albums", { include_groups: "album,single", limit: 20, market: "SE" })]);
-  m.innerHTML = headBlock(img(a.images), a.name, "Artist", a.uri, true) + `<div class="sect">Populärt</div>` + trackRows((top.tracks || []).slice(0, 10), "")
+  // Spotify tog bort "populäraste låtarna" 2026; en sökning på artisten ger nästan samma lista.
+  const a = await sp("artists/" + id);
+  const [top, al] = await Promise.all([sp("search", { q: 'artist:"' + a.name + '"', type: "track", limit: 10, market: "SE" }).catch(() => ({})), sp("artists/" + id + "/albums", { include_groups: "album,single", limit: 10, market: "SE" }).catch(() => ({}))]);
+  const tr = (((top.tracks || {}).items) || []).filter(t => t && (t.artists || []).some(x => x.id === id));
+  m.innerHTML = headBlock(img(a.images), a.name, "Artist", a.uri, true) + (tr.length ? `<div class="sect">Populärt</div>` + trackRows(tr, "") : "")
     + `<div class="sect">Album</div><div class="grid">${(al.items || []).map(x => `<button class="gi" onclick="openMV('al:${x.id}')">${cov(img(x.images))}<div class="t1">${esc(x.name)}</div><div class="t2">${(x.release_date || "").slice(0, 4)}</div></button>`).join("")}</div>`;
 }
 let SQ = "";
@@ -619,7 +627,7 @@ async function likeNow(){
   catch(e){ toast(e.message); }
 }
 const LIKED = {};
-async function checkLiked(tid){ if (!tid || !D.sp.connected || tid in LIKED) return; try { const j = await sp("me/tracks/contains", { ids: tid }); LIKED[tid] = !!(j && j[0]); updatePlayer(); } catch(e){} }
+async function checkLiked(tid){ if (!tid || !D.sp.connected || tid in LIKED) return; LIKED[tid] = false; try { const j = await sp("me/library/contains", { uris: "spotify:track:" + tid }); LIKED[tid] = !!(j && j[0]); updatePlayer(); } catch(e){} }
 
 // spelarens rad längst ned
 let posBase = { pos:0, at:0, playing:false, dur:0, key:"" };

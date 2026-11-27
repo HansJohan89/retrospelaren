@@ -390,7 +390,7 @@ async function doSearch(){
   SBUSY = false; SKB = !SRES.length; if (MTAB === "sok" && VIEW === "musik") rSearch();
 }
 function playRes(i){ const it = (SRES || [])[i]; if (!it) return;
-  if (it.kind === "artist"){ getJ("/api/sp/api?" + new URLSearchParams({ path: "artists/" + it.uri.split(":").pop() + "/top-tracks", market: "SE" })).then(j => { const t = (j.tracks || [])[0]; if (t) playLink(t.uri, it.name); }).catch(() => toast("Hittade inget")); return; }
+  if (it.kind === "artist"){ getJ("/api/sp/api?" + new URLSearchParams({ path: "search", q: 'artist:"' + it.name + '"', type: "track", limit: 1, market: "SE" })).then(j => { const t = ((j.tracks || {}).items || [])[0]; if (t) playLink(t.uri, it.name); else toast("Hittade inget"); }).catch(() => toast("Hittade inget")); return; }
   playLink(it.uri, it.name); }
 function playPl(i){ const p = D.pls[i]; if (p) playLink(p.uri, p.name); }
 async function loadRadio(){ try { const j = await getJ("/api/radio?top=SE"); if (Array.isArray(j)){ D.radio = j.slice(0, 24); render(); } } catch(e){} }
