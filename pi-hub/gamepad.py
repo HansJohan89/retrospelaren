@@ -168,6 +168,7 @@ class Gamepad:
                     warned = True
             if not devs:
                 self.dev_name = ""
+                self._bt_reconnect()
                 time.sleep(4)
                 continue
             d = devs[0]
@@ -236,6 +237,26 @@ class Gamepad:
             self.held.clear()
             self._report()
             time.sleep(2)
+
+    def _bt_reconnect(self):
+        """Ingen kontroll ansluten: be parade Bluetooth-kontroller att koppla upp (var 10:e s).
+        En Stadia-kontroll som väcks med Stadia-knappen ansluter då direkt."""
+        now = time.time()
+        if now - getattr(self, "_bt_at", 0) < 10 or getattr(self, "_pairing", False):
+            return
+        self._bt_at = now
+        try:
+            out = subprocess.run(["bluetoothctl", "devices", "Paired"], capture_output=True, text=True, timeout=5).stdout
+            for m in re.finditer(r"Device ([0-9A-F:]{17}) (.+)", out, re.I):
+                if not re.search(r"stadia|controller|gamepad", m.group(2), re.I):
+                    continue
+                r = subprocess.run(["bluetoothctl", "--timeout", "6", "connect", m.group(1)], capture_output=True, text=True, timeout=10)
+                ok = "successful" in (r.stdout or "").lower()
+                if ok or getattr(self, "_bt_last", None) != ok:
+                    self.log('  Handkontroll: Bluetooth-anslutning till "%s": %s' % (m.group(2).strip(), "ansluten" if ok else "väntar (tryck på Stadia-knappen)"))
+                self._bt_last = ok
+        except Exception:
+            pass
 
     def _edge(self, key, down):
         if not down:
