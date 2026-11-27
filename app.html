@@ -378,7 +378,7 @@ async function slow(){
   try { const j = await getJ("/api/state"); D.S = (j && j.settings) || {}; } catch(e){}
   try { D.sp = await getJ("/api/sp/status"); } catch(e){}
   if (!ROOM) ROOM = D.S.clipRoom || "";
-  if (TAB === "inst") renderInst();
+  if (TAB === "inst" && SETPAGE !== "ljusgrupper") renderInst();     // ljusgrupperna redigeras: rita inte om under fingrarna
 }
 async function saveDeck(part){
   if (NEST){ toast("Ändra det här i appen i mobilen"); return false; }
@@ -752,7 +752,8 @@ function renderLjus(){
   const sch = D.deck.schedules || [];
   html += `<div class="card"><div class="lbl">Tider</div>${sch.length ? sch.map((x, i) => { const sc = scenes.find(s => String(s.id) === String(x.scene));
     return `<div class="setrow"><div><div class="t">${esc(x.name || (sc && sc.name) || "Tid")}</div><div class="s">${esc(whenText(x.when))} · ${esc(daysText(x.days))}${x.on !== false && nextOf(x.id) ? " · nästa " + hhmm(nextOf(x.id)) : ""}</div></div><button class="sw${x.on !== false ? " on" : ""}" onclick="toggleSched(${i})"></button></div>`; }).join("") : '<div class="hint">Inga tider ännu.</div>'}
-    <div class="row"><a class="btn ghost" href="/deck" target="_blank" rel="noopener">Bygg scener, tider och lampregler ›</a></div></div>`;
+    <div class="row"><a class="btn ghost" href="/deck" target="_blank" rel="noopener">Bygg scener, tider och lampregler ›</a></div>
+    <div class="row"><button class="btn ghost" onclick="openInst('ljusgrupper')">${D.st.customGroups ? "Ändra dina ljusgrupper ›" : "Gruppera lamporna själv ›"}</button></div></div>`;
   html += `</div></div>`;
   if (!groups.length && !lamps.length && !scenes.length) html = `<div class="empty">Inga lampor ännu. Hubben skickar listan när den har kontakt med Trådfri-gatewayen.</div>`;
   const y = window.scrollY; p.innerHTML = html; window.scrollTo(0, y);
@@ -901,6 +902,7 @@ const SETP = [
     ["skarmljud", "speaker", "Ljud, vakna och belysning", "Klippljud, vakna-läge, Trådfri vid väckning", "kalla,spotify", "klippljud vakna väckning trådfri belysning visualisering ljud"],
   ]],
   ["Hemmet", [
+    ["ljusgrupper", "bulb", "Ljusgrupper", "Gruppera lamporna själv", "", "ljus grupper lampor rum trådfri gruppera belysning"],
     ["scener", "sparkles", "Scener, tider och lampregler", "Bygg i deck-redigeraren", "", "scener tider schema lampregler"],
     ["knappar", "grid", "Knappar (Stream Controller)", "Knapparnas utseende och funktion", "", "knappar stream controller deck vred"],
     ["nest", "cast", "Nest Hub", "Appen på Nest Hub", "", "nest hub google cast"],
@@ -938,6 +940,7 @@ function renderSetPage(p){
         : `<div class="hint">Logga in så hämtar appen dina spellistor, gillade låtar och sök. Musiken spelas på Sonos.</div><div class="row"><button class="btn pri big" onclick="spLogin()">Logga in med Spotify</button></div>`}
       <div class="hint">Samma Spotify-app (Client ID) som Blaupunkt-skärmen använder. Lägg till <b>${esc(location.origin)}/callback</b> som Redirect URI i Spotifys utvecklarsida om den inte redan finns.</div></div>
     <iframe class="pframe" id="pframe" src="/?panel=spotify" title="Spotify"></iframe>`;
+  else if (r[0] === "ljusgrupper") body = lgPage();
   else if (r[0] === "scener" || r[0] === "knappar") body = `<div class="card"><div class="hint">${r[0] === "scener" ? "Scener (ljus, musik, skärm, effekter, tidslinjer), tider och lampregler byggs i deck-redigeraren. Här i appen startar du dem och slår av och på tiderna (fliken Ljus)." : "Knapparnas utseende, funktioner, sidor och vred ställs in i deck-redigeraren. Under fliken Skärmen finns knapparna att trycka på."}</div>
       <div class="row"><a class="btn pri big" href="/deck" target="_blank" rel="noopener">Öppna deck-redigeraren</a></div></div>`;
   else if (r[0] === "nest") body = `<div class="card"><div class="hint">Hubben castar den här appen till Google Nest Hub. Där kan du styra musik, ljus, scener och larm med touch. Efter två minuter utan tryck visas klockvyn.</div>
@@ -949,8 +952,57 @@ function renderSetPage(p){
       <div class="setrow"><div class="t">Högtalare</div><div class="mut">${esc(rooms().join(", "))}</div></div>
       <div class="row"><button class="btn" onclick="send('tradfri-refresh');toast('Läser om lamporna')">Läs om lampor och grupper</button><button class="btn" onclick="send('lamps-read');toast('Läser av')">Läs av nu</button></div>
       <div class="hint">Uppdatera hubben med uppdatera-pi.bat på datorn.</div></div>`;
-  p.innerHTML = `<div class="pagehead"><button class="back" onclick="SETPAGE=null;renderInst()">‹</button><div class="pagetitle">${esc(r[2])}</div></div>` + body;
+  p.innerHTML = `<div class="pagehead"><button class="back" onclick="SETPAGE=null;LG=null;renderInst()">‹</button><div class="pagetitle">${esc(r[2])}</div></div>` + body;
 }
+// ---------- Ljusgrupper: egna grupper i stället för Trådfris ----------
+// Sparas i deck-konfigurationen (lightGroups). Hubben styr då gruppens lampor var för sig, och
+// grupperna syns överallt: fliken Ljus, Nest Hub, knapparna, sov-timern. Utan egna grupper
+// används Trådfris grupper som förut.
+let LG = null;
+const lgTradfri = () => D.st.tradfriGroups || (D.st.customGroups ? [] : D.st.groups) || [];
+const lgId = () => Math.random().toString(36).slice(2, 9);
+function lgWork(){ if (!LG) LG = JSON.parse(JSON.stringify(D.deck.lightGroups || [])); return LG; }
+function lgPage(){
+  const G = lgWork(), lamps = (D.st.lamps || []).slice().sort((a, b) => String(a.name).localeCompare(String(b.name), "sv"));
+  const byRoom = {}; lamps.forEach(l => { (byRoom[l.room || "Övrigt"] = byRoom[l.room || "Övrigt"] || []).push(l); });
+  const names = G.map(g => (g.name || "").trim().toLowerCase());
+  let h = `<div class="card"><div class="hint">Bygg dina egna grupper av lamporna, oberoende av hur de är grupperade i IKEA-appen. Grupperna används i fliken Ljus, på Nest Hub, på knapparna och i sov-timern. En lampa kan vara med i flera grupper.${G.length ? "" : " Just nu används Trådfris egna grupper."}</div>
+    ${!lamps.length ? `<div class="hint"><b>Lamplistan har inte kommit från hubben än.</b> Kontrollera att hubben är ansluten.</div>` : ""}</div>`;
+  if (!G.length){
+    const tg = lgTradfri();
+    h += `<div class="card"><div class="lbl">Trådfris grupper just nu</div>${tg.length ? tg.map(g => `<div class="setrow"><div class="t">${esc(g.name)}</div><div class="mut">${(g.lamps || []).length} lampor</div></div>`).join("") : `<div class="hint">Inga.</div>`}
+      <div class="row">${tg.length ? `<button class="btn pri big" onclick="lgFromTradfri()">Börja med Trådfris grupper</button>` : ""}<button class="btn big" onclick="lgAdd()">Ny tom grupp</button></div></div>`;
+    return h;
+  }
+  G.forEach((g, i) => {
+    const sel = new Set((g.lamps || []).map(String)), dup = names.indexOf((g.name || "").trim().toLowerCase()) !== i;
+    h += `<div class="card"><div class="row" style="align-items:center;margin:0 0 8px">
+        <input class="in" style="flex:1" value="${esc(g.name || "")}" placeholder="Namn, t.ex. Soffhörnan" oninput="LG[${i}].name=this.value;lgSave()">
+        <button class="btn sq" title="Flytta upp" onclick="lgMove(${i},-1)" ${i === 0 ? "disabled" : ""}>▲</button><button class="btn sq" title="Flytta ned" onclick="lgMove(${i},1)" ${i === G.length - 1 ? "disabled" : ""}>▼</button></div>
+      ${dup ? `<div class="hint" style="color:var(--bad)">Två grupper heter likadant. Ge dem olika namn.</div>` : ""}
+      <div class="sub">${sel.size ? sel.size + (sel.size === 1 ? " lampa" : " lampor") : "Välj lampor"}</div>
+      ${Object.entries(byRoom).map(([room, ls]) => `<div class="hint" style="margin-top:10px">${esc(room)}</div><div class="chips">${ls.map(l => `<button class="chip${sel.has(String(l.id)) ? " on" : ""}" onclick="lgLamp(${i},'${esc(String(l.id))}')">${esc(l.name)}${l.outlet ? " (uttag)" : ""}</button>`).join("")}</div>`).join("")}
+      <div class="row" style="margin-top:12px"><button class="btn" onclick="light(${JSON.stringify(g.name || "").replace(/"/g, "&quot;")},'toggle')" ${g.name && sel.size ? "" : "disabled"}>Prova: tänd/släck</button><button class="btn bad" onclick="lgDel(${i})">Ta bort gruppen</button></div></div>`;
+  });
+  h += `<div class="row"><button class="btn pri big" onclick="lgAdd()">Ny grupp</button></div>
+    <div class="row"><button class="btn ghost" onclick="lgReset()">Använd Trådfris grupper igen</button></div>
+    <div class="hint">Ändringarna sparas direkt. Knappar och scener som styr en grupp med samma namn som förut fortsätter att fungera. Trådfri-scenerna (IKEA-appens scener) följer med till en egen grupp som heter som Trådfri-gruppen.</div>`;
+  return h;
+}
+function lgRedraw(){ const y = window.scrollY; renderInst(); window.scrollTo(0, y); }
+function lgSave(now){
+  clearTimeout(lgSave.t);
+  lgSave.t = setTimeout(async () => {
+    const clean = (LG || []).map(g => ({ id: g.id || lgId(), name: (g.name || "").trim(), lamps: (g.lamps || []).map(String) })).filter(g => g.name);
+    if (await saveDeck({ lightGroups: clean })){ D.deck.lightGroups = clean; send("lightgroups"); toast("Sparat"); }
+  }, now ? 0 : 800);
+}
+function lgAdd(){ lgWork().push({ id: lgId(), name: "", lamps: [] }); lgRedraw(); setTimeout(() => { const ins = document.querySelectorAll("#p-inst input.in"); const last = ins[ins.length - 1]; if (last){ last.focus(); last.scrollIntoView({ block: "center" }); } }, 50); }
+function lgFromTradfri(){ LG = lgTradfri().filter(g => (g.lamps || []).length && !/^tradfri group/i.test(g.name)).map(g => ({ id: lgId(), name: g.name, lamps: (g.lamps || []).map(String) })); lgSave(true); lgRedraw(); }
+function lgLamp(i, id){ const g = LG[i]; const s2 = new Set((g.lamps || []).map(String)); s2.has(id) ? s2.delete(id) : s2.add(id); g.lamps = [...s2]; lgSave(); lgRedraw(); }
+function lgMove(i, d){ const j = i + d; if (j < 0 || j >= LG.length) return; LG.splice(j, 0, LG.splice(i, 1)[0]); lgSave(); lgRedraw(); }
+function lgDel(i){ if (!confirm("Ta bort gruppen " + (LG[i].name || "") + "?")) return; LG.splice(i, 1); lgSave(true); lgRedraw(); }
+function lgReset(){ if (!confirm("Ta bort alla egna grupper och använda Trådfris grupper igen?")) return; LG = []; lgSave(true); lgRedraw(); }
 window.addEventListener("message", e => { if (e.origin === location.origin && e.data && e.data.panelHeight){ const f = $("#pframe"); if (f) f.style.height = (e.data.panelHeight + 10) + "px"; } });
 
 // ---------- bladet ----------

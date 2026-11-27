@@ -518,6 +518,7 @@ body.rmNest.rmIdle #rmAmbCover{display:block;position:fixed;inset:0;z-index:61}
     <button class="tbtn" id="inputsBtn" title="Fjärrkontroller, rörelsesensorer och jalusisensorn"><span id="inputsIc"></span><span class="lbl">Sensorer</span></button>
     <button class="tbtn" id="scenesBtn" title="Bygg egna scener med lampor och musik"><span id="scenesIc"></span><span class="lbl">Scener</span></button>
     <button class="tbtn" id="schedBtn" title="Scener som körs av sig själva vid vissa tider"><span id="schedIc"></span><span class="lbl">Tider</span></button>
+    <button class="tbtn" id="lgBtn" title="Egna grupper av lamporna, i stället för Trådfris"><span id="lgIc"></span><span class="lbl">Ljusgrupper</span></button>
     <button class="tbtn" id="rulesBtn" title="Färg och ljusstyrka lampor får när de tänds under vissa tider"><span id="rulesIc"></span><span class="lbl">Lampregler</span></button>
     <button class="tbtn icon" id="deviceBtn" title="Enhetsinställningar"></button>
     <span id="saveState"></span>
@@ -1749,6 +1750,7 @@ let askedGroups = false;
 let INPUTS = [];                  // fjärrkontroller och sensorer, från hubben: { key, src, name, model, battery, kind, groups, events }
 let SPEAKERS = [];                // alla Sonos-högtalare, från hubben
 const roomNames = () => [...new Set(["Vardagsrum", ...SPEAKERS, ...((LIVE.hub && LIVE.hub.rooms) || [])])];
+let TGROUPS = [];                 // Trådfris egna grupper (även när egna ljusgrupper används)
 let LAMPS = [];                   // alla enskilda lampor, från hubben: { id, name, model, room, color, temp, dim }
 let RUNS = [], UPCOMING = [];
 const hhmmOf = ts => { const d = new Date(ts * 1000), t = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
@@ -1758,7 +1760,10 @@ function stopScene(id, end, redraw){ fetch("/api/send?c=" + encodeURIComponent("
 async function loadGroups(){
   try {
     const d = await (await fetch("/api/tradfri-list", { cache:"no-store" })).json();
+    // egna ljusgrupper (om några) först, sedan Trådfris grupper: Trådfri-scenerna finns bara i dem
     GROUPS = {}; (d.groups || []).forEach(g => { GROUPS[g.name] = g.moods || []; });
+    (d.tradfriGroups || []).forEach(g => { if (!(g.name in GROUPS) || !(GROUPS[g.name] || []).length) GROUPS[g.name] = g.moods || []; });
+    TGROUPS = Array.isArray(d.tradfriGroups) ? d.tradfriGroups : (d.groups || []).filter(g => !g.custom);
     LAMPS = Array.isArray(d.lamps) ? d.lamps : [];
     SPEAKERS = Array.isArray(d.speakers) ? d.speakers : [];
     INPUTS = Array.isArray(d.inputs) ? d.inputs : [];
@@ -2855,6 +2860,50 @@ function schedulesModal(){
   openModal("Tider", body, [h("button", { class:"sbtnS", text:"Klar", onclick: closeModal })], true);
   draw(); loadGroups().then(draw);
 }
+// ---------- egna ljusgrupper (samma som Inställningar > Ljusgrupper i appen) ----------
+function lightGroupsModal(){
+  deck.lightGroups = Array.isArray(deck.lightGroups) ? deck.lightGroups : [];
+  const body = h("div", { class:"tlWrap" });
+  let pingT = 0;
+  const ping = () => { clearTimeout(pingT); pingT = setTimeout(() => fetch("/api/send?c=lightgroups").catch(() => {}), 3000); };   // hubben läser in dem direkt
+  const draw = () => {
+    body.innerHTML = "";
+    const G = deck.lightGroups;
+    body.append(h("div", { class:"note", text:"Bygg egna grupper av lamporna, oberoende av hur de är grupperade i IKEA-appen. De ersätter Trådfris grupper överallt: i appen, på Nest Hub, i knapparnas ljusval och i sov-timern. En lampa kan vara med i flera grupper. Utan egna grupper används Trådfris." }));
+    if (!LAMPS.length) body.append(h("div", { class:"insEmpty", html:"<b>Lamplistan har inte kommit från hubben än</b><br>Kontrollera att hubben är ansluten." }));
+    if (!G.length){
+      body.append(h("div", { class:"note", text:"Just nu: Trådfris grupper (" + (TGROUPS.map(g => g.name).join(", ") || "inga") + ")." }));
+      if (TGROUPS.length) body.append(h("button", { class:"sbtnS", onclick: () => { mutate(() => { deck.lightGroups = TGROUPS.filter(g => (g.lamps || []).length && !/^tradfri group/i.test(g.name)).map(g => ({ id: C.uid(), name: g.name, lamps: (g.lamps || []).map(String) })); }); ping(); draw(); } }, icon("plus"), "Börja med Trådfris grupper"));
+    }
+    const byRoom = {}; LAMPS.forEach(l => { (byRoom[l.room || "Övrigt"] = byRoom[l.room || "Övrigt"] || []).push(l); });
+    G.forEach((g, n) => {
+      const set = (fn, re) => { mutate(() => fn(g), { co:"lg" + n, re:false }); ping(); if (re) draw(); };
+      const sel = new Set((g.lamps || []).map(String));
+      const dup = G.findIndex(x => (x.name || "").trim().toLowerCase() === (g.name || "").trim().toLowerCase()) !== n;
+      const card = h("div", { class:"phCard" },
+        h("div", { class:"phHd" },
+          h("input", { class:"in", style:{ flex:"1 1 200px", fontWeight:600 }, value: g.name || "", placeholder:"Namn, t.ex. Soffhörnan", oninput: e => set(x => { x.name = e.target.value; }) }),
+          h("span", { class:"note", style:{ margin:0 }, text: sel.size + (sel.size === 1 ? " lampa" : " lampor") }),
+          h("button", { class:"sbtnS", title:"Tänd eller släck gruppen", disabled: !g.name || !sel.size, onclick: () => fetch("/api/send?c=" + encodeURIComponent("light:" + JSON.stringify({ group: g.name, action:"toggle" }))).catch(() => {}) }, icon("bulb")),
+          h("button", { class:"mini", title:"Flytta upp", disabled: n === 0, onclick: () => { mutate(() => { G.splice(n - 1, 0, G.splice(n, 1)[0]); }); ping(); draw(); } }, "▲"),
+          h("button", { class:"mini", title:"Flytta ned", disabled: n === G.length - 1, onclick: () => { mutate(() => { G.splice(n + 1, 0, G.splice(n, 1)[0]); }); ping(); draw(); } }, "▼"),
+          h("button", { class:"mini", title:"Ta bort", onclick: () => { mutate(() => { G.splice(n, 1); }); ping(); draw(); } }, icon("cross"))));
+      if (dup) card.append(h("div", { class:"note", style:{ color:"#e5484d" }, text:"Två grupper heter likadant. Ge dem olika namn." }));
+      const pick = h("div", { class:"lampPick" });
+      Object.entries(byRoom).forEach(([room, ls]) => pick.append(h("div", {}, h("b", { text: room }),
+        ...ls.map(l => h("label", { class:"spk" + (sel.has(String(l.id)) ? " on" : "") }, h("input", { type:"checkbox", checked: sel.has(String(l.id)),
+          onchange: e => set(x => { const s2 = new Set((x.lamps || []).map(String)); e.target.checked ? s2.add(String(l.id)) : s2.delete(String(l.id)); x.lamps = [...s2]; }, true) }), l.name + (l.outlet ? " (uttag)" : ""))))));
+      card.append(pick);
+      body.append(card);
+    });
+    body.append(h("div", { class:"phHd" },
+      h("button", { class:"sbtnS", onclick: () => { mutate(() => { deck.lightGroups.push({ id: C.uid(), name:"", lamps:[] }); }); draw(); const ins = body.querySelectorAll("input.in"); if (ins.length) ins[ins.length - 1].focus(); } }, icon("plus"), "Ny grupp"),
+      G.length ? h("button", { class:"sbtnS", onclick: () => { if (!confirm("Ta bort alla egna grupper och använda Trådfris grupper igen?")) return; mutate(() => { deck.lightGroups = []; }); ping(); draw(); } }, "Använd Trådfris grupper igen") : null));
+    body.append(h("div", { class:"note", text:"Knappar och scener som styr en grupp med samma namn som förut fortsätter att fungera. Trådfri-scenerna (IKEA-appens scener) följer med till en egen grupp som heter som Trådfri-gruppen." }));
+  };
+  openModal("Ljusgrupper", body, [h("button", { class:"sbtnS", text:"Klar", onclick: () => { ping(); closeModal(); setTimeout(loadGroups, 4000); } })], true);
+  draw(); loadGroups().then(draw);
+}
 function rulesModal(){
   deck.lampRules = Array.isArray(deck.lampRules) ? deck.lampRules : [];
   const body = h("div", { class:"tlWrap" }), open = new Set();
@@ -3233,7 +3282,7 @@ function renderApp(){
 (async function init(){
   $("#brandIc").innerHTML = iconSvg("back"); $("#profIc").innerHTML = iconSvg("layers");
   $("#undoBtn").innerHTML = iconSvg("up-level"); $("#redoBtn").innerHTML = iconSvg("up-level"); $("#redoBtn").firstChild.style.transform = "scaleX(-1)";
-  $("#deviceBtn").innerHTML = iconSvg("gear"); $("#scenesIc").innerHTML = iconSvg("sparkles"); $("#scenesBtn").onclick = () => sceneModal(); $("#schedIc").innerHTML = iconSvg("clock"); $("#schedBtn").onclick = schedulesModal; $("#rulesIc").innerHTML = iconSvg("bulb"); $("#rulesBtn").onclick = rulesModal;
+  $("#deviceBtn").innerHTML = iconSvg("gear"); $("#scenesIc").innerHTML = iconSvg("sparkles"); $("#scenesBtn").onclick = () => sceneModal(); $("#schedIc").innerHTML = iconSvg("clock"); $("#schedBtn").onclick = schedulesModal; $("#rulesIc").innerHTML = iconSvg("bulb"); $("#rulesBtn").onclick = rulesModal; $("#lgIc").innerHTML = iconSvg("bulb"); $("#lgBtn").onclick = lightGroupsModal;
   $("#inputsIc").innerHTML = iconSvg("antenna"); $("#inputsBtn").onclick = inputsModal;
   $("#undoBtn").onclick = () => doUndo(undo, redo); $("#redoBtn").onclick = () => doUndo(redo, undo);
   $("#deviceBtn").onclick = deviceModal; $("#hubChip").onclick = deviceModal; $("#profileBtn").onclick = profileMenu;

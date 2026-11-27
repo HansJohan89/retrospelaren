@@ -249,7 +249,7 @@ def patch_deck(data):
     _deck_load()
     with DECK_LOCK:
         deck = dict(DECK_CACHE["deck"] or {})
-        for k in ("alarms", "schedules", "lampRules", "appPrefs"):
+        for k in ("alarms", "schedules", "lampRules", "appPrefs", "lightGroups"):
             if isinstance(data.get(k), list) or (k == "appPrefs" and isinstance(data.get(k), dict)):
                 deck[k] = data[k]
         DECK_CACHE["rev"] += 1
@@ -442,6 +442,7 @@ def get_scenes():
                 "schedules": deck.get("schedules") if isinstance(deck.get("schedules"), list) else [],
                 "lampRules": deck.get("lampRules") if isinstance(deck.get("lampRules"), list) else [],
                 "alarms": deck.get("alarms") if isinstance(deck.get("alarms"), list) else [],
+                "lightGroups": deck.get("lightGroups") if isinstance(deck.get("lightGroups"), list) else [],
                 "place": _place()}
 
 
@@ -634,7 +635,21 @@ def get_tradfri_list():
     Tradfri-grupper/scener (moods) - sjalva valet sparas som vanligt i
     S/settings via /api/state, bara forslagslistan kommer harifran."""
     with TRADFRI_LOCK:
-        return dict(TRADFRI_LIST)
+        out = dict(TRADFRI_LIST)
+    _deck_load()
+    with DECK_LOCK:
+        deck = DECK_CACHE["deck"] if isinstance(DECK_CACHE.get("deck"), dict) else {}
+        own = [g for g in (deck.get("lightGroups") or []) if isinstance(g, dict) and str(g.get("name") or "").strip()]
+    if own:
+        # Egna ljusgrupper (byggda i appen) ersätter Trådfris grupper överallt. Trådfris finns kvar
+        # under tradfriGroups, för deras Trådfri-scener (en egen grupp med samma namn får dem också).
+        tg = out.get("groups") or []
+        by = {str(g.get("name") or "").strip().lower(): g for g in tg if isinstance(g, dict)}
+        out["tradfriGroups"] = tg
+        out["groups"] = [{"name": str(g["name"]).strip(), "lamps": [str(x) for x in g.get("lamps") or []], "custom": True, "id": g.get("id"),
+                          "moods": (by.get(str(g["name"]).strip().lower()) or {}).get("moods") or []} for g in own]
+        out["customGroups"] = True
+    return out
 
 
 def set_tradfri_list(patch):
@@ -969,6 +984,69 @@ def svt_latest(prog):
     except Exception as e:
         out["error"] = "SVT Play: %s" % e
     SVT_LATEST[prog] = (time.time(), out)
+    return out
+
+
+# ---- TV på Nest Hub: SVT:s kanaler och Plex-biblioteket ----
+SVT_CHANNELS = [("ch-svt1", "SVT1", "#1d5fbf"), ("ch-svt2", "SVT2", "#6c3bb5"), ("ch-svt24", "SVT24", "#c0392b"),
+                ("ch-barnkanalen", "Barnkanalen", "#e08a00"), ("ch-kunskapskanalen", "Kunskapskanalen", "#178a62")]
+TV_CACHE = {}
+
+
+def svt_channels():
+    """SVT:s kanaler, med det som sänds just nu när SVT berättar det (sparas fem minuter)."""
+    hit = TV_CACHE.get("svt")
+    if hit and time.time() - hit[0] < 300:
+        return hit[1]
+    out = []
+    for cid, name, color in SVT_CHANNELS:
+        it = {"src": "svt", "id": cid, "name": name, "color": color, "now": "", "img": ""}
+        try:
+            j = _get_json("https://api.svt.se/video/" + cid, timeout=6)
+            now = (j.get("programTitle") or "").strip()
+            ep = (j.get("episodeTitle") or "").strip()
+            if now and now.lower() not in (name.lower(), "svt"):
+                it["now"] = now + (" – " + ep if ep and ep.lower() != now.lower() else "")
+            if j.get("imageId"):
+                it["img"] = "https://www.svtstatic.se/image/wide/480/%s/" % j["imageId"]
+        except Exception:
+            pass
+        out.append(it)
+    TV_CACHE["svt"] = (time.time(), out)
+    return out
+
+
+def plex_lib(section=None, sort="titleSort", start=0):
+    """Plex-biblioteket: utan section listan över bibliotek (filmer och serier), annars ett biblioteks
+    titlar, 60 åt gången. Sparas tio minuter."""
+    if not PLEX_TOKEN:
+        raise RuntimeError("Plex är inte inställt (PLEX_TOKEN saknas på servern)")
+    key = "plex:%s:%s:%s" % (section, sort, start)
+    hit = TV_CACHE.get(key)
+    if hit and time.time() - hit[0] < 600:
+        return hit[1]
+    base = plex_base()
+    img = lambda p, w, h: ("/api/plex-img?w=%d&h=%d&p=%s" % (w, h, urllib.parse.quote(p, safe=""))) if p else ""
+    if not section:
+        with _plex_open(base + "/library/sections") as r:
+            secs = (json.loads(r.read().decode("utf-8")).get("MediaContainer") or {}).get("Directory") or []
+        out = {"sections": [{"key": str(d.get("key")), "title": d.get("title") or "", "type": d.get("type")}
+                            for d in secs if d.get("type") in ("movie", "show")]}
+    else:
+        sort = sort if sort in ("titleSort", "addedAt:desc", "year:desc", "rating:desc") else "titleSort"
+        with _plex_open(base + "/library/sections/%s/all?sort=%s&X-Plex-Container-Start=%d&X-Plex-Container-Size=60"
+                        % (urllib.parse.quote(str(section)), urllib.parse.quote(sort), max(0, int(start))), timeout=20) as r:
+            mc = json.loads(r.read().decode("utf-8")).get("MediaContainer") or {}
+        items = [{"src": "plex", "key": str(m.get("ratingKey") or ""), "type": m.get("type"), "title": m.get("title") or "", "year": m.get("year"),
+                  "summary": (m.get("summary") or "")[:600], "minutes": round((m.get("duration") or 0) / 60000),
+                  "seen": bool(m.get("viewCount")) if m.get("type") == "movie" else (m.get("viewedLeafCount") or 0) >= (m.get("leafCount") or 1),
+                  "eps": m.get("leafCount"), "seasons": m.get("childCount"),
+                  "poster": img(m.get("thumb"), 300, 450), "art": img(m.get("art"), 960, 540)} for m in mc.get("Metadata") or []]
+        out = {"items": items, "total": mc.get("totalSize") or mc.get("size") or len(items), "start": int(start)}
+    TV_CACHE[key] = (time.time(), out)
+    if len(TV_CACHE) > 200:
+        for k in sorted(TV_CACHE, key=lambda k: TV_CACHE[k][0])[:80]:
+            TV_CACHE.pop(k, None)
     return out
 
 
@@ -1333,6 +1411,16 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json(PLEX_LIST or {"items": [], "error": "Plex är inte inställt (PLEX_TOKEN saknas på servern)."})
             if path == "/api/plex-img":
                 return self._plex_img(q)
+            if path == "/api/tv":
+                # TV-delen på Nest Hub: ?svt=1 kanalerna, ?libs=1 Plex-biblioteken, ?plex=<nyckel>&sort=&start= titlarna
+                try:
+                    if q.get("svt"):
+                        return self._json({"channels": svt_channels()})
+                    if q.get("libs"):
+                        return self._json(plex_lib(None))
+                    return self._json(plex_lib((q.get("plex") or [""])[0] or None, (q.get("sort") or ["titleSort"])[0], int((q.get("start") or ["0"])[0] or 0)))
+                except Exception as e:
+                    return self._json({"error": str(e)}, 200)
             if path == "/api/tradfri-list":
                 return self._json(get_tradfri_list())
             if path == "/api/ping":

@@ -3505,6 +3505,9 @@ function runCmd(c){
   else if (c.startsWith("page:")) showIdlePage(c.slice(5));
   else if (c.startsWith("hl:")) showHighlights(c.slice(3));
   else if (c.startsWith("svt:")) showSvtProgram(c.slice(4));
+  // svtlive:{"id":"ch-svt1","name":"SVT1"}  en av SVT:s kanaler direkt (från Nest Hubs TV-del)
+  else if (c.startsWith("svtlive:")){ let o = {}; try { o = JSON.parse(c.slice(8)); } catch(e){ o = { id: c.slice(8) }; }
+    if (o.id === "stop") hideHighlights(); else if (o.id) playItem({ src:"svt", id: String(o.id), title: o.now || "Direkt", program: o.name || "SVT", secs: 4 * 3600 }, "live"); }
   else if (c.startsWith("sp:")){ try { spDeck(JSON.parse(c.slice(3))); } catch(e){} }
   else if (c.startsWith("screen:")){ try { runScreen(JSON.parse(c.slice(7))); } catch(e){} }
 }

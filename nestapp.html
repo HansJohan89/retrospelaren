@@ -16,8 +16,8 @@ svg.ic{width:1em;height:1em;flex:none}
 #app{position:absolute;inset:0;display:flex}
 /* vänsterlisten */
 #rail{width:112px;flex:none;display:flex;flex-direction:column;gap:6px;padding:12px 10px;background:#121315;border-right:1px solid var(--line)}
-.rb{height:96px;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--mut);font-size:15px;font-weight:700;position:relative}
-.rb svg{font-size:36px}
+.rb{height:84px;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--mut);font-size:15px;font-weight:700;position:relative}
+.rb svg{font-size:32px}
 .rb.on{background:var(--acc);color:var(--ink)}
 .rb.alert::after{content:"";position:absolute;top:12px;right:22px;width:14px;height:14px;border-radius:50%;background:var(--bad)}
 #main{flex:1;min-width:0;position:relative}
@@ -112,6 +112,28 @@ body.mini #mini{display:flex}
 .kr button{flex:1;max-width:70px;height:58px;border-radius:14px;background:var(--card2);font-size:24px;font-weight:700}
 .kr button.wide{max-width:none;flex:4;font-size:18px}
 .kr button.go{max-width:none;flex:2;background:var(--acc);color:var(--ink);font-size:20px}
+/* ---- TV ---- */
+.chan{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.ch{min-height:170px;border-radius:24px;display:flex;flex-direction:column;justify-content:space-between;padding:20px;text-align:left;color:#fff;position:relative;overflow:hidden}
+.ch img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.35}
+.ch b{position:relative;font-size:34px;font-weight:800;line-height:1}
+.ch small{position:relative;font-size:18px;font-weight:650;line-height:1.25;opacity:.92;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ch .live{position:relative;align-self:flex-start;font-size:14px;font-weight:800;letter-spacing:.12em;background:rgba(0,0,0,.35);border-radius:10px;padding:5px 10px}
+.segs{display:flex;gap:10px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.segs::-webkit-scrollbar{display:none}
+.segs button{flex:none;height:60px;border-radius:18px;background:var(--card);font-size:20px;font-weight:750;padding:0 24px}
+.segs button.on{background:var(--acc);color:var(--ink)}
+.posters{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+.po{text-align:left}
+.po .im{width:100%;aspect-ratio:2/3;border-radius:16px;background:var(--card2);overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:48px;position:relative}
+.po .im img{width:100%;height:100%;object-fit:cover}
+.po .im i{position:absolute;right:8px;top:8px;width:16px;height:16px;border-radius:50%;background:var(--acc);border:2px solid #000}
+.po b{display:block;font-size:17px;font-weight:700;margin-top:7px;line-height:1.2;max-height:2.4em;overflow:hidden}
+.po span{font-size:15px;color:var(--mut)}
+.det{display:flex;gap:22px}
+.det .pimg{width:210px;flex:none;aspect-ratio:2/3;border-radius:18px;overflow:hidden;background:var(--card2)}
+.det .pimg img{width:100%;height:100%;object-fit:cover}
+.det p{font-size:19px;line-height:1.4;color:#d8d5ce;max-height:9.8em;overflow-y:auto;margin:10px 0 16px}
 /* ---- Ljus ---- */
 .groups{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .grp{background:var(--card);border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:14px}
@@ -169,6 +191,7 @@ body.night #idle .d,body.night #idle .s{color:#55534f}
   <symbol id="i-prev" viewBox="0 0 24 24" fill="currentColor"><path d="M19 5v14L9 12zM4.5 5H7v14H4.5z"/></symbol>
   <symbol id="i-speaker" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="2.5" width="13" height="19" rx="2.5"/><circle cx="12" cy="14.5" r="3.5"/><path d="M12 6.5h.01"/></symbol>
   <symbol id="i-tv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 20h8M12 17v3"/></symbol>
+  <symbol id="i-film" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 8h4M3 12h4M3 16h4M17 8h4M17 12h4M17 16h4"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
   <symbol id="i-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 1.5M9.5 2.5h5"/></symbol>
   <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></symbol>
@@ -188,6 +211,7 @@ body.night #idle .d,body.night #idle .s{color:#55534f}
   <div id="main">
     <section class="view" id="v-hem"></section>
     <section class="view withbar" id="v-musik"></section>
+    <section class="view withbar" id="v-tv"></section>
     <section class="view withbar" id="v-ljus"></section>
     <section class="view withbar" id="v-scener"></section>
     <section class="view withbar" id="v-larm"></section>
@@ -210,7 +234,7 @@ body.night #idle .d,body.night #idle .s{color:#55534f}
 <script>
 "use strict";
 // Blaupunkt på bordet: appen för Google Nest Hub (castad hit av hubben, se hub/nestcast.py och
-// hacast.py). Fem delar: Hem, Musik, Ljus, Scener, Larm. Bara styrning; inställningar görs i mobilen.
+// hacast.py). Sex delar: Hem, Musik, TV, Ljus, Scener, Larm. Bara styrning; inställningar görs i mobilen.
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 const ic = n => `<svg class="ic"><use href="#i-${n}"/></svg>`;
@@ -231,7 +255,7 @@ const hold = (k, v, ms) => { HOLD[k] = { v, until: Date.now() + (ms || 4000) }; 
 const held = (k, real) => (HOLD[k] && Date.now() < HOLD[k].until) ? HOLD[k].v : real;
 
 // ---------- vänsterlisten ----------
-const VIEWS = [["hem","Hem","home"],["musik","Musik","music"],["ljus","Ljus","bulb"],["scener","Scener","spark"],["larm","Larm","alarm"]];
+const VIEWS = [["hem","Hem","home"],["musik","Musik","music"],["tv","TV","tv"],["ljus","Ljus","bulb"],["scener","Scener","spark"],["larm","Larm","alarm"]];
 $("#rail").innerHTML = VIEWS.map(([k, t, i]) => `<button class="rb press" data-v="${k}" data-tap="go('${k}')">${ic(i)}<span>${t}</span></button>`).join("");
 function go(v){
   VIEW = v;
@@ -239,6 +263,7 @@ function go(v){
   document.querySelectorAll(".view").forEach(x => x.classList.toggle("on", x.id === "v-" + v));
   document.body.classList.toggle("mini", v !== "hem");
   if (v === "ljus") send("lamps-read");
+  if (v === "tv") tvLoad();
   render(true);
   $("#v-" + v).scrollTop = 0;
 }
@@ -284,7 +309,7 @@ document.addEventListener("pointermove", e => { const b = e.target.closest("[dat
 function render(force){
   paintPlayer(); paintRing();
   if (!force && (touching || Date.now() - lastTouch < 450)){ pendingRender = true; return; }
-  const f = { hem: rHem, musik: rMusik, ljus: rLjus, scener: rScener, larm: rLarm }[VIEW];
+  const f = { hem: rHem, musik: rMusik, tv: rTv, ljus: rLjus, scener: rScener, larm: rLarm }[VIEW];
   const s = f.sig ? f.sig() : "";
   if (!force && sig[VIEW] === s) return;
   if (document.querySelector(".bar") && document.querySelector(".bar")._drag) return;
@@ -394,6 +419,58 @@ function playRes(i){ const it = (SRES || [])[i]; if (!it) return;
   playLink(it.uri, it.name); }
 function playPl(i){ const p = D.pls[i]; if (p) playLink(p.uri, p.name); }
 async function loadRadio(){ try { const j = await getJ("/api/radio?top=SE"); if (Array.isArray(j)){ D.radio = j.slice(0, 24); render(); } } catch(e){} }
+// TV: SVT:s kanaler och Plex-biblioteket. Kanalerna kan visas på Blaupunkt-skärmen redan nu;
+// projektorn kopplas in senare (då startar den och spelar det som väljs här).
+const TV = { tab: store.get("tvtab", "svt"), ch: [], secs: null, items: {}, sort: store.get("tvsort", "titleSort"), err: "", busy: false };
+async function tvLoad(force){
+  const now = Date.now();
+  if (force || !tvLoad.at || now - tvLoad.at > 5 * 60000){ tvLoad.at = now;
+    getJ("/api/tv?svt=1").then(j => { TV.ch = j.channels || []; render(); }).catch(() => {});
+    getJ("/api/tv?libs=1").then(j => { TV.secs = j.sections || []; TV.err = j.error || ""; render(); }).catch(() => { TV.secs = []; }); }
+  if (TV.tab !== "svt" && !TV.items[TV.tab + TV.sort]) tvMore();
+}
+async function tvMore(){
+  const k = TV.tab + TV.sort, cur = TV.items[k] || { items: [], total: 1 };
+  if (TV.busy || cur.items.length >= cur.total) return;
+  TV.busy = true; render(true);
+  try { const j = await getJ("/api/tv?" + new URLSearchParams({ plex: TV.tab, sort: TV.sort, start: cur.items.length }));
+    if (j.error) TV.err = j.error; else TV.items[k] = { items: cur.items.concat(j.items || []), total: j.total || 0 }; } catch(e){ TV.err = "Plex svarar inte"; }
+  TV.busy = false; render(true);
+}
+function tvTab(t){ TV.tab = t; store.set("tvtab", t); TV.err = ""; $("#v-tv").scrollTop = 0; tvLoad(); render(true); }
+function tvSort(s){ TV.sort = s; store.set("tvsort", s); $("#v-tv").scrollTop = 0; tvLoad(); render(true); }
+rTv.sig = () => JSON.stringify([TV.tab, TV.sort, TV.ch, (TV.secs || []).length, ((TV.items[TV.tab + TV.sort] || {}).items || []).length, TV.busy, TV.err]);
+function rTv(){
+  const secs = TV.secs || [];
+  if (TV.tab !== "svt" && TV.secs && !secs.some(x => x.key === TV.tab)) TV.tab = "svt";
+  let body = "";
+  if (TV.tab === "svt"){
+    body = TV.ch.length ? `<div class="chan">${TV.ch.map((c, i) => `<button class="ch press" style="background:${esc(c.color)}" data-tap="tvChan(${i})">${c.img ? `<img src="${esc(c.img)}" alt="" loading="lazy" onerror="this.remove()">` : ""}<span class="live">DIREKT</span><div><b${c.name.length > 10 ? ' style="font-size:27px"' : ""}>${esc(c.name)}</b>${c.now ? `<small>${esc(c.now)}</small>` : ""}</div></button>`).join("")}</div>`
+      : `<div class="empty">Hämtar kanalerna…</div>`;
+  } else {
+    const cur = TV.items[TV.tab + TV.sort] || { items: [], total: 0 };
+    body = `<div class="seg" style="margin-bottom:12px">${[["titleSort","A–Ö"],["addedAt:desc","Senast tillagt"],["year:desc","Nyast"]].map(([k, t]) => `<button class="press${TV.sort === k ? " on" : ""}" data-tap="tvSort('${k}')">${t}</button>`).join("")}
+      ${cur.total ? `<span class="mut" style="align-self:center;margin-left:auto;font-size:18px">${cur.total} titlar</span>` : ""}</div>`
+      + (cur.items.length ? `<div class="posters">${cur.items.map((m, i) => `<button class="po press" data-tap="tvItem(${i})"><div class="im">${m.poster ? `<img src="${esc(m.poster)}" alt="" loading="lazy">` : ic("film")}${m.seen ? "" : "<i></i>"}</div><b>${esc(m.title)}</b><span>${m.year || ""}</span></button>`).join("")}</div>` : "")
+      + (TV.busy ? `<div class="empty">Hämtar…</div>` : cur.items.length < cur.total ? `<div class="row" style="margin-top:16px"><button class="btn press" data-tap="tvMore()">Visa fler (${cur.total - cur.items.length} kvar)</button></div>` : "")
+      + (TV.err ? `<div class="empty">${esc(TV.err)}</div>` : !cur.items.length && !TV.busy ? `<div class="empty">Inget här.</div>` : "");
+  }
+  $("#v-tv").innerHTML = `<div class="segs"><button class="press${TV.tab === "svt" ? " on" : ""}" data-tap="tvTab('svt')">${ic("tv")} SVT</button>${secs.map(x => `<button class="press${TV.tab === x.key ? " on" : ""}" data-tap="tvTab('${esc(x.key)}')">${ic("film")} ${esc(x.title)}</button>`).join("")}</div>`
+    + body;
+}
+function tvChan(i){ const c = TV.ch[i]; if (!c) return;
+  const arg = JSON.stringify({ id: c.id, name: c.name, now: c.now }).replace(/"/g, "&quot;");
+  openSheet(`<h2>${esc(c.name)}</h2>${c.now ? `<div class="mut" style="font-size:21px;margin:-6px 0 16px">Just nu: ${esc(c.now)}</div>` : ""}
+    <div class="row"><button class="btn pri press" data-tap="send('svtlive:'+JSON.stringify(${arg}));closeSheet();toast('${esc(c.name)} på Blaupunkt-skärmen')">${ic("tv")} Visa på Blaupunkt-skärmen</button>
+      <button class="btn press" data-tap="watch(${arg})">${ic("film")} Projektorn</button></div>
+    <div class="row" style="margin-top:12px"><button class="btn press" data-tap="send('svtlive:'+JSON.stringify({id:'stop'}));closeSheet();toast('Stängt')">Stäng tv:n på skärmen</button></div>`); }
+function tvItem(i){ const m = ((TV.items[TV.tab + TV.sort] || {}).items || [])[i]; if (!m) return;
+  const meta = [m.year, m.type === "show" ? (m.seasons ? m.seasons + (m.seasons === 1 ? " säsong" : " säsonger") : "") + (m.eps ? " · " + m.eps + " avsnitt" : "") : m.minutes ? m.minutes + " min" : "", m.seen ? "sedd" : ""].filter(Boolean).join(" · ");
+  const arg = JSON.stringify({ src: "plex", key: m.key, type: m.type, title: m.title }).replace(/"/g, "&quot;");
+  openSheet(`<div class="det"><div class="pimg">${m.poster ? `<img src="${esc(m.poster)}" alt="">` : ""}</div><div style="flex:1;min-width:0">
+    <h2 style="margin:0">${esc(m.title)}</h2><div class="mut" style="font-size:19px;margin-top:6px">${esc(meta)}</div>
+    <p>${esc(m.summary || "")}</p><div class="row"><button class="btn pri press" data-tap="watch(${arg})">${ic("play")} Spela på projektorn</button></div></div></div>`); }
+function watch(o){ send("watch:" + JSON.stringify(Object.assign({ src: "svt" }, o, { title: o.title || o.name }))); closeSheet(); toast("Projektorn är inte inkopplad än"); }
 // Ljus
 const TEMPS = [["Varm", 10, "#ffb35c"], ["Neutral", 50, "#ffe2b3"], ["Kall", 90, "#e6f0ff"]];
 rLjus.sig = () => JSON.stringify([(D.st.groups || []).map(g => g.name), D.st.vals || {}, groupsOn()]);
