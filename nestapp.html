@@ -173,6 +173,17 @@ body.mini #mini{display:flex}
 #idle.on{display:flex}
 #idle .c{font-size:180px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;color:#e8e2d4}
 #idle .d{font-size:28px;color:#8c8a84;text-transform:capitalize}
+/* kvitto på knapptryck och inlärningen */
+#padk{position:absolute;right:18px;bottom:110px;z-index:52;background:#2b2e33;color:#fff;font-size:20px;font-weight:750;padding:10px 18px;border-radius:14px;display:none}
+#padk.on{display:block}
+#learn{position:absolute;inset:0;z-index:58;background:#101114;display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:30px;text-align:center}
+#learn.on{display:flex}
+#learn .st{font-size:20px;color:var(--mut);font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+#learn .q{font-size:46px;font-weight:800;line-height:1.1}
+#learn .got{font-size:24px;min-height:34px;color:var(--ok);font-weight:750}
+#learn .got.bad{color:var(--acc)}
+#learn .row{width:100%;max-width:760px}
+#learn .sum{font-size:19px;color:var(--mut);max-height:260px;overflow:auto;text-align:left;columns:2;width:100%;max-width:820px}
 /* markören från handkontrollen */
 .kf{outline:5px solid #fff !important;outline-offset:3px;z-index:3;position:relative}
 .bar.kf{outline-color:var(--acc) !important}
@@ -233,6 +244,9 @@ body.night #idle .d,body.night #idle .s{color:#55534f}
 <div id="ring"><div class="t" id="ringT"></div><div class="n" id="ringN"></div><div class="row"><button class="btn press" id="ringSn">Snooza</button><button class="btn pri press" id="ringOff">Stäng av</button></div></div>
 <div id="idle"><div class="c" id="iC"></div><div class="d" id="iD"></div><div class="s" id="iS"></div></div>
 <div class="toast" id="toast"></div>
+<div id="padk"></div>
+<div id="learn"><div class="st" id="lnSt"></div><div class="q" id="lnQ"></div><div class="got" id="lnGot"></div><div class="sum" id="lnSum"></div>
+  <div class="row" id="lnBtns"></div></div>
 
 <script>
 "use strict";
@@ -345,6 +359,7 @@ function rHem(){
         ${tm.map(t => `<button class="pill hot press" data-tap="go('larm')">${ic("timer")}<span>${esc(t.name)} <b class="cd" data-end="${t.end}"></b></span></button>`).join("")}
         ${runs.length ? `<button class="pill hot press" data-tap="go('scener')">${ic("spark")}<span>${runs.map(r => esc(r.name)).join(", ")}</span></button>` : ""}
         <button class="pill press" id="bpBtn" data-tap="bpToggle()">${ic("tv")}<span>Blaupunkt-skärmen</span></button>
+        <button class="pill press" data-tap="learnStart()">${ic("star")}<span>Lär in handkontrollen</span></button>
       </div></div>
     <div class="np card">
       <div class="nptop"><div class="cov" id="hCov"></div><div style="min-width:0;flex:1"><div class="npT" id="hT"></div><div class="npA" id="hA"></div>
@@ -666,13 +681,61 @@ function nav(c){
 // efter omritning: sätt tillbaka markören på samma knapp
 new MutationObserver(() => { if (KF && !document.body.contains(KF)){ KF = null; const el = kfCur(); if (el) kfSet(el); } }).observe(document.body, { childList: true, subtree: true });
 document.addEventListener("pointerdown", e => { if (e.isTrusted && KF){ KF.classList.remove("kf"); KF = null; KFkey = null; } }, true);   // fingret tar över
+// ---------- kvitto: vilken knapp hubben uppfattade och vad den gjorde ----------
+const GP_NAMES = { "gp:nav-up":"Upp", "gp:nav-down":"Ner", "gp:nav-left":"Vänster", "gp:nav-right":"Höger", "gp:nav-ok":"Välj", "gp:nav-back":"Tillbaka",
+  "gp:play":"Spela/paus", "gp:next":"Nästa låt", "gp:prev":"Föregående låt", "gp:vol+":"Volym +", "gp:vol-":"Volym −", "gp:screen":"Blaupunkt-skärmen",
+  "gp:tv-off":"Stäng tv på skärmen", "gp:light":"Ljuset av/på", "gp:dim+":"Ljusare", "gp:dim-":"Mörkare", "gp:nest":"Nest Hub", "gp:page":"Nästa sida", "gp:viz":"Visualisering" };
+function padKey(code, act){
+  if (LEARN.on){ learnGot(code); return; }
+  if (String(act).startsWith("gp:nav-")) return;            // markören syns ändå
+  const el = $("#padk"); el.textContent = act ? (GP_NAMES[act] || act) : "Knappen " + code + " har ingen funktion";
+  el.classList.add("on"); clearTimeout(padKey.t); padKey.t = setTimeout(() => el.classList.remove("on"), 1600);
+}
+// ---------- inlärning: en knapp i taget, så att det inte spelar någon roll hur kontrollen döper dem ----------
+const LEARN_STEPS = [["Tryck UPP på styrkorset", "gp:nav-up"], ["Tryck NER på styrkorset", "gp:nav-down"], ["Tryck VÄNSTER på styrkorset", "gp:nav-left"],
+  ["Tryck HÖGER på styrkorset", "gp:nav-right"], ["Tryck A", "gp:nav-ok"], ["Tryck B", "gp:nav-back"], ["Tryck X", "gp:play"], ["Tryck Y", "gp:light"],
+  ["Tryck L1 (vänster axelknapp, övre)", "gp:vol-"], ["Tryck R1 (höger axelknapp, övre)", "gp:vol+"], ["Tryck L2 (vänster avtryckare, undre)", "gp:prev"],
+  ["Tryck R2 (höger avtryckare, undre)", "gp:next"], ["Tryck Meny (tre streck, höger i mitten)", "gp:screen"], ["Tryck Alternativ (två rutor, vänster i mitten)", "gp:tv-off"],
+  ["Tryck Stadia-knappen (mitten)", "gp:nest"]];
+const LEARN = { on: false, i: 0, map: {}, last: "" };
+function learnStart(){ LEARN.on = true; LEARN.i = 0; LEARN.map = {}; send("gamepad:learn:on"); $("#learn").classList.add("on"); learnPaint(""); }
+function learnStop(save){
+  LEARN.on = false; $("#learn").classList.remove("on"); send("gamepad:learn:off");
+  if (save){ fetch("/api/gamepad-map", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ map: LEARN.map, replace: true }) })
+    .then(r => r.json()).then(() => { send("lightgroups"); toast("Handkontrollen är inlärd"); }).catch(() => toast("Kunde inte spara")); }
+}
+function learnPaint(msg, bad){
+  const done = LEARN.i >= LEARN_STEPS.length;
+  $("#lnSt").textContent = done ? "Klart" : "Steg " + (LEARN.i + 1) + " av " + LEARN_STEPS.length;
+  $("#lnQ").textContent = done ? "Alla knappar är inlärda" : LEARN_STEPS[LEARN.i][0];
+  const g = $("#lnGot"); g.textContent = msg || (done ? "" : "Väntar på knappen …"); g.classList.toggle("bad", !!bad);
+  $("#lnSum").innerHTML = Object.entries(LEARN.map).map(([k, a]) => `<div>${esc(GP_NAMES[a] || a)}: <b>${esc(k)}</b></div>`).join("");
+  $("#lnBtns").innerHTML = done ? `<button class="btn pri press" data-tap="learnStop(true)">Spara</button><button class="btn press" data-tap="learnStart()">Börja om</button>`
+    : `<button class="btn press" data-tap="learnBack()">Ta om förra</button><button class="btn press" data-tap="learnSkip()">Hoppa över</button><button class="btn bad press" data-tap="learnStop(false)">Avbryt</button>`;
+}
+function learnGot(code){
+  if (LEARN.i >= LEARN_STEPS.length) return;
+  const act = LEARN_STEPS[LEARN.i][1];
+  if (LEARN.map[code] && LEARN.map[code] !== act){ learnPaint("Den knappen är redan " + (GP_NAMES[LEARN.map[code]] || "") + ". Tryck en annan.", true); return; }
+  LEARN.map[code] = act; LEARN.i++;
+  learnPaint("✓ " + code);
+  setTimeout(() => { if (LEARN.on) learnPaint(""); }, 700);
+}
+function learnBack(){ if (LEARN.i > 0){ LEARN.i--; const act = LEARN_STEPS[LEARN.i][1]; for (const k in LEARN.map) if (LEARN.map[k] === act) delete LEARN.map[k]; } learnPaint(""); }
+function learnSkip(){ LEARN.i++; learnPaint(""); }
 let CMDSINCE = 0;
 async function cmdLoop(){
   for (;;){
     try {
       const j = await getJ("/api/cmd?since=" + CMDSINCE + "&wait=20");
       if (!CMDSINCE){ CMDSINCE = j.last || 1; continue; }
-      for (const it of j.items || []){ if (it.id > CMDSINCE && String(it.c).startsWith("nav:")) nav(String(it.c).slice(4)); CMDSINCE = Math.max(CMDSINCE, it.id); }
+      for (const it of j.items || []){
+        const c = String(it.c);
+        if (it.id > CMDSINCE){
+          if (c.startsWith("padkey:")){ const [code, act] = c.slice(7).split("|"); padKey(code, act || ""); }
+          else if (c.startsWith("nav:") && !LEARN.on) nav(c.slice(4));
+        }
+        CMDSINCE = Math.max(CMDSINCE, it.id); }
       CMDSINCE = Math.max(CMDSINCE, j.last || 0);
     } catch(e){ await new Promise(r => setTimeout(r, 2000)); }
   }

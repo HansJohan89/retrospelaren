@@ -1578,7 +1578,7 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json({"error": "Spotify svarade %s: %s" % (e.code, e.read()[:200].decode("utf-8", "replace"))}, 502)
             except Exception as e:
                 return self._json({"error": str(e)}, 400)
-        if path not in ("/api/hublog", "/api/clipstate", "/api/login", "/api/state", "/api/sonos-now", "/api/tradfri-list", "/api/deck", "/api/deck/live", "/api/sonos-art", "/api/plex"):
+        if path not in ("/api/gamepad-map", "/api/hublog", "/api/clipstate", "/api/login", "/api/state", "/api/sonos-now", "/api/tradfri-list", "/api/deck", "/api/deck/live", "/api/sonos-art", "/api/plex"):
             return self._json({"error": "hittades inte"}, 404)
         limit = DECK_MAX_BYTES if path == "/api/deck" else 2500 * 1024 if path == "/api/sonos-art" else 512 * 1024
         try:
@@ -1592,6 +1592,28 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json({"error": "ogiltig data: %s" % e}, 400)
         if path == "/api/login":
             return self.login(data)
+        if path == "/api/gamepad-map":
+            # Inlärningen på Nest Hub sparar vilken knapp som är vilken. Bara handkontrollens egna
+            # funktioner (gp:…) går att sätta härifrån, så sidan behöver ingen inloggning.
+            m = data.get("map") if isinstance(data.get("map"), dict) else {}
+            clean = {str(k)[:40]: str(v) for k, v in m.items() if re.fullmatch(r"[A-Z0-9_]+[+-]?", str(k)[:40]) and re.fullmatch(r"gp:[a-z+-]+|", str(v))}
+            _deck_load()
+            with DECK_LOCK:
+                deck = dict(DECK_CACHE["deck"] or {})
+                gp = dict(deck.get("gamepad") or {})
+                gm = dict(gp.get("map") or {})
+                if data.get("replace"):
+                    gm = {}
+                    gp["learned"] = True
+                gm.update(clean)
+                gp["map"] = gm
+                deck["gamepad"] = gp
+                DECK_CACHE["rev"] += 1
+                DECK_CACHE["deck"] = deck
+                DECK_LIVE["seq"] += 1
+                DECK_COND.notify_all()
+                _write_json(DECK_FILE, {"rev": DECK_CACHE["rev"], "deck": deck})
+            return self._json({"ok": True, "n": len(clean)})
         if path == "/api/hublog":
             # Hubbens och skärmens logg (det viktiga): skrivs ut här så att den syns i Railways logg
             lines = data.get("lines") if isinstance(data.get("lines"), list) else []
