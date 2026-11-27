@@ -2863,9 +2863,10 @@ function schedulesModal(){
   draw(); loadGroups().then(draw);
 }
 // ---------- handkontrollen (Stadia eller annan spelkontroll, läses av hubben: hub/gamepad.py) ----------
-const GP_DEFAULT = { BTN_SOUTH:"gp:play", BTN_EAST:"gp:tv-off", BTN_WEST:"gp:screen", BTN_NORTH:"gp:light", "HAT0X-":"gp:prev", "HAT0X+":"gp:next",
-  "HAT0Y-":"gp:vol+", "HAT0Y+":"gp:vol-", BTN_TL:"gp:vol-", BTN_TR:"gp:vol+", "ABS_BRAKE+":"gp:dim-", "ABS_GAS+":"gp:dim+", "ABS_Z+":"gp:dim-", "ABS_RZ+":"gp:dim+",
-  BTN_TL2:"gp:dim-", BTN_TR2:"gp:dim+", BTN_START:"gp:page", BTN_SELECT:"gp:viz", BTN_MODE:"gp:nest" };
+const GP_DEFAULT = { "HAT0Y-":"gp:nav-up", "HAT0Y+":"gp:nav-down", "HAT0X-":"gp:nav-left", "HAT0X+":"gp:nav-right",
+  "ABS_Y-":"gp:nav-up", "ABS_Y+":"gp:nav-down", "ABS_X-":"gp:nav-left", "ABS_X+":"gp:nav-right", BTN_SOUTH:"gp:nav-ok", BTN_EAST:"gp:nav-back",
+  BTN_WEST:"gp:play", BTN_NORTH:"gp:light", BTN_TL:"gp:vol-", BTN_TR:"gp:vol+", "ABS_BRAKE+":"gp:prev", "ABS_GAS+":"gp:next", "ABS_Z+":"gp:prev", "ABS_RZ+":"gp:next",
+  BTN_TL2:"gp:prev", BTN_TR2:"gp:next", "ABS_RY-":"gp:dim+", "ABS_RY+":"gp:dim-", BTN_START:"gp:screen", BTN_SELECT:"gp:tv-off", BTN_MODE:"gp:nest" };
 const GP_ROWS = [["A", ["BTN_SOUTH"]], ["B", ["BTN_EAST"]], ["X", ["BTN_WEST"]], ["Y", ["BTN_NORTH"]],
   ["Styrkorset upp", ["HAT0Y-"]], ["Styrkorset ner", ["HAT0Y+"]], ["Styrkorset vänster", ["HAT0X-"]], ["Styrkorset höger", ["HAT0X+"]],
   ["L1 (vänster axel)", ["BTN_TL"]], ["R1 (höger axel)", ["BTN_TR"]], ["L2 (vänster avtryckare)", ["ABS_BRAKE+", "ABS_Z+", "BTN_TL2"]], ["R2 (höger avtryckare)", ["ABS_GAS+", "ABS_RZ+", "BTN_TR2"]],
@@ -2873,7 +2874,8 @@ const GP_ROWS = [["A", ["BTN_SOUTH"]], ["B", ["BTN_EAST"]], ["X", ["BTN_WEST"]],
   ["Vänster spak, tryck", ["BTN_THUMBL"]], ["Höger spak, tryck", ["BTN_THUMBR"]],
   ["Vänster spak upp", ["ABS_Y-"]], ["Vänster spak ner", ["ABS_Y+"]], ["Vänster spak vänster", ["ABS_X-"]], ["Vänster spak höger", ["ABS_X+"]],
   ["Höger spak upp", ["ABS_RY-"]], ["Höger spak ner", ["ABS_RY+"]], ["Höger spak vänster", ["ABS_RX-"]], ["Höger spak höger", ["ABS_RX+"]]];
-const GP_ACTIONS = [["", "(ingen funktion)"], ["gp:play", "Spela/paus"], ["gp:next", "Nästa låt"], ["gp:prev", "Föregående låt"], ["gp:vol+", "Volym upp (håll inne)"], ["gp:vol-", "Volym ner (håll inne)"],
+const GP_ACTIONS = [["", "(ingen funktion)"], ["gp:nav-up", "Nest Hub: markören upp"], ["gp:nav-down", "Nest Hub: markören ner"], ["gp:nav-left", "Nest Hub: markören vänster"],
+  ["gp:nav-right", "Nest Hub: markören höger"], ["gp:nav-ok", "Nest Hub: tryck"], ["gp:nav-back", "Nest Hub: tillbaka"], ["gp:play", "Spela/paus"], ["gp:next", "Nästa låt"], ["gp:prev", "Föregående låt"], ["gp:vol+", "Volym upp (håll inne)"], ["gp:vol-", "Volym ner (håll inne)"],
   ["gp:screen", "Öppna/stäng Blaupunkt-skärmen"], ["gp:tv-off", "Stäng tv/film på skärmen"], ["gp:page", "Nästa sida på skärmen"], ["gp:viz", "Nästa visualisering"],
   ["gp:light", "Tänd/släck ljusgruppen"], ["gp:dim+", "Ljusare (håll inne)"], ["gp:dim-", "Mörkare (håll inne)"], ["gp:warmer", "Varmare ljus"], ["gp:colder", "Kallare ljus"],
   ["gp:nest", "Visa appen på Nest Hub"]];

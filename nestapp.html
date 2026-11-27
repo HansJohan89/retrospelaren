@@ -173,6 +173,9 @@ body.mini #mini{display:flex}
 #idle.on{display:flex}
 #idle .c{font-size:180px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;color:#e8e2d4}
 #idle .d{font-size:28px;color:#8c8a84;text-transform:capitalize}
+/* markören från handkontrollen */
+.kf{outline:5px solid #fff !important;outline-offset:3px;z-index:3;position:relative}
+.bar.kf{outline-color:var(--acc) !important}
 #idle .s{font-size:24px;color:#8c8a84;margin-top:24px;max-width:80%;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 body.night #idle .c{color:#7a756b}
 body.night #idle .d,body.night #idle .s{color:#55534f}
@@ -283,8 +286,10 @@ function bar(id, val, label, off){
 }
 function wireBar(id, onSet){
   const el = document.getElementById(id); if (!el) return;
-  const set = (e, done) => { const r = el.getBoundingClientRect(); const v = Math.max(1, Math.min(100, Math.round((e.clientX - r.left) / r.width * 100)));
+  const setV = (v, done) => { v = Math.max(1, Math.min(100, Math.round(v)));
     el.querySelector("i").style.width = v + "%"; el.querySelector("span b:last-child").textContent = v + " %"; el.classList.add("lit"); el.dataset.v = v; onSet(v, done); };
+  el._step = d => setV((+el.dataset.v || 0) + d, true);          // handkontrollen: vänster/höger på reglaget
+  const set = (e, done) => { const r = el.getBoundingClientRect(); setV((e.clientX - r.left) / r.width * 100, done); };
   el.addEventListener("pointerdown", e => { el.setPointerCapture(e.pointerId); el._drag = true; set(e); });
   el.addEventListener("pointermove", e => { if (el._drag) set(e); });
   el.addEventListener("pointerup", e => { el._drag = false; set(e, true); });
@@ -599,6 +604,79 @@ function paintRing(){
   wake();
 }
 
+// ---------- handkontrollen: en markör som flyttas med styrkorset ----------
+// Hubben skickar nav:up/down/left/right/ok/back (från Stadia-kontrollen) genom kommandokön.
+let KF = null, KFkey = null;
+function kfList(){
+  const root = $("#ring").classList.contains("on") ? $("#ring") : $("#sheet").classList.contains("on") ? $("#sheet") : document;
+  return [...root.querySelectorAll(root === document ? "#rail [data-tap], #main .view.on [data-tap], #main .view.on .bar, body.mini #mini [data-tap]" : "button, .bar")]
+    .filter(el => { const r = el.getBoundingClientRect(); return r.width > 4 && r.height > 4 && r.bottom > 0 && r.top < innerHeight; });
+}
+function kfSet(el){
+  if (KF && KF !== el) KF.classList.remove("kf");
+  KF = el; if (!el) return;
+  el.classList.add("kf"); KFkey = el.dataset.tap || el.id || "";
+  const v = el.closest(".view, #sheet .in"); if (v){ const r = el.getBoundingClientRect(), vr = v.getBoundingClientRect();
+    if (r.top < vr.top + 10) v.scrollTop -= vr.top + 10 - r.top; else if (r.bottom > vr.bottom - 10) v.scrollTop += r.bottom - vr.bottom + 10; }
+}
+function kfCur(){
+  const list = kfList();
+  if (KF && document.body.contains(KF) && list.includes(KF)) return KF;
+  // ritades om: hitta samma knapp igen, annars den första i vyn
+  return list.find(el => (el.dataset.tap || el.id || "") === KFkey) || list.find(el => el.closest("#main")) || list[0] || null;
+}
+function kfMove(dir){
+  const cur = kfCur(); if (!cur) return;
+  if (cur !== KF){ kfSet(cur); return; }
+  const a = cur.getBoundingClientRect(), ax = a.left + a.width / 2, ay = a.top + a.height / 2;
+  let best = null, bd = 1e9;
+  for (const el of kfList()){
+    if (el === cur) continue;
+    const r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2, dx = x - ax, dy = y - ay;
+    const along = dir === "left" ? -dx : dir === "right" ? dx : dir === "up" ? -dy : dy;
+    const across = dir === "left" || dir === "right" ? Math.abs(dy) : Math.abs(dx);
+    if (along <= 4) continue;
+    const d = along + across * 2.2;
+    if (d < bd){ bd = d; best = el; }
+  }
+  if (!best && (dir === "up" || dir === "down")){ const v = cur.closest(".view"); if (v) v.scrollTop += dir === "down" ? 220 : -220; }
+  if (best) kfSet(best);
+}
+function kfOk(){
+  const el = kfCur(); if (!el) return; kfSet(el);
+  el.classList.add("down"); setTimeout(() => el.classList.remove("down"), 160);
+  if (el.dataset.tap) (0, eval)(el.dataset.tap); else el.click();
+}
+function kfBack(){
+  if ($("#sheet").classList.contains("on")) closeSheet();
+  else if (VIEW === "tv" && TV.stack.length) tvBack();
+  else if (VIEW !== "hem") go("hem");
+  setTimeout(() => kfSet(kfCur()), 80);
+}
+function nav(c){
+  const idle = $("#idle").classList.contains("on"); wake();
+  if (idle){ go("hem"); setTimeout(() => kfSet(kfCur()), 80); return; }       // första trycket väcker bara skärmen
+  if (c === "ok") kfOk();
+  else if (c === "back") kfBack();
+  else if (c === "left" || c === "right"){ const el = kfCur(); if (el && el === KF && el.classList.contains("bar") && el._step) el._step(c === "right" ? 5 : -5); else kfMove(c); }
+  else if (c === "up" || c === "down") kfMove(c);
+  else if (c.startsWith("view:")){ go(c.slice(5)); setTimeout(() => kfSet(kfCur()), 80); }
+}
+// efter omritning: sätt tillbaka markören på samma knapp
+new MutationObserver(() => { if (KF && !document.body.contains(KF)){ KF = null; const el = kfCur(); if (el) kfSet(el); } }).observe(document.body, { childList: true, subtree: true });
+document.addEventListener("pointerdown", e => { if (e.isTrusted && KF){ KF.classList.remove("kf"); KF = null; KFkey = null; } }, true);   // fingret tar över
+let CMDSINCE = 0;
+async function cmdLoop(){
+  for (;;){
+    try {
+      const j = await getJ("/api/cmd?since=" + CMDSINCE + "&wait=20");
+      if (!CMDSINCE){ CMDSINCE = j.last || 1; continue; }
+      for (const it of j.items || []){ if (it.id > CMDSINCE && String(it.c).startsWith("nav:")) nav(String(it.c).slice(4)); CMDSINCE = Math.max(CMDSINCE, it.id); }
+      CMDSINCE = Math.max(CMDSINCE, j.last || 0);
+    } catch(e){ await new Promise(r => setTimeout(r, 2000)); }
+  }
+}
+
 // ---------- vila: en lugn klocka när ingen rört skärmen på två minuter ----------
 let idleT = 0;
 function wake(){ $("#idle").classList.remove("on"); clearTimeout(idleT); idleT = setTimeout(() => { $("#idle").classList.add("on"); paintIdle(); }, 120000); }
@@ -635,6 +713,7 @@ async function slow(){
   await Promise.all([slow(), poll()]);
   send("sonos-focus:" + room());
   setInterval(poll, 2000);
+  cmdLoop();
   setInterval(slow, 5 * 60000);
   setInterval(() => send("sonos-focus:" + room()), 30000);
   setInterval(() => location.reload(), 6 * 3600 * 1000);      // ny version av sidan då och då
