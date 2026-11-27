@@ -340,6 +340,21 @@ class Gamepad:
                             return ln
             return None
         try:
+            # Bluetooth kan vara spärrad i systemet (rfkill), då går den inte att slå på
+            try:
+                r1 = subprocess.run(["rfkill", "list", "bluetooth"], capture_output=True, text=True, timeout=5)
+                info = " ".join(r1.stdout.split())[:200]
+                if "blocked: yes" in r1.stdout.lower():
+                    r2 = subprocess.run(["rfkill", "unblock", "bluetooth"], capture_output=True, text=True, timeout=5)
+                    self.log("  Handkontroll: Bluetooth var spärrad (%s); häver spärren: %s" % (info, (r2.stderr or "ok").strip()[:150]))
+                    time.sleep(2)
+                    subprocess.run(["bluetoothctl", "power", "on"], capture_output=True, text=True, timeout=10)
+                else:
+                    self.log("  Handkontroll: rfkill: %s" % (info or "ingen Bluetooth-enhet hittad"))
+            except FileNotFoundError:
+                self.log("  Handkontroll: rfkill finns inte")
+            except Exception as e:
+                self.log("  Handkontroll: rfkill: %s" % e)
             self.log("  Handkontroll: letar med Bluetooth i 60 s (kontrollen ska pulsera orange)")
             for c in ("power on", "scan on"):
                 say(c)
