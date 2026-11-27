@@ -4015,16 +4015,29 @@ async function playPlex(it, el){
   v.onended = () => hideHighlights();
   el.prepend(v); v.volume = 1;
   const urls = (it.urls || []).slice();
-  const next = () => {
+  const t0 = Date.now();
+  osd("Plex förbereder filmen…");
+  const next = async () => {
     const u = urls.shift();
     if (!u){ scrLog("plex: ingen adress fungerade"); osd("Plex gick inte att spela här"); hideHighlights(); return; }
-    scrLog("plex: provar " + u.split("/video/")[0]);
     if (HL.hls){ try { HL.hls.destroy(); } catch(e){} HL.hls = null; }
-    if (!(window.Hls && Hls.isSupported())){ v.src = u; v.onerror = next; return; }
-    const hls = HL.hls = new Hls({ maxBufferLength: 40, startLevel: -1 });
+    scrLog("plex: provar " + u.split("/video/")[0]);
+    // Plex vill få frågan om "beslut" för sessionen först; utan den svarar start.m3u8 med 400
+    try {
+      const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 20000);
+      const r = await fetch(u.replace("/start.m3u8?", "/decision?"), { signal: ctl.signal }); clearTimeout(t);
+      if (!r.ok){ scrLog("plex: beslutet gav " + r.status); return next(); }
+    } catch(e){ scrLog("plex: beslutet: " + (e.name === "AbortError" ? "svarar inte" : e.message)); return next(); }
+    if (!HL.on) return;
+    HL.plexStop = u.replace("/start.m3u8?", "/stop?");
+    if (!(window.Hls && Hls.isSupported())){ v.src = u; v.onerror = () => next(); return; }
+    // Plex behöver ofta 30–60 s innan första biten är omkodad: vänta länge innan något räknas som fel
+    const hls = HL.hls = new Hls({ maxBufferLength: 40, startLevel: -1, manifestLoadingTimeOut: 30000, manifestLoadingMaxRetry: 2,
+      levelLoadingTimeOut: 120000, levelLoadingMaxRetry: 3, fragLoadingTimeOut: 90000, fragLoadingMaxRetry: 6 });
     let ok = false;
     hls.on(Hls.Events.MANIFEST_PARSED, () => { ok = true; v.play().catch(() => {}); });
-    hls.on(Hls.Events.ERROR, (_, data) => { if (data.fatal){ scrLog("plex: hls-fel " + data.type + "/" + data.details + (data.response ? " " + data.response.code : "") + (data.networkDetails && data.networkDetails.responseText ? " " + String(data.networkDetails.responseText).slice(0, 160) : "")); if (!ok) next(); else { osd("Plex-strömmen avbröts"); hideHighlights(); } } });
+    v.addEventListener("playing", () => { if (!v._logged){ v._logged = true; scrLog("plex: spelar efter " + Math.round((Date.now() - t0) / 1000) + " s"); } });
+    hls.on(Hls.Events.ERROR, (_, data) => { if (data.fatal){ scrLog("plex: hls-fel " + data.type + "/" + data.details + (data.response ? " " + data.response.code : "")); if (!ok) next(); else { osd("Plex-strömmen avbröts"); hideHighlights(); } } });
     hls.loadSource(u); hls.attachMedia(v);
   };
   next();
@@ -4114,6 +4127,8 @@ addEventListener("message", e => {
 });
 function hideHighlights(quick, keepAudio){
   clearTimeout(HL.t);
+  // stäng Plex-sessionen, annars fortsätter Plex att koda om filmen i onödan
+  if (HL.plexStop){ fetch(HL.plexStop).catch(() => {}); HL.plexStop = ""; }
   if (HL.audio && !keepAudio){ HL.audio = false; HL.audioRoom = ""; fetch("/api/send?c=clip-audio:off").catch(() => {}); }
   const el = $("#hl");
   if (HL.hls){ try { HL.hls.destroy(); } catch(e){} HL.hls = null; }
