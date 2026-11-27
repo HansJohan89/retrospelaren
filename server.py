@@ -249,8 +249,8 @@ def patch_deck(data):
     _deck_load()
     with DECK_LOCK:
         deck = dict(DECK_CACHE["deck"] or {})
-        for k in ("alarms", "schedules", "lampRules", "appPrefs", "lightGroups"):
-            if isinstance(data.get(k), list) or (k == "appPrefs" and isinstance(data.get(k), dict)):
+        for k in ("alarms", "schedules", "lampRules", "appPrefs", "lightGroups", "gamepad"):
+            if isinstance(data.get(k), list) or (k in ("appPrefs", "gamepad") and isinstance(data.get(k), dict)):
                 deck[k] = data[k]
         DECK_CACHE["rev"] += 1
         DECK_CACHE["deck"] = deck
@@ -444,6 +444,7 @@ def get_scenes():
                 "lampRules": deck.get("lampRules") if isinstance(deck.get("lampRules"), list) else [],
                 "alarms": deck.get("alarms") if isinstance(deck.get("alarms"), list) else [],
                 "lightGroups": deck.get("lightGroups") if isinstance(deck.get("lightGroups"), list) else [],
+                "gamepad": deck.get("gamepad") if isinstance(deck.get("gamepad"), dict) else {},
                 "place": _place()}
 
 
@@ -673,6 +674,8 @@ def set_tradfri_list(patch):
         if isinstance(patch.get("runs"), list) and len(patch["runs"]) <= 100:
             TRADFRI_LIST["runs"] = [r for r in patch["runs"] if isinstance(r, dict)]
             TRADFRI_LIST["runsAt"] = time.time()
+        if isinstance(patch.get("gamepad"), dict):
+            TRADFRI_LIST["gamepad"] = patch["gamepad"]        # handkontrollen: ansluten, senaste knapp
         if isinstance(patch.get("sonos"), dict):
             TRADFRI_LIST["sonos"] = patch["sonos"]
             TRADFRI_LIST["sonosAt"] = time.time()

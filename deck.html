@@ -518,6 +518,7 @@ body.rmNest.rmIdle #rmAmbCover{display:block;position:fixed;inset:0;z-index:61}
     <button class="tbtn" id="inputsBtn" title="Fjärrkontroller, rörelsesensorer och jalusisensorn"><span id="inputsIc"></span><span class="lbl">Sensorer</span></button>
     <button class="tbtn" id="scenesBtn" title="Bygg egna scener med lampor och musik"><span id="scenesIc"></span><span class="lbl">Scener</span></button>
     <button class="tbtn" id="schedBtn" title="Scener som körs av sig själva vid vissa tider"><span id="schedIc"></span><span class="lbl">Tider</span></button>
+    <button class="tbtn" id="gpBtn" title="Handkontrollen (Stadia eller annan spelkontroll)"><span id="gpIc"></span><span class="lbl">Handkontroll</span></button>
     <button class="tbtn" id="lgBtn" title="Egna grupper av lamporna, i stället för Trådfris"><span id="lgIc"></span><span class="lbl">Ljusgrupper</span></button>
     <button class="tbtn" id="rulesBtn" title="Färg och ljusstyrka lampor får när de tänds under vissa tider"><span id="rulesIc"></span><span class="lbl">Lampregler</span></button>
     <button class="tbtn icon" id="deviceBtn" title="Enhetsinställningar"></button>
@@ -1020,6 +1021,7 @@ const ICONS = {
   "pot":        { n:"Kök", c:"Rum", d:["M5.500 10.500h13V17a3 3 0 0 1-3 3h-7a3 3 0 0 1-3-3z", "M3 10.500h18", "M9.500 7c0-1.500 1.500-1.500 1.500-3", "M13.500 7c0-1.500 1.500-1.500 1.500-3"] },
   "bath":       { n:"Badrum", c:"Rum", d:["M3 12.500h18v2.500a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5z", "M6 12.500V6a2 2 0 0 1 4 0", "M7.500 20l-1 1.500", "M16.500 20l1 1.500"] },
   "door":       { n:"Hall", c:"Rum", d:["M6.500 21V4.500A1.500 1.500 0 0 1 8 3h8a1.500 1.500 0 0 1 1.500 1.500V21", "M4 21h16", "M14.500 12v.01"] },
+  "gamepad":    { n:"Handkontroll", c:"System", d:["M7 8h10a4.500 4.500 0 0 1 4.400 5.400l-.8 3.800a2.300 2.300 0 0 1-4 .9L15 16.500H9l-1.600 1.600a2.300 2.300 0 0 1-4-.9l-.8-3.800A4.500 4.500 0 0 1 7 8z", "M7.500 11v3", "M6 12.500h3", "M15.500 12v.01", "M17.500 13.500v.01"] },
   "tree":       { n:"Ute", c:"Rum", d:["M12 3l5 6.500h-2.500L18.500 15h-13l4-5.500H7z", "M12 15v6"] }
 };
 const ICON_CATS = ["Musik", "Ljus", "Skärm", "Navigering", "System", "Rum"];
@@ -2860,6 +2862,69 @@ function schedulesModal(){
   openModal("Tider", body, [h("button", { class:"sbtnS", text:"Klar", onclick: closeModal })], true);
   draw(); loadGroups().then(draw);
 }
+// ---------- handkontrollen (Stadia eller annan spelkontroll, läses av hubben: hub/gamepad.py) ----------
+const GP_DEFAULT = { BTN_SOUTH:"gp:play", BTN_EAST:"gp:tv-off", BTN_WEST:"gp:screen", BTN_NORTH:"gp:light", "HAT0X-":"gp:prev", "HAT0X+":"gp:next",
+  "HAT0Y-":"gp:vol+", "HAT0Y+":"gp:vol-", BTN_TL:"gp:vol-", BTN_TR:"gp:vol+", "ABS_BRAKE+":"gp:dim-", "ABS_GAS+":"gp:dim+", "ABS_Z+":"gp:dim-", "ABS_RZ+":"gp:dim+",
+  BTN_TL2:"gp:dim-", BTN_TR2:"gp:dim+", BTN_START:"gp:page", BTN_SELECT:"gp:viz", BTN_MODE:"gp:nest" };
+const GP_ROWS = [["A", ["BTN_SOUTH"]], ["B", ["BTN_EAST"]], ["X", ["BTN_WEST"]], ["Y", ["BTN_NORTH"]],
+  ["Styrkorset upp", ["HAT0Y-"]], ["Styrkorset ner", ["HAT0Y+"]], ["Styrkorset vänster", ["HAT0X-"]], ["Styrkorset höger", ["HAT0X+"]],
+  ["L1 (vänster axel)", ["BTN_TL"]], ["R1 (höger axel)", ["BTN_TR"]], ["L2 (vänster avtryckare)", ["ABS_BRAKE+", "ABS_Z+", "BTN_TL2"]], ["R2 (höger avtryckare)", ["ABS_GAS+", "ABS_RZ+", "BTN_TR2"]],
+  ["Meny (tre streck)", ["BTN_START"]], ["Alternativ (två rutor)", ["BTN_SELECT"]], ["Stadia-knappen", ["BTN_MODE"]],
+  ["Vänster spak, tryck", ["BTN_THUMBL"]], ["Höger spak, tryck", ["BTN_THUMBR"]],
+  ["Vänster spak upp", ["ABS_Y-"]], ["Vänster spak ner", ["ABS_Y+"]], ["Vänster spak vänster", ["ABS_X-"]], ["Vänster spak höger", ["ABS_X+"]],
+  ["Höger spak upp", ["ABS_RY-"]], ["Höger spak ner", ["ABS_RY+"]], ["Höger spak vänster", ["ABS_RX-"]], ["Höger spak höger", ["ABS_RX+"]]];
+const GP_ACTIONS = [["", "(ingen funktion)"], ["gp:play", "Spela/paus"], ["gp:next", "Nästa låt"], ["gp:prev", "Föregående låt"], ["gp:vol+", "Volym upp (håll inne)"], ["gp:vol-", "Volym ner (håll inne)"],
+  ["gp:screen", "Öppna/stäng Blaupunkt-skärmen"], ["gp:tv-off", "Stäng tv/film på skärmen"], ["gp:page", "Nästa sida på skärmen"], ["gp:viz", "Nästa visualisering"],
+  ["gp:light", "Tänd/släck ljusgruppen"], ["gp:dim+", "Ljusare (håll inne)"], ["gp:dim-", "Mörkare (håll inne)"], ["gp:warmer", "Varmare ljus"], ["gp:colder", "Kallare ljus"],
+  ["gp:nest", "Visa appen på Nest Hub"]];
+function gamepadModal(){
+  const body = h("div", { class:"tlWrap" });
+  let st = {}, timer = 0, lastSeen = 0;
+  const cfg = () => (deck.gamepad = deck.gamepad && typeof deck.gamepad === "object" ? deck.gamepad : { map:{} }, deck.gamepad.map = deck.gamepad.map || {}, deck.gamepad);
+  const ping = () => { clearTimeout(ping.t); ping.t = setTimeout(() => fetch("/api/send?c=lightgroups").catch(() => {}), 3000); };
+  const cur = code => { const m = cfg().map; return code in m ? m[code] : (GP_DEFAULT[code] || ""); };
+  const set = (codes, v) => { mutate(() => { codes.forEach(c => { cfg().map[c] = v; }); }, { co:"gp" + codes[0], re:false }); ping(); };
+  const draw = () => {
+    body.innerHTML = "";
+    const g = cfg(), gp = st.gamepad || {};
+    const recent = gp.last && gp.lastAt && Date.now() / 1000 - gp.lastAt < 8 ? gp.last : "";
+    body.append(h("div", { class:"phCard" },
+      h("div", { class:"phHd" }, h("b", { text: gp.name ? "Ansluten: " + gp.name : "Ingen handkontroll ansluten" }),
+        h("span", { class:"note", style:{ margin:0, flex:1 }, text: recent ? "Du tryckte på: " + recent : gp.name ? "Tryck på en knapp på kontrollen så markeras den här nedanför." : "" })),
+      h("div", { class:"note", html:"<b>Med kabel:</b> koppla kontrollen till Pi:n med en USB-C-kabel, så fungerar den direkt.<br><b>Med Bluetooth:</b> Stadia-kontrollen måste först ha bytts till Bluetooth-läge (Googles verktyg för det är nedlagt; en kopia finns på christopherklay.github.io/stadiacontroller, används på egen risk). Håll sedan Stadia-knappen och Y inne tills den blinkar orange och tryck <i>Para med Bluetooth</i>." }),
+      h("div", { class:"phHd" },
+        h("button", { class:"sbtnS", onclick: () => { fetch("/api/send?c=gamepad:pair").catch(() => {}); toast("Hubben letar efter kontrollen i 25 sekunder…", 4000); } }, icon("plus"), "Para med Bluetooth"),
+        h("b", { text:"Sonos-rum" }), h("select", { class:"in w", onchange: e => { mutate(() => { cfg().room = e.target.value; }); ping(); } },
+          [h("option", { value:"", text:"(väckningsrummet)" }), ...roomNames().map(r => h("option", { value:r, text:r, selected: g.room === r }))]),
+        h("b", { text:"Ljusgrupp" }), h("select", { class:"in w", onchange: e => { mutate(() => { cfg().group = e.target.value; }); ping(); } },
+          [h("option", { value:"", text:"(den första)" }), ...Object.keys(GROUPS).map(n => h("option", { value:n, text:n, selected: g.group === n }))]))));
+    const acts = [...GP_ACTIONS, ...(deck.scenes || []).map(s => ["scene:" + s.id, "Scen: " + (s.name || "")])];
+    const known = new Set(GP_ROWS.flatMap(r => r[1]));
+    const rows = GP_ROWS.slice();
+    Object.keys(g.map).filter(c => !known.has(c)).forEach(c => rows.push(["Annan knapp (" + c + ")", [c]]));
+    if (recent && !known.has(recent) && !(recent in g.map)) rows.push(["Annan knapp (" + recent + ")", [recent]]);
+    const tbl = h("div", { class:"phCard" });
+    rows.forEach(([label, codes]) => {
+      const v = cur(codes[0]), hit = recent && codes.includes(recent);
+      tbl.append(h("div", { class:"phHd", style: hit ? { background:"rgba(240,166,58,.18)", borderRadius:"8px" } : {} },
+        h("span", { style:{ flex:"0 0 210px", fontWeight: hit ? 700 : 500 }, text: label }),
+        h("select", { class:"in w", style:{ flex:"1 1 220px" }, onchange: e => set(codes, e.target.value) },
+          [...acts, ...(v && !acts.some(a => a[0] === v) ? [[v, v]] : [])].map(([k, t]) => h("option", { value:k, text:t, selected: v === k })))));
+    });
+    body.append(tbl);
+    body.append(h("div", { class:"phHd" }, h("button", { class:"sbtnS", onclick: () => { if (!confirm("Återställ alla knappar till standard?")) return; mutate(() => { cfg().map = {}; }); ping(); draw(); } }, "Återställ till standard")));
+    lastSeen = (st.gamepad || {}).lastAt || 0;
+  };
+  const poll = async () => {
+    try { st = await (await fetch("/api/tradfri-list", { cache:"no-store" })).json(); } catch(e){}
+    const gp = st.gamepad || {};
+    if ((gp.lastAt || 0) !== lastSeen || !draw.once){ draw.once = true; draw(); }
+    if (document.body.contains(body)) timer = setTimeout(poll, 800);
+  };
+  openModal("Handkontroll", body, [h("button", { class:"sbtnS", text:"Klar", onclick: () => { clearTimeout(timer); fetch("/api/send?c=lightgroups").catch(() => {}); closeModal(); } })], true);
+  draw(); poll();
+}
+
 // ---------- egna ljusgrupper (samma som Inställningar > Ljusgrupper i appen) ----------
 function lightGroupsModal(){
   deck.lightGroups = Array.isArray(deck.lightGroups) ? deck.lightGroups : [];
@@ -3282,7 +3347,7 @@ function renderApp(){
 (async function init(){
   $("#brandIc").innerHTML = iconSvg("back"); $("#profIc").innerHTML = iconSvg("layers");
   $("#undoBtn").innerHTML = iconSvg("up-level"); $("#redoBtn").innerHTML = iconSvg("up-level"); $("#redoBtn").firstChild.style.transform = "scaleX(-1)";
-  $("#deviceBtn").innerHTML = iconSvg("gear"); $("#scenesIc").innerHTML = iconSvg("sparkles"); $("#scenesBtn").onclick = () => sceneModal(); $("#schedIc").innerHTML = iconSvg("clock"); $("#schedBtn").onclick = schedulesModal; $("#rulesIc").innerHTML = iconSvg("bulb"); $("#rulesBtn").onclick = rulesModal; $("#lgIc").innerHTML = iconSvg("bulb"); $("#lgBtn").onclick = lightGroupsModal;
+  $("#deviceBtn").innerHTML = iconSvg("gear"); $("#scenesIc").innerHTML = iconSvg("sparkles"); $("#scenesBtn").onclick = () => sceneModal(); $("#schedIc").innerHTML = iconSvg("clock"); $("#schedBtn").onclick = schedulesModal; $("#rulesIc").innerHTML = iconSvg("bulb"); $("#rulesBtn").onclick = rulesModal; $("#lgIc").innerHTML = iconSvg("bulb"); $("#lgBtn").onclick = lightGroupsModal; $("#gpIc").innerHTML = iconSvg("gamepad"); $("#gpBtn").onclick = gamepadModal;
   $("#inputsIc").innerHTML = iconSvg("antenna"); $("#inputsBtn").onclick = inputsModal;
   $("#undoBtn").onclick = () => doUndo(undo, redo); $("#redoBtn").onclick = () => doUndo(redo, undo);
   $("#deviceBtn").onclick = deviceModal; $("#hubChip").onclick = deviceModal; $("#profileBtn").onclick = profileMenu;
