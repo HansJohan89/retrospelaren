@@ -266,6 +266,7 @@ def patch_deck(data):
 # Skivomslag som hubben hämtat från en Sonos-högtalare (som bara går att nå hemma) och lagt upp
 # här, så att sidan kan visa dem. Bara i minnet, de senaste 30.
 SONOS_ART = {}
+NEST_BEAT = {"at": 0.0}           # när appen på Nest Hub senast hörde av sig (hubben kollar att den syns)
 HUB_LOG = []                      # senaste raderna från hubbens och skärmens logg (se /api/hublog)
 PLEX_LIST = {}                    # filmtips från Plex, skickade av hubben (bara i minnet)
 
@@ -1516,6 +1517,10 @@ class Handler(SimpleHTTPRequestHandler):
                     return self._json({"error": str(e)}, 200)
             if path == "/api/tradfri-list":
                 return self._json(get_tradfri_list())
+            if path == "/api/nestbeat":
+                if q.get("ping"):
+                    NEST_BEAT["at"] = time.time()
+                return self._json({"at": NEST_BEAT["at"], "now": time.time()})
             if path == "/api/hublog":
                 if not self.authed():
                     return self._json({"error": "inloggning krävs"}, 401)

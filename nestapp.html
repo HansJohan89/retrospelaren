@@ -246,6 +246,7 @@ const store = { get(k, d){ try { const v = localStorage.getItem("nh." + k); retu
 function toast(t){ const el = $("#toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("on"), 1800); }
 function send(c){ fetch("/api/send?c=" + encodeURIComponent(c), { keepalive: true }).catch(() => toast("Ingen kontakt")); clearTimeout(send.t); send.t = setTimeout(() => poll(), 700); }
 const getJ = u => fetch(u, { cache:"no-store" }).then(r => r.json());
+fetch("/api/nestbeat?ping=1", { cache:"no-store" }).catch(() => {});      // appen visas (se hub/nestcast.py)
 
 const D = { st:{}, rooms:{}, deck:{}, S:{}, wx:null, pls:[], sp:false, radio:[] };
 let VIEW = "hem", ROOM = store.get("room", "");
@@ -714,6 +715,9 @@ async function slow(){
   send("sonos-focus:" + room());
   setInterval(poll, 2000);
   cmdLoop();
+  // livstecken: hubben ser att appen faktiskt visas (annars ber den Nest Hub om den igen)
+  const beat = () => fetch("/api/nestbeat?ping=1", { cache:"no-store" }).catch(() => {});
+  beat(); setInterval(beat, 20000);
   setInterval(slow, 5 * 60000);
   setInterval(() => send("sonos-focus:" + room()), 30000);
   setInterval(() => location.reload(), 6 * 3600 * 1000);      // ny version av sidan då och då
