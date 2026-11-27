@@ -266,6 +266,7 @@ def patch_deck(data):
 # Skivomslag som hubben hämtat från en Sonos-högtalare (som bara går att nå hemma) och lagt upp
 # här, så att sidan kan visa dem. Bara i minnet, de senaste 30.
 SONOS_ART = {}
+HUB_LOG = []                      # senaste raderna från hubbens och skärmens logg (se /api/hublog)
 PLEX_LIST = {}                    # filmtips från Plex, skickade av hubben (bara i minnet)
 
 # ---- Plex direkt från servern ----
@@ -1505,6 +1506,10 @@ class Handler(SimpleHTTPRequestHandler):
                     return self._json({"error": str(e)}, 200)
             if path == "/api/tradfri-list":
                 return self._json(get_tradfri_list())
+            if path == "/api/hublog":
+                if not self.authed():
+                    return self._json({"error": "inloggning krävs"}, 401)
+                return self._json({"lines": HUB_LOG[-300:]})
             if path == "/api/ping":
                 return self._json({"ok": True})
             if path == "/api/version":
@@ -1558,7 +1563,7 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json({"error": "Spotify svarade %s: %s" % (e.code, e.read()[:200].decode("utf-8", "replace"))}, 502)
             except Exception as e:
                 return self._json({"error": str(e)}, 400)
-        if path not in ("/api/clipstate", "/api/login", "/api/state", "/api/sonos-now", "/api/tradfri-list", "/api/deck", "/api/deck/live", "/api/sonos-art", "/api/plex"):
+        if path not in ("/api/hublog", "/api/clipstate", "/api/login", "/api/state", "/api/sonos-now", "/api/tradfri-list", "/api/deck", "/api/deck/live", "/api/sonos-art", "/api/plex"):
             return self._json({"error": "hittades inte"}, 404)
         limit = DECK_MAX_BYTES if path == "/api/deck" else 2500 * 1024 if path == "/api/sonos-art" else 512 * 1024
         try:
@@ -1572,6 +1577,16 @@ class Handler(SimpleHTTPRequestHandler):
             return self._json({"error": "ogiltig data: %s" % e}, 400)
         if path == "/api/login":
             return self.login(data)
+        if path == "/api/hublog":
+            # Hubbens och skärmens logg (det viktiga): skrivs ut här så att den syns i Railways logg
+            lines = data.get("lines") if isinstance(data.get("lines"), list) else []
+            src = str(data.get("src") or "hubb")[:12]
+            for ln in lines[:80]:
+                ln = str(ln)[:400]
+                HUB_LOG.append("%s: %s" % (src, ln))
+                print("[%s] %s" % (src, ln), flush=True)
+            del HUB_LOG[:-400]
+            return self._json({"ok": True})
         if path == "/api/clipstate":
             CLIP_STATE.clear()
             CLIP_STATE.update({k: data.get(k) for k in ("cid", "state", "msg", "at")})

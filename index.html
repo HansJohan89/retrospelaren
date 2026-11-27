@@ -3480,7 +3480,19 @@ async function pollCmd(){
   }catch(e){ await new Promise(r => setTimeout(r, 1500)); }
   finally { cmdBusy = false; }
 }
+// Skärmens egna fel och händelser till serverns logg (felsökning på distans). Bara skärmen i skåpet.
+function scrLog(msg){
+  if (!LITE) return;
+  try { fetch("/api/hublog", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ src:"skärm", lines:[String(msg).slice(0, 380)] }), keepalive:true }).catch(() => {}); } catch(e){}
+}
+let NEWVER = false;
 function runCmd(c){
+  // Ny version av sidan ute: ladda om först och utför sedan kommandot (annars kör en kanal som
+  // står på i timmar den gamla versionen hela tiden)
+  if (NEWVER && /^(svtlive|plexplay|svt|hl):/.test(c)){
+    try { sessionStorage.setItem("rs.after", c); } catch(e){}
+    remote.flush(); location.reload(); return;
+  }
   if (c.startsWith("osd:")){ osd(c.slice(4)); return; }       // ett meddelande på skärmen (t.ex. timern från appen)
   if (c === "open"){ const wasBlank = state.blanked; $("#blank").classList.remove("on"); state.blanked = false;
     if (wasBlank) wakeHold(30000);
@@ -3986,13 +3998,14 @@ async function playItem(it, prog){
   // Be om ljudet varje gång: hubben kollar att Sonos fortfarande spelar skärmens ljud och kopplar
   // upp igen om någon bytt till annat på Sonos under tiden (annars blev nästa klipp tyst).
   if (HL.audio) fetch("/api/send?c=" + encodeURIComponent("clip-audio:on:" + aroom)).catch(() => {});
+  scrLog("spelar " + (it.src || "?") + " " + (it.program || "") + ": " + (it.title || "") + (HL.audio ? " (ljud till " + aroom + ")" : " (ljud: skärmens egna, LITE=" + LITE + ", clipRoom=" + (S.clipRoom || "") + ")"));
   if (HL.audio && (!audioOn || HL.audioRoom !== aroom)){
     HL.audioRoom = aroom;
     await new Promise(r => setTimeout(r, 4000));
     if (!HL.on || HL.item !== it) return;
   }
   try { it.src === "svt" ? await playSvt(it, el, "") : it.src === "plex" ? await playPlex(it, el) : playYt(it, el); }
-  catch(e){ console.warn("highlights", e); osd(e.message || "Klippet gick inte att spela"); hideHighlights(); }
+  catch(e){ console.warn("highlights", e); scrLog("fel: " + (e.message || e)); osd(e.message || "Klippet gick inte att spela"); hideHighlights(); }
 }
 // Film eller avsnitt från Plex (omkodat till HLS av Plex). Adresserna provas i tur och ordning:
 // Plex-servern på hemnätet först, sedan utifrån.
@@ -4004,13 +4017,14 @@ async function playPlex(it, el){
   const urls = (it.urls || []).slice();
   const next = () => {
     const u = urls.shift();
-    if (!u){ osd("Plex gick inte att spela här"); hideHighlights(); return; }
+    if (!u){ scrLog("plex: ingen adress fungerade"); osd("Plex gick inte att spela här"); hideHighlights(); return; }
+    scrLog("plex: provar " + u.split("/video/")[0]);
     if (HL.hls){ try { HL.hls.destroy(); } catch(e){} HL.hls = null; }
     if (!(window.Hls && Hls.isSupported())){ v.src = u; v.onerror = next; return; }
     const hls = HL.hls = new Hls({ maxBufferLength: 40, startLevel: -1 });
     let ok = false;
     hls.on(Hls.Events.MANIFEST_PARSED, () => { ok = true; v.play().catch(() => {}); });
-    hls.on(Hls.Events.ERROR, (_, data) => { if (data.fatal){ if (!ok) next(); else { osd("Plex-strömmen avbröts"); hideHighlights(); } } });
+    hls.on(Hls.Events.ERROR, (_, data) => { if (data.fatal){ scrLog("plex: hls-fel " + data.type + "/" + data.details + (data.response ? " " + data.response.code : "")); if (!ok) next(); else { osd("Plex-strömmen avbröts"); hideHighlights(); } } });
     hls.loadSource(u); hls.attachMedia(v);
   };
   next();
@@ -4020,7 +4034,7 @@ async function playPlexKey(o){
   let d;
   try { d = await (await fetch("/api/tv?" + new URLSearchParams({ stream: o.key, offset: o.offset || 0 }), { cache:"no-store" })).json(); }
   catch(e){ osd("Plex svarar inte"); return; }
-  if (!d.urls || !d.urls.length){ osd(d.error || "Plex gick inte att spela"); return; }
+  if (!d.urls || !d.urls.length){ scrLog("plex: " + (d.error || "inga adresser")); osd(d.error || "Plex gick inte att spela"); return; }
   await playItem({ src:"plex", urls: d.urls, title: d.title, program: d.show || "Plex", secs: (d.secs || 7200) - (o.offset || 0) }, "plex");
 }
 async function playSvt(it, el, room){
@@ -4030,7 +4044,7 @@ async function playSvt(it, el, room){
   if (!ref) throw new Error("SVT-klippet finns inte längre");
   const v = Object.assign(document.createElement("video"), { autoplay: !room, playsInline:true, muted: !!room });
   v.onended = () => hideHighlights();
-  v.onerror = () => { osd("SVT-klippet gick inte att spela (det visas bara i Sverige)"); hideHighlights(); };
+  v.onerror = () => { scrLog("svt: videofel " + (v.error ? v.error.code : "")); osd("SVT-klippet gick inte att spela (det visas bara i Sverige)"); hideHighlights(); };
   el.prepend(v);
   // hls.js i första hand: Chromes egen HLS-uppspelning säger "kanske" men klarar inte SVT:s strömmar
   if (!window.Hls) await loadScript("https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js").catch(() => {});
@@ -4125,6 +4139,7 @@ function watchVersion(){
       // Skärmen i skåpet laddar om sig själv var sjätte timme när inget spelar, så att minnet
       // städas (Chromium på en Pi med 1 GB blir annars sakta segare)
       const stale = LITE && performance.now() > 6*3600e3 && !state.playing;
+      if (v !== mine) NEWVER = true;
       if (v === mine && !stale) return;
       const radioOn = S.source === "radio" && audioEl && !audioEl.paused;
       if (forceTestcard || HL.on || radioOn || document.querySelector("#panel.open")) return;     // försök igen om en stund
@@ -4201,6 +4216,7 @@ function initPanelOnly(){
   // Laddades sidan om för en ny version medan skärmen var svart: håll den svart.
   try{ if (sessionStorage.getItem("rs.reloadBlank") === "1"){ sessionStorage.removeItem("rs.reloadBlank"); state.blanked = true; $("#blank").classList.add("on"); } }catch(e){}
   watchVersion();
+  try { const after = sessionStorage.getItem("rs.after"); if (after){ sessionStorage.removeItem("rs.after"); scrLog("ny version laddad, kör " + after.slice(0, 80)); setTimeout(() => runCmd(after), 2500); } } catch(e){}
   if (q.get("bench") === "1") setTimeout(benchFx, 8000);
 })();
 </script>
