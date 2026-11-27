@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="sv" translate="no">
+<head>
+<meta charset="utf-8">
+<meta name="google" content="notranslate">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blaupunkt på bordet</title>
+<style>
+/* Google Nest Hub (1024×600, svag processor): stort, tydligt, inga dyra effekter (ingen oskärpa,
+   inga skuggor eller animationer som ritas hela tiden). Allt som trycks visar resultatet direkt. */
+:root{--bg:#0d0e10;--card:#18191c;--card2:#222428;--line:#2c2f34;--tx:#f2efe8;--mut:#a3a6ad;--dim:#6b6f77;--acc:#f0a63a;--ink:#1a1204;--ok:#34c759;--bad:#ff5a4f}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--tx);font-family:"Segoe UI",Roboto,system-ui,Arial,sans-serif}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+svg.ic{width:1em;height:1em;flex:none}
+#app{position:absolute;inset:0;display:flex}
+/* vänsterlisten */
+#rail{width:112px;flex:none;display:flex;flex-direction:column;gap:6px;padding:12px 10px;background:#121315;border-right:1px solid var(--line)}
+.rb{height:96px;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--mut);font-size:15px;font-weight:700;position:relative}
+.rb svg{font-size:36px}
+.rb.on{background:var(--acc);color:var(--ink)}
+.rb.alert::after{content:"";position:absolute;top:12px;right:22px;width:14px;height:14px;border-radius:50%;background:var(--bad)}
+#main{flex:1;min-width:0;position:relative}
+.view{position:absolute;inset:0;padding:18px 20px;display:none;overflow-y:auto;overflow-x:hidden}
+.view.on{display:block}
+body.mini .view.withbar{bottom:96px}
+/* gemensamt */
+.press{transition:transform .08s}
+.press:active{transform:scale(.95)}
+.card{background:var(--card);border-radius:24px;padding:18px}
+.h{font-size:15px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);margin:0 0 12px}
+.big{font-size:28px;font-weight:750;line-height:1.15}
+.mut{color:var(--mut)}
+.toast{position:absolute;left:50%;top:18px;transform:translateX(-50%);background:#2b2e33;color:var(--tx);font-size:22px;font-weight:700;padding:14px 26px;border-radius:18px;z-index:50;display:none;max-width:80%;text-align:center}
+.toast.on{display:block}
+.btn{min-height:76px;border-radius:20px;background:var(--card2);font-size:22px;font-weight:750;display:flex;align-items:center;justify-content:center;gap:12px;padding:0 22px}
+.btn svg{font-size:30px}
+.btn.pri{background:var(--acc);color:var(--ink)}
+.btn.on{background:var(--acc);color:var(--ink)}
+.btn.bad{background:#3a1715;color:#ffb3ad}
+.row{display:flex;gap:12px}
+.row > *{flex:1}
+.empty{color:var(--mut);font-size:20px;text-align:center;padding:40px 20px}
+/* tjock skjutreglage som går att träffa med fingret */
+.bar{position:relative;height:72px;border-radius:20px;background:var(--card2);overflow:hidden;touch-action:none}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:#4a3a22}
+.bar.lit i{background:#a8691f}
+.bar span{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font-size:22px;font-weight:750;pointer-events:none}
+.bar span b:last-child{font-variant-numeric:tabular-nums}
+/* ---- Hem ---- */
+.home{display:grid;grid-template-columns:330px 1fr;gap:18px;height:100%}
+.clock{font-size:84px;font-weight:800;line-height:.95;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.date{font-size:22px;color:var(--mut);margin-top:8px;text-transform:capitalize}
+.wx{display:flex;align-items:center;gap:14px;margin-top:14px;font-size:20px}
+.wx svg{font-size:52px;color:var(--acc)}
+.wx b{font-size:40px}
+.info{margin-top:14px;display:flex;flex-direction:column;gap:8px;max-height:330px;overflow-y:auto}
+.pill{display:flex;align-items:center;gap:12px;min-height:56px;padding:0 18px;border-radius:18px;background:var(--card);font-size:19px;font-weight:650;text-align:left}
+.pill svg{font-size:26px;color:var(--acc)}
+.pill.hot{background:#3a2a12}
+.np{display:flex;flex-direction:column;height:100%}
+.nptop{display:flex;gap:20px;align-items:center}
+.cov{width:200px;height:200px;border-radius:20px;background:var(--card2);flex:none;overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:64px}
+.cov img{width:100%;height:100%;object-fit:cover}
+.npT{font-size:32px;font-weight:800;line-height:1.12;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.npA{font-size:22px;color:var(--mut);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.npR{display:inline-flex;align-items:center;gap:8px;margin-top:14px;font-size:20px;font-weight:750;color:var(--acc);background:var(--card2);border-radius:16px;padding:12px 18px}
+.ctl{display:flex;align-items:center;justify-content:center;gap:26px;margin:18px 0 14px}
+.cb{width:92px;height:92px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:40px}
+.cb.play{width:118px;height:118px;background:var(--acc);color:var(--ink);font-size:52px}
+.volrow{display:flex;gap:12px;align-items:center;margin-top:auto}
+.vb{width:84px;height:72px;border-radius:20px;background:var(--card2);font-size:40px;font-weight:700;flex:none;display:flex;align-items:center;justify-content:center}
+/* ---- rutnät ---- */
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.tile{min-height:150px;border-radius:24px;background:var(--card);display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;padding:20px;text-align:left}
+.tile svg{font-size:42px;color:var(--acc)}
+.tile b{font-size:24px;font-weight:750;line-height:1.15}
+.tile small{display:block;font-size:16px;font-weight:600;opacity:.75;margin-top:4px}
+.tile.on{background:var(--acc);color:var(--ink)}
+.tile.on svg{color:var(--ink)}
+.tile.wait{opacity:.6}
+/* ---- Musik ---- */
+.seg{display:flex;gap:10px;margin-bottom:14px}
+.seg button{height:60px;border-radius:18px;background:var(--card);font-size:20px;font-weight:750;padding:0 24px}
+.seg button.on{background:var(--acc);color:var(--ink)}
+.covers{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.cv{text-align:left}
+.cv .im{width:100%;aspect-ratio:1;border-radius:18px;background:var(--card2);overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:56px}
+.cv .im img{width:100%;height:100%;object-fit:cover}
+.cv b{display:block;font-size:18px;font-weight:700;margin-top:8px;line-height:1.2;max-height:2.4em;overflow:hidden}
+.list{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.li{min-height:80px;border-radius:20px;background:var(--card);display:flex;align-items:center;gap:16px;padding:0 20px;font-size:21px;font-weight:700;text-align:left}
+.li svg{font-size:30px;color:var(--acc)}
+.li img{width:52px;height:52px;border-radius:10px;object-fit:cover;flex:none}
+/* mini-spelaren längst ned */
+#mini{position:absolute;left:112px;right:0;bottom:0;height:96px;background:#16171a;border-top:1px solid var(--line);display:none;align-items:center;gap:14px;padding:0 16px}
+body.mini #mini{display:flex}
+#mini .mc{width:68px;height:68px;border-radius:14px;background:var(--card2);overflow:hidden;flex:none;display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:30px}
+#mini .mc img{width:100%;height:100%;object-fit:cover}
+#mini .mt{flex:1;min-width:0}
+#mini .mt b{display:block;font-size:21px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mini .mt span{font-size:16px;color:var(--mut)}
+#mini .cb{width:72px;height:72px;font-size:32px}
+#mini .cb.play{width:80px;height:80px;font-size:36px}
+#mini .vb{width:68px;height:68px;font-size:34px}
+/* ---- Ljus ---- */
+.groups{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grp{background:var(--card);border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.gh{display:flex;align-items:center;gap:14px}
+.gh b{flex:1;font-size:26px}
+.tog{width:104px;height:60px;border-radius:30px;background:#3a3d43;position:relative;flex:none}
+.tog::after{content:"";position:absolute;top:6px;left:6px;width:48px;height:48px;border-radius:50%;background:#e9e9ec;transition:left .12s}
+.tog.on{background:var(--ok)}.tog.on::after{left:50px}
+.temps{display:flex;gap:10px}
+.temps button{flex:1;height:60px;border-radius:16px;font-size:18px;font-weight:750;color:#1a1204}
+.moods{display:flex;flex-wrap:wrap;gap:10px}
+.moods button{height:56px;border-radius:16px;background:var(--card2);font-size:18px;font-weight:700;padding:0 18px}
+/* ---- Larm ---- */
+.alarmgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.alm{display:flex;align-items:center;justify-content:space-between;min-height:84px;border-radius:20px;background:var(--card);padding:0 20px;margin-bottom:10px}
+.alm b{font-size:40px;font-variant-numeric:tabular-nums}
+.alm span{font-size:17px;color:var(--mut)}
+.alm.off{opacity:.45}
+.qgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.qgrid button{height:74px;border-radius:18px;background:var(--card2);font-size:22px;font-weight:750}
+.count{font-size:54px;font-weight:800;font-variant-numeric:tabular-nums}
+/* ---- bladet (rum, färger) ---- */
+#sheet{position:absolute;inset:0;background:rgba(0,0,0,.6);z-index:40;display:none;align-items:flex-end;justify-content:center}
+#sheet.on{display:flex}
+#sheet .in{width:100%;max-width:900px;background:#17181b;border-radius:28px 28px 0 0;padding:22px 24px 26px;max-height:92%;overflow-y:auto}
+#sheet h2{margin:0 0 16px;font-size:28px}
+.swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}
+.swatches button{height:90px;border-radius:22px}
+/* ---- larmet ringer / vila ---- */
+#ring{position:absolute;inset:0;z-index:60;background:#1c1208;display:none;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:30px}
+#ring.on{display:flex}
+#ring .t{font-size:110px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+#ring .n{font-size:30px;color:var(--mut)}
+#ring .row{width:100%;max-width:820px}
+#ring .btn{min-height:130px;font-size:34px;border-radius:30px}
+#idle{position:absolute;inset:0;z-index:55;background:#070707;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+#idle.on{display:flex}
+#idle .c{font-size:180px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;color:#e8e2d4}
+#idle .d{font-size:28px;color:#8c8a84;text-transform:capitalize}
+#idle .s{font-size:24px;color:#8c8a84;margin-top:24px;max-width:80%;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.night #idle .c{color:#7a756b}
+body.night #idle .d,body.night #idle .s{color:#55534f}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 12 4l8.5 7M5.5 9.5V20h13V9.5"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5.5l11-2V16"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1.1 2V16h5v-.2c.1-.8.5-1.5 1.1-2A6 6 0 0 0 12 3z"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></symbol>
+  <symbol id="i-alarm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="7.5"/><path d="M12 9v4l2.5 2M5 3.5 2.5 6M19 3.5 21.5 6"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4.5" width="4" height="15" rx="1"/><rect x="14" y="4.5" width="4" height="15" rx="1"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24" fill="currentColor"><path d="M5 5v14l10-7zM17 5h2.5v14H17z"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24" fill="currentColor"><path d="M19 5v14L9 12zM4.5 5H7v14H4.5z"/></symbol>
+  <symbol id="i-speaker" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="2.5" width="13" height="19" rx="2.5"/><circle cx="12" cy="14.5" r="3.5"/><path d="M12 6.5h.01"/></symbol>
+  <symbol id="i-tv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 20h8M12 17v3"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+  <symbol id="i-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 1.5M9.5 2.5h5"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M7 17.5a4 4 0 0 1 .4-7.96A5 5 0 0 1 17 10.5a3.5 3.5 0 0 1-.5 7H7Z"/></symbol>
+  <symbol id="i-rain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14.5a4 4 0 0 1 .4-7.96A5 5 0 0 1 17 7.5a3.5 3.5 0 0 1-.5 7H7Z"/><path d="M9 17.5l-1 2.5M13 17.5l-1 2.5M17 17.5l-1 2.5"/></symbol>
+  <symbol id="i-snow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/></symbol>
+  <symbol id="i-radio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="12" rx="2"/><circle cx="15.5" cy="14" r="2.5"/><path d="M7 12.5h3M7 15.5h3M5 8l11-5"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m12 3 2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.8l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v8M6.3 6.8a8 8 0 1 0 11.4 0"/></symbol>
+  <symbol id="i-news" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="4.5" width="15" height="15" rx="2"/><path d="M18 8.5h3v9a2 2 0 0 1-2 2H6M6.5 8.5h8M6.5 12h8M6.5 15.5h5"/></symbol>
+</defs></svg>
+
+<div id="app">
+  <nav id="rail"></nav>
+  <div id="main">
+    <section class="view" id="v-hem"></section>
+    <section class="view withbar" id="v-musik"></section>
+    <section class="view withbar" id="v-ljus"></section>
+    <section class="view withbar" id="v-scener"></section>
+    <section class="view withbar" id="v-larm"></section>
+  </div>
+</div>
+<div id="mini">
+  <div class="mc" id="mCov"></div>
+  <div class="mt" onclick="go('hem')"><b id="mT">Inget spelas</b><span id="mA"></span></div>
+  <button class="cb press" onclick="sonos('prev')"><svg class="ic"><use href="#i-prev"/></svg></button>
+  <button class="cb play press" id="mPP" onclick="playPause()"></button>
+  <button class="cb press" onclick="sonos('next')"><svg class="ic"><use href="#i-next"/></svg></button>
+  <button class="vb press" onclick="volStep(-4)">−</button>
+  <button class="vb press" onclick="volStep(4)">+</button>
+</div>
+<div id="sheet" onclick="if(event.target===this)closeSheet()"><div class="in" id="sheetIn"></div></div>
+<div id="ring"><div class="t" id="ringT"></div><div class="n" id="ringN"></div><div class="row"><button class="btn press" id="ringSn">Snooza</button><button class="btn pri press" id="ringOff">Stäng av</button></div></div>
+<div id="idle"><div class="c" id="iC"></div><div class="d" id="iD"></div><div class="s" id="iS"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+// Blaupunkt på bordet: appen för Google Nest Hub (castad hit av hubben, se hub/nestcast.py och
+// hacast.py). Fem delar: Hem, Musik, Ljus, Scener, Larm. Bara styrning; inställningar görs i mobilen.
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const ic = n => `<svg class="ic"><use href="#i-${n}"/></svg>`;
+const pad2 = n => String(n).padStart(2, "0");
+const store = { get(k, d){ try { const v = localStorage.getItem("nh." + k); return v == null ? d : JSON.parse(v); } catch(e){ return d; } }, set(k, v){ try { localStorage.setItem("nh." + k, JSON.stringify(v)); } catch(e){} } };
+function toast(t){ const el = $("#toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("on"), 1800); }
+function send(c){ fetch("/api/send?c=" + encodeURIComponent(c)).catch(() => toast("Ingen kontakt")); }
+const getJ = u => fetch(u, { cache:"no-store" }).then(r => r.json());
+
+const D = { st:{}, rooms:{}, deck:{}, S:{}, wx:null, pls:[], sp:false, radio:[] };
+let VIEW = "hem", ROOM = store.get("room", "");
+const rooms = () => (D.st.speakers && D.st.speakers.length ? D.st.speakers : ["Vardagsrum"]);
+const room = () => ROOM || D.S.clipRoom || rooms()[0];
+const NOW = () => D.rooms[room()] || {};
+// det användaren just tryckt på gäller tills hubben hunnit svara (så att inget hoppar tillbaka)
+const HOLD = {};
+const hold = (k, v, ms) => { HOLD[k] = { v, until: Date.now() + (ms || 4000) }; };
+const held = (k, real) => (HOLD[k] && Date.now() < HOLD[k].until) ? HOLD[k].v : real;
+
+// ---------- vänsterlisten ----------
+const VIEWS = [["hem","Hem","home"],["musik","Musik","music"],["ljus","Ljus","bulb"],["scener","Scener","spark"],["larm","Larm","alarm"]];
+$("#rail").innerHTML = VIEWS.map(([k, t, i]) => `<button class="rb press" data-v="${k}" onclick="go('${k}')">${ic(i)}<span>${t}</span></button>`).join("");
+function go(v){
+  VIEW = v;
+  document.querySelectorAll(".rb").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  document.querySelectorAll(".view").forEach(x => x.classList.toggle("on", x.id === "v-" + v));
+  document.body.classList.toggle("mini", v !== "hem");
+  if (v === "ljus") send("lamps-read");
+  render(true);
+  $("#v-" + v).scrollTop = 0;
+}
+
+// ---------- spela på Sonos ----------
+function sonos(action, value, r){ send("sonos:" + JSON.stringify({ room: r || room(), action, value })); }
+function playPause(){ const p = !held("play", !!NOW().playing); hold("play", p); sonos("toggle"); paintPlayer(); }
+function volStep(d){ const v = Math.max(0, Math.min(100, held("vol", NOW().vol ?? 20) + d)); hold("vol", v); sonos("vol", v); paintPlayer(); }
+function setVol(v){ hold("vol", v); clearTimeout(setVol.t); setVol.t = setTimeout(() => sonos("vol", v), 120); }
+function playLink(link, name){ sonos("link", { link, index: 0 }); hold("play", true); toast("Spelar " + name); paintPlayer(); }
+function playFav(name){ sonos("fav", name); hold("play", true); toast("Spelar " + name); paintPlayer(); }
+function playRadio(i){ const s = D.radio[i]; if (!s) return; sonos("radio", { url: s.url, name: s.name }); hold("play", true); toast(s.name); paintPlayer(); }
+
+// ---------- tjockt reglage ----------
+function bar(id, val, label, off){
+  return `<div class="bar${val > 0 && !off ? " lit" : ""}" id="${id}" data-v="${val}"><i style="width:${val}%"></i><span><b>${label}</b><b>${val} %</b></span></div>`;
+}
+function wireBar(id, onSet){
+  const el = document.getElementById(id); if (!el) return;
+  const set = (e, done) => { const r = el.getBoundingClientRect(); const v = Math.max(1, Math.min(100, Math.round((e.clientX - r.left) / r.width * 100)));
+    el.querySelector("i").style.width = v + "%"; el.querySelector("span b:last-child").textContent = v + " %"; el.classList.add("lit"); el.dataset.v = v; onSet(v, done); };
+  el.addEventListener("pointerdown", e => { el.setPointerCapture(e.pointerId); el._drag = true; set(e); });
+  el.addEventListener("pointermove", e => { if (el._drag) set(e); });
+  el.addEventListener("pointerup", e => { el._drag = false; set(e, true); });
+}
+
+// ---------- ritning: varje vy byggs om bara när något har ändrats ----------
+const sig = {};
+function render(force){
+  paintPlayer(); paintRing();
+  const f = { hem: rHem, musik: rMusik, ljus: rLjus, scener: rScener, larm: rLarm }[VIEW];
+  const s = f.sig ? f.sig() : "";
+  if (!force && sig[VIEW] === s) return;
+  if (document.querySelector(".bar") && document.querySelector(".bar")._drag) return;
+  sig[VIEW] = s; f();
+}
+// Hem
+function wxIcon(c, day){ return c <= 1 ? (day ? "sun" : "moon") : c <= 48 ? "cloud" : (c >= 71 && c <= 77) || c === 85 || c === 86 ? "snow" : "rain"; }
+const WXT = c => c===0?"Klart":c===1?"Mest klart":c===2?"Halvklart":c===3?"Mulet":(c===45||c===48)?"Dimma":(c>=51&&c<=67)?"Regn":(c>=71&&c<=77)?"Snö":(c>=80&&c<=82)?"Regnskurar":(c>=85&&c<=86)?"Snöbyar":c>=95?"Åska":"";
+function hhmm(ts){ const d = new Date(ts * 1000); return pad2(d.getHours()) + ":" + pad2(d.getMinutes()); }
+const sceneRuns = () => (D.st.runs || []).filter(r => !r.alarm && D.st.runsAt && Date.now() / 1000 - D.st.runsAt < 150);
+function nextAlarm(){
+  const ids = new Set((D.deck.alarms || []).filter(a => a.on !== false).map(a => "alarm-" + a.id));
+  return [...Object.entries(D.st.snoozed || {}).map(([id, at]) => ({ id, at, sn: true })), ...(D.st.upcoming || []).filter(u => ids.has(String(u.id)))].sort((a, b) => a.at - b.at)[0];
+}
+const sleepOn = () => D.st.sleep && D.st.sleep.end * 1000 > Date.now() ? D.st.sleep : null;
+const timers = () => (D.st.timers || []).filter(t => t.end * 1000 > Date.now());
+rHem.sig = () => JSON.stringify([D.wx, nextAlarm(), sleepOn(), timers().map(t => t.id), sceneRuns().map(r => r.id), room(), Math.floor(Date.now() / 60000)]);
+function rHem(){
+  const d = new Date(), w = D.wx, na = nextAlarm(), sl = sleepOn(), tm = timers(), runs = sceneRuns();
+  $("#v-hem").innerHTML = `<div class="home"><div>
+      <div class="clock">${pad2(d.getHours())}:${pad2(d.getMinutes())}</div>
+      <div class="date">${d.toLocaleDateString("sv-SE", { weekday:"long", day:"numeric", month:"long" })}</div>
+      ${w ? `<div class="wx">${ic(wxIcon(w.c, w.day))}<div><b>${Math.round(w.t)}°</b><div class="mut">${WXT(w.c)} · ${Math.round(w.hi)}° / ${Math.round(w.lo)}°</div></div></div>` : ""}
+      <div class="info">
+        <button class="pill press" onclick="go('larm')">${ic("alarm")}<span>${na ? (na.sn ? "Snoozat till " : "Larm ") + hhmm(na.at) : "Inget larm på"}</span></button>
+        ${sl ? `<button class="pill hot press" onclick="go('larm')">${ic("moon")}<span>Tystnar ${hhmm(sl.end)}</span></button>` : ""}
+        ${tm.map(t => `<button class="pill hot press" onclick="go('larm')">${ic("timer")}<span>${esc(t.name)} <b class="cd" data-end="${t.end}"></b></span></button>`).join("")}
+        ${runs.length ? `<button class="pill hot press" onclick="go('scener')">${ic("spark")}<span>${runs.map(r => esc(r.name)).join(", ")}</span></button>` : ""}
+        <button class="pill press" id="bpBtn" onclick="bpToggle()">${ic("tv")}<span>Blaupunkt-skärmen</span></button>
+      </div></div>
+    <div class="np card">
+      <div class="nptop"><div class="cov" id="hCov"></div><div style="min-width:0;flex:1"><div class="npT" id="hT"></div><div class="npA" id="hA"></div>
+        <button class="npR press" onclick="openRooms()">${ic("speaker")}<span id="hR"></span></button></div></div>
+      <div class="ctl"><button class="cb press" onclick="sonos('prev')">${ic("prev")}</button><button class="cb play press" id="hPP" onclick="playPause()"></button><button class="cb press" onclick="sonos('next')">${ic("next")}</button></div>
+      <div class="volrow"><button class="vb press" onclick="volStep(-4)">−</button><div style="flex:1" id="hVolW"></div><button class="vb press" onclick="volStep(4)">+</button></div>
+    </div></div>`;
+  paintPlayer(true); tickCountdowns();
+}
+let bpOpen = store.get("bp", true);
+function bpToggle(){ bpOpen = !bpOpen; store.set("bp", bpOpen); send(bpOpen ? "open" : "close"); toast(bpOpen ? "Blaupunkt-skärmen öppnas" : "Blaupunkt-skärmen stängs"); }
+// spelaren (Hem och mini-raden): målas om var gång, utan att bygga om något
+let lastPaint = "";
+function paintPlayer(force){
+  const n = NOW(), playing = held("play", !!n.playing), vol = held("vol", n.vol ?? 20);
+  const title = n.title || (n.kind === "tv" ? "TV-ljud" : playing ? "Spelar" : "Inget spelas");
+  const artist = n.artist || (n.title ? n.album : "Välj musik under Musik");
+  const s = [title, artist, n.art, playing, vol, room(), (n.members || []).length].join("|");
+  if (!force && s === lastPaint) return; lastPaint = s;
+  const cov = n.art ? `<img src="${esc(n.art)}" alt="">` : ic("music");
+  const pp = ic(playing ? "pause" : "play");
+  const set = (id, html, text) => { const el = document.getElementById(id); if (el){ if (text) el.textContent = html; else el.innerHTML = html; } };
+  set("hCov", cov); set("hT", title, 1); set("hA", artist, 1); set("hPP", pp); set("hR", room() + ((n.members || []).length > 1 ? " + " + (n.members.length - 1) : ""), 1);
+  set("mCov", cov); set("mT", title, 1); set("mA", artist + " · " + room(), 1); set("mPP", pp);
+  const vw = $("#hVolW");
+  if (vw && !(vw.firstChild && vw.firstChild._drag)){ vw.innerHTML = bar("hVol", vol, "Volym"); wireBar("hVol", v => setVol(v)); }
+}
+// Musik
+let MTAB = store.get("mtab", "pl");
+rMusik.sig = () => JSON.stringify([MTAB, D.pls.map(p => p.id), ((D.st.sonos || {}).favs || []), D.radio.length, D.sp]);
+function rMusik(){
+  const favs = (D.st.sonos || {}).favs || [];
+  let body = "";
+  if (MTAB === "pl"){
+    body = !D.sp ? `<div class="empty">Logga in med Spotify i appen i mobilen (Musik), så kommer dina spellistor hit.</div>`
+      : `<div class="covers">${D.pls.map((p, i) => `<button class="cv press" onclick="playPl(${i})"><div class="im">${p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy">` : ic("music")}</div><b>${esc(p.name)}</b></button>`).join("")}</div>`;
+  } else if (MTAB === "fav"){
+    body = favs.length ? `<div class="list">${favs.map((f, i) => `<button class="li press" onclick="playFav(${JSON.stringify(f).replace(/"/g, "&quot;")})">${ic("star")}<span>${esc(f)}</span></button>`).join("")}</div>` : `<div class="empty">Sonos-favoriterna kommer när hubben läst av högtalarna.</div>`;
+  } else {
+    body = D.radio.length ? `<div class="list">${D.radio.map((s, i) => `<button class="li press" onclick="playRadio(${i})">${s.icon ? `<img src="${esc(s.icon)}" alt="" loading="lazy" onerror="this.remove()">` : ic("radio")}<span>${esc(s.name)}</span></button>`).join("")}</div>` : `<div class="empty">Hämtar radiostationer…</div>`;
+    if (!D.radio.length) loadRadio();
+  }
+  $("#v-musik").innerHTML = `<div class="seg">${[["pl","Spellistor"],["fav","Favoriter"],["radio","Radio"]].map(([k, t]) => `<button class="press${MTAB === k ? " on" : ""}" onclick="MTAB='${k}';store.set('mtab','${k}');render(true)">${t}</button>`).join("")}
+    <button class="press" style="margin-left:auto" onclick="openRooms()">${ic("speaker")} ${esc(room())}</button></div>${body}`;
+}
+function playPl(i){ const p = D.pls[i]; if (p) playLink(p.uri, p.name); }
+async function loadRadio(){ try { const j = await getJ("/api/radio?top=SE"); if (Array.isArray(j)){ D.radio = j.slice(0, 24); render(); } } catch(e){} }
+// Ljus
+const TEMPS = [["Varm", 10, "#ffb35c"], ["Neutral", 50, "#ffe2b3"], ["Kall", 90, "#e6f0ff"]];
+rLjus.sig = () => JSON.stringify([(D.st.groups || []).map(g => g.name), D.st.vals || {}, groupsOn()]);
+function groupsOn(){ const st = D.st.states || {}, lamps = D.st.lamps || []; const out = {};
+  for (const g of D.st.groups || []){ const ids = (g.lamps || g.ids || []).map(String); const ls = ids.length ? ids : lamps.filter(l => l.group === g.name).map(l => String(l.id));
+    out[g.name] = held("on:" + g.name, ls.length ? ls.some(id => (st[id] || {}).on) : !!(D.st.vals || {})["on:" + g.name]); }
+  return out; }
+function rLjus(){
+  const groups = D.st.groups || [], on = groupsOn(), vals = D.st.vals || {};
+  if (!groups.length){ $("#v-ljus").innerHTML = `<div class="empty">Inga lampgrupper ännu. Hubben skickar dem när den har kontakt med Trådfri.</div>`; return; }
+  $("#v-ljus").innerHTML = `<div class="groups">${groups.map((g, i) => { const n = g.name, dim = held("dim:" + n, vals["dim:" + n] ?? 70);
+    return `<div class="grp"><div class="gh"><b>${esc(n)}</b><button class="tog press${on[n] ? " on" : ""}" onclick="gToggle(${i})"></button></div>
+      ${bar("gb" + i, dim, on[n] ? "Ljus" : "Släckt", !on[n])}
+      <div class="temps">${TEMPS.map(([t, v, c]) => `<button class="press" style="background:${c}" onclick="gTemp(${i},${v},'${t}')">${t}</button>`).join("")}<button class="press" style="background:linear-gradient(90deg,#ff3b30,#ffcc00,#34c759,#007aff,#af52de)" onclick="gColors(${i})">Färg</button></div>
+      ${(g.moods || []).length ? `<div class="moods">${g.moods.slice(0, 6).map(m => `<button class="press" onclick="gMood(${i},${JSON.stringify(m.name || m).replace(/"/g, "&quot;")})">${esc(m.name || m)}</button>`).join("")}</div>` : ""}</div>`; }).join("")}</div>`;
+  groups.forEach((g, i) => wireBar("gb" + i, (v, done) => { hold("dim:" + g.name, v); hold("on:" + g.name, true); clearTimeout(wireBar["t" + i]); wireBar["t" + i] = setTimeout(() => light(g.name, "dim", v), done ? 0 : 150); }));
+}
+function light(g, action, value){ send("light:" + JSON.stringify({ group: g, action, value: value ?? null })); }
+function gToggle(i){ const g = (D.st.groups || [])[i]; if (!g) return; const now = !groupsOn()[g.name]; hold("on:" + g.name, now, 6000); light(g.name, now ? "on" : "off"); render(true); }
+function gTemp(i, v, t){ const g = D.st.groups[i]; hold("on:" + g.name, true); light(g.name, "temp", v); toast(g.name + ": " + t.toLowerCase()); }
+function gMood(i, m){ const g = D.st.groups[i]; hold("on:" + g.name, true); light(g.name, "scene", m); toast(m); }
+const COLORS = ["#ff3b30","#ff6a00","#ff9500","#ffcc00","#a8e05f","#34c759","#30b0c7","#5ac8fa","#007aff","#5856d6","#af52de","#ff2d55"];
+function gColors(i){ const g = D.st.groups[i]; openSheet(`<h2>Färg i ${esc(g.name)}</h2><div class="swatches">${COLORS.map(c => `<button class="press" style="background:${c}" onclick="light(${JSON.stringify(g.name).replace(/"/g, "&quot;")},'color','${c}');closeSheet()"></button>`).join("")}</div>`); }
+// Scener
+rScener.sig = () => JSON.stringify([(D.deck.scenes || []).map(s => s.id + s.name), sceneRuns().map(r => r.id), Object.keys(HOLD).filter(k => k.startsWith("sc:"))]);
+function rScener(){
+  const scenes = D.deck.scenes || [], run = new Set(sceneRuns().map(r => String(r.id)));
+  $("#v-scener").innerHTML = scenes.length ? `<div class="tiles">${scenes.map((s, i) => { const on = held("sc:" + s.id, run.has(String(s.id)));
+    return `<button class="tile press${on ? " on" : ""}" onclick="scene(${i})">${ic("spark")}<div><b>${esc(s.name || "Scen")}</b>${on ? "<small>på · tryck för att gå tillbaka</small>" : ""}</div></button>`; }).join("")}</div>`
+    : `<div class="empty">Inga scener ännu. Bygg dem i deck-redigeraren på datorn.</div>`;
+}
+function scene(i){ const s = D.deck.scenes[i]; const was = held("sc:" + s.id, sceneRuns().some(r => String(r.id) === String(s.id))); hold("sc:" + s.id, !was, 8000); send("scene:" + s.id); toast(was ? s.name + ": tillbaka som innan" : s.name); render(true); }
+// Larm
+rLarm.sig = () => JSON.stringify([(D.deck.alarms || []).map(a => [a.id, a.time, a.on, a.days]), nextAlarm(), sleepOn(), timers().map(t => t.id)]);
+const DAYL = ["mån","tis","ons","tor","fre","lör","sön"];
+function daysText(d){ d = Array.isArray(d) && d.length ? d.slice().sort() : [0,1,2,3,4,5,6]; return d.length === 7 ? "varje dag" : d.join() === "0,1,2,3,4" ? "vardagar" : d.join() === "5,6" ? "helger" : d.map(i => DAYL[i]).join(", "); }
+function rLarm(){
+  const al = D.deck.alarms || [], sl = sleepOn(), tm = timers();
+  $("#v-larm").innerHTML = `<div class="alarmgrid"><div>
+      <div class="h">Larm</div>
+      ${al.length ? al.map(a => `<div class="alm${a.on === false ? " off" : ""}"><b>${esc(a.time)}</b><span>${esc([a.name, daysText(a.days)].filter(Boolean).join(" · "))}</span></div>`).join("") : `<div class="empty" style="padding:20px">Inga larm. Lägg till dem i appen i mobilen.</div>`}
+    </div><div>
+      <div class="h">Sov-timer</div>
+      ${sl ? `<div class="card" style="margin-bottom:12px"><div class="count">${Math.max(0, Math.round((sl.end * 1000 - Date.now()) / 60000))} min</div><div class="mut" style="font-size:19px">${esc(sl.room)} tystnar ${hhmm(sl.end)}</div>
+          <div class="row" style="margin-top:12px"><button class="btn press" onclick="send('sleep:add:15');toast('+15 min')">+15</button><button class="btn bad press" onclick="send('sleep:off');toast('Sov-timern av')">Av</button></div></div>`
+        : `<div class="qgrid" style="margin-bottom:16px">${[15,30,45,60].map(m => `<button class="press" onclick="sleep(${m})">${m} min</button>`).join("")}</div>`}
+      <div class="h">Timer</div>
+      ${tm.map(t => `<div class="card" style="margin-bottom:10px;display:flex;align-items:center;gap:14px"><div style="flex:1"><div class="count cd" data-end="${t.end}"></div><div class="mut" style="font-size:18px">${esc(t.name)}</div></div><button class="btn bad press" onclick="send('timer-off:${esc(t.id)}');toast('Timern stoppad')">Stoppa</button></div>`).join("")}
+      <div class="qgrid">${[3,5,10,15,20,30,45,60].map(m => `<button class="press" onclick="timer(${m})">${m} min</button>`).join("")}</div>
+    </div></div>`;
+  tickCountdowns();
+}
+function sleep(m){ send("sleep:" + JSON.stringify({ room: room(), min: m, fade: 5 })); toast("Musiken tystnar om " + m + " min"); setTimeout(poll, 1200); }
+function timer(m){ send("timer:" + JSON.stringify({ id: Math.random().toString(36).slice(2, 8), min: m, name: m + " min", room: room() })); toast("Timer " + m + " min"); setTimeout(poll, 1200); }
+function tickCountdowns(){ document.querySelectorAll(".cd[data-end]").forEach(el => { const s = Math.max(0, Math.round(+el.dataset.end - Date.now() / 1000)); el.textContent = Math.floor(s / 60) + ":" + pad2(s % 60); }); }
+setInterval(tickCountdowns, 1000);
+// rum
+function openRooms(){
+  const sg = (D.st.sonos || {}).groups || [], mine = (sg.find(g => g.members.includes(room())) || { members: [room()] }).members;
+  openSheet(`<h2>Högtalare</h2><div class="list">${rooms().map(r => `<button class="li press" style="${r === room() ? "background:var(--acc);color:var(--ink)" : ""}" onclick="pickRoom(${JSON.stringify(r).replace(/"/g, "&quot;")})">${ic("speaker")}<span>${esc(r)}${r !== room() && mine.includes(r) ? " · spelar med" : ""}</span></button>`).join("")}</div>
+    <div class="row" style="margin-top:16px"><button class="btn press" onclick="sonos('group-all');closeSheet();toast('Alla rum spelar samma')">Alla rum tillsammans</button><button class="btn press" onclick="sonos('ungroup-all');closeSheet();toast('Rummen delas upp')">Dela upp</button></div>`);
+}
+function pickRoom(r){ ROOM = r; store.set("room", r); send("sonos-focus:" + r); closeSheet(); render(true); toast("Styr " + r); }
+function openSheet(h){ $("#sheetIn").innerHTML = h; $("#sheet").classList.add("on"); }
+function closeSheet(){ $("#sheet").classList.remove("on"); }
+// larmet ringer: hela skärmen
+function paintRing(){
+  const r = (D.st.runs || []).find(x => x.alarm && D.st.runsAt && Date.now() / 1000 - D.st.runsAt < 150);
+  const el = $("#ring"); el.classList.toggle("on", !!r);
+  if (!r) return;
+  const a = (D.deck.alarms || []).find(x => x.id === r.alarm) || {};
+  const d = new Date(); $("#ringT").textContent = pad2(d.getHours()) + ":" + pad2(d.getMinutes()); $("#ringN").textContent = a.name || "Larmet ringer";
+  $("#ringSn").textContent = "Snooza " + (a.snooze || 9) + " min";
+  $("#ringSn").onclick = () => { send("alarm:snooze:" + r.alarm); el.classList.remove("on"); D.st.runs = (D.st.runs || []).filter(x => x !== r); toast("Snoozar"); };
+  $("#ringOff").onclick = () => { send("alarm:stop:" + r.alarm); el.classList.remove("on"); D.st.runs = (D.st.runs || []).filter(x => x !== r); toast("God morgon!"); };
+  wake();
+}
+
+// ---------- vila: en lugn klocka när ingen rört skärmen på två minuter ----------
+let idleT = 0;
+function wake(){ $("#idle").classList.remove("on"); clearTimeout(idleT); idleT = setTimeout(() => { $("#idle").classList.add("on"); paintIdle(); }, 120000); }
+function paintIdle(){
+  const d = new Date(), n = NOW(), na = nextAlarm();
+  $("#iC").textContent = pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+  $("#iD").textContent = d.toLocaleDateString("sv-SE", { weekday:"long", day:"numeric", month:"long" }) + (D.wx ? " · " + Math.round(D.wx.t) + "°" : "");
+  $("#iS").textContent = n.playing && n.title ? "♪ " + n.title + (n.artist ? " – " + n.artist : "") : na ? "Larm " + hhmm(na.at) : "";
+  document.body.classList.toggle("night", d.getHours() >= 23 || d.getHours() < 6);
+}
+$("#idle").addEventListener("pointerdown", e => { e.preventDefault(); wake(); go("hem"); });
+document.addEventListener("pointerdown", wake, true);
+setInterval(() => { if ($("#idle").classList.contains("on")) paintIdle(); else if (VIEW === "hem") render(); }, 20000);
+
+// ---------- hämtning ----------
+async function poll(){
+  try { const [st, rm] = await Promise.all([getJ("/api/tradfri-list"), getJ("/api/sonos-rooms")]); D.st = st || {}; D.rooms = rm || {}; } catch(e){}
+  document.querySelector('.rb[data-v="larm"]').classList.toggle("alert", (D.st.runs || []).some(x => x.alarm));
+  render();
+}
+async function slow(){
+  try { D.deck = ((await getJ("/api/deck")) || {}).deck || {}; } catch(e){}
+  try { D.S = ((await getJ("/api/state")) || {}).settings || {}; } catch(e){}
+  try { D.sp = !!(await getJ("/api/sp/status")).connected; } catch(e){}
+  if (D.sp){ try { const j = await getJ("/api/sp/api?path=me/playlists&limit=50");
+    D.pls = (j.items || []).filter(Boolean).map(p => ({ id: p.id, uri: p.uri, name: p.name, img: ((p.images || []).slice().sort((a, b) => (a.width || 0) - (b.width || 0)).find(x => (x.width || 0) >= 200) || (p.images || [])[0] || {}).url || "" })); } catch(e){} }
+  const e = Object.assign({ lat:60.6065, lon:15.6355 }, D.S.edge || {});
+  try { const j = await getJ(`https://api.open-meteo.com/v1/forecast?latitude=${e.lat}&longitude=${e.lon}&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1`);
+    D.wx = { t: j.current.temperature_2m, c: j.current.weather_code, day: j.current.is_day === 1, hi: j.daily.temperature_2m_max[0], lo: j.daily.temperature_2m_min[0] }; } catch(err){}
+  render();
+}
+(async () => {
+  go("hem"); wake();
+  await Promise.all([slow(), poll()]);
+  send("sonos-focus:" + room());
+  setInterval(poll, 2000);
+  setInterval(slow, 5 * 60000);
+  setInterval(() => send("sonos-focus:" + room()), 30000);
+  setInterval(() => location.reload(), 6 * 3600 * 1000);      // ny version av sidan då och då
+})();
+</script>
+</body>
+</html>

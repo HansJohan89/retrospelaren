@@ -1192,7 +1192,7 @@ class Handler(SimpleHTTPRequestHandler):
                 return hacast.card_js(self)
             if path == "/nestapp":
                 # appen på Nest Hub (inuti Home Assistants Cast-mottagare): styra går, ändra konfigurationen inte
-                self.path = "/app.html"
+                self.path = "/nestapp.html"
                 return super().do_GET()
             if path == "/api/sp/status":
                 return self._json(SPOTIFY.status())
