@@ -81,6 +81,8 @@ class Gamepad:
             self.log("  Handkontroll: inlärning av")
         elif rest == "pair":
             threading.Thread(target=self.pair, daemon=True).start()
+        elif rest == "repair":
+            threading.Thread(target=self.repair, daemon=True).start()
         elif rest == "diag":
             threading.Thread(target=self.diag, daemon=True).start()
 
@@ -344,6 +346,21 @@ class Gamepad:
         elif cmd:
             h.run_cmd(cmd, "local")
 
+    def repair(self):
+        """Parar om från början: tar bort kontrollen, startar om Bluetooth-radion (den var spärrad
+        när Bluetooth-tjänsten startade, och läste då inte kontrollens knappar) och parar igen."""
+        bt = lambda *a: subprocess.run(["bluetoothctl"] + list(a), capture_output=True, text=True, timeout=15).stdout
+        try:
+            for m in re.finditer(r"Device ([0-9A-F:]{17}) (.+)", bt("devices"), re.I):
+                if re.search(r"stadia|controller|gamepad", m.group(2), re.I):
+                    bt("remove", m.group(1))
+                    self.log('  Handkontroll: tog bort "%s" för att para om' % m.group(2).strip())
+            bt("power", "off"); time.sleep(2); bt("power", "on"); time.sleep(2)
+            self.log("  Handkontroll: Bluetooth-radion omstartad")
+        except Exception as e:
+            self.log("  Handkontroll: omparning: %s" % e)
+        self.pair()
+
     # ---- para med Bluetooth ----
     def pair(self):
         """Letar efter kontrollen i 60 s med en egen bluetoothctl (interaktivt, så att nya enheter
@@ -406,7 +423,7 @@ class Gamepad:
             except Exception as e:
                 self.log("  Handkontroll: rfkill: %s" % e)
             self.log("  Handkontroll: letar med Bluetooth i 60 s (kontrollen ska pulsera orange)")
-            for c in ("power on", "scan on"):
+            for c in ("power on", "agent on", "default-agent", "pairable on", "scan on"):
                 say(c)
             read_for(3)
             self.log("  Handkontroll: bluetoothctl: " + " | ".join(l for l in lines if not l.startswith("[NEW]"))[-300:])
