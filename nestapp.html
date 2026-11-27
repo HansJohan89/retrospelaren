@@ -26,7 +26,7 @@ svg.ic{width:1em;height:1em;flex:none}
 body.mini .view.withbar{bottom:96px}
 /* gemensamt */
 .press{transition:transform .08s}
-.press:active{transform:scale(.95)}
+.press:active,.press.down{transform:scale(.94);filter:brightness(1.25)}
 .card{background:var(--card);border-radius:24px;padding:18px}
 .h{font-size:15px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);margin:0 0 12px}
 .big{font-size:28px;font-weight:750;line-height:1.15}
@@ -103,6 +103,15 @@ body.mini #mini{display:flex}
 #mini .cb{width:72px;height:72px;font-size:32px}
 #mini .cb.play{width:80px;height:80px;font-size:36px}
 #mini .vb{width:68px;height:68px;font-size:34px}
+/* sök och tangentbord */
+.sbox{display:flex;gap:10px;margin-bottom:10px}
+.sq{flex:1;height:64px;border-radius:18px;background:var(--card2);display:flex;align-items:center;padding:0 20px;font-size:26px;font-weight:700;overflow:hidden;white-space:nowrap}
+.sclr{width:64px;height:64px;border-radius:18px;background:var(--card2);font-size:26px;display:flex;align-items:center;justify-content:center}
+.kb{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
+.kr{display:flex;gap:7px;justify-content:center}
+.kr button{flex:1;max-width:70px;height:58px;border-radius:14px;background:var(--card2);font-size:24px;font-weight:700}
+.kr button.wide{max-width:none;flex:4;font-size:18px}
+.kr button.go{max-width:none;flex:2;background:var(--acc);color:var(--ink);font-size:20px}
 /* ---- Ljus ---- */
 .groups{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .grp{background:var(--card);border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:14px}
@@ -170,6 +179,7 @@ body.night #idle .d,body.night #idle .s{color:#55534f}
   <symbol id="i-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m12 3 2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.8l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"/></symbol>
   <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></symbol>
   <symbol id="i-power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v8M6.3 6.8a8 8 0 1 0 11.4 0"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></symbol>
   <symbol id="i-news" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="4.5" width="15" height="15" rx="2"/><path d="M18 8.5h3v9a2 2 0 0 1-2 2H6M6.5 8.5h8M6.5 12h8M6.5 15.5h5"/></symbol>
 </defs></svg>
 
@@ -185,12 +195,12 @@ body.night #idle .d,body.night #idle .s{color:#55534f}
 </div>
 <div id="mini">
   <div class="mc" id="mCov"></div>
-  <div class="mt" onclick="go('hem')"><b id="mT">Inget spelas</b><span id="mA"></span></div>
-  <button class="cb press" onclick="sonos('prev')"><svg class="ic"><use href="#i-prev"/></svg></button>
-  <button class="cb play press" id="mPP" onclick="playPause()"></button>
-  <button class="cb press" onclick="sonos('next')"><svg class="ic"><use href="#i-next"/></svg></button>
-  <button class="vb press" onclick="volStep(-4)">−</button>
-  <button class="vb press" onclick="volStep(4)">+</button>
+  <div class="mt" data-tap="go('hem')"><b id="mT">Inget spelas</b><span id="mA"></span></div>
+  <button class="cb press" data-tap="sonos('prev')"><svg class="ic"><use href="#i-prev"/></svg></button>
+  <button class="cb play press" id="mPP" data-tap="playPause()"></button>
+  <button class="cb press" data-tap="sonos('next')"><svg class="ic"><use href="#i-next"/></svg></button>
+  <button class="vb press" data-tap="volStep(-4)">−</button>
+  <button class="vb press" data-tap="volStep(4)">+</button>
 </div>
 <div id="sheet" onclick="if(event.target===this)closeSheet()"><div class="in" id="sheetIn"></div></div>
 <div id="ring"><div class="t" id="ringT"></div><div class="n" id="ringN"></div><div class="row"><button class="btn press" id="ringSn">Snooza</button><button class="btn pri press" id="ringOff">Stäng av</button></div></div>
@@ -207,7 +217,7 @@ const ic = n => `<svg class="ic"><use href="#i-${n}"/></svg>`;
 const pad2 = n => String(n).padStart(2, "0");
 const store = { get(k, d){ try { const v = localStorage.getItem("nh." + k); return v == null ? d : JSON.parse(v); } catch(e){ return d; } }, set(k, v){ try { localStorage.setItem("nh." + k, JSON.stringify(v)); } catch(e){} } };
 function toast(t){ const el = $("#toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("on"), 1800); }
-function send(c){ fetch("/api/send?c=" + encodeURIComponent(c)).catch(() => toast("Ingen kontakt")); }
+function send(c){ fetch("/api/send?c=" + encodeURIComponent(c), { keepalive: true }).catch(() => toast("Ingen kontakt")); clearTimeout(send.t); send.t = setTimeout(() => poll(), 700); }
 const getJ = u => fetch(u, { cache:"no-store" }).then(r => r.json());
 
 const D = { st:{}, rooms:{}, deck:{}, S:{}, wx:null, pls:[], sp:false, radio:[] };
@@ -222,7 +232,7 @@ const held = (k, real) => (HOLD[k] && Date.now() < HOLD[k].until) ? HOLD[k].v : 
 
 // ---------- vänsterlisten ----------
 const VIEWS = [["hem","Hem","home"],["musik","Musik","music"],["ljus","Ljus","bulb"],["scener","Scener","spark"],["larm","Larm","alarm"]];
-$("#rail").innerHTML = VIEWS.map(([k, t, i]) => `<button class="rb press" data-v="${k}" onclick="go('${k}')">${ic(i)}<span>${t}</span></button>`).join("");
+$("#rail").innerHTML = VIEWS.map(([k, t, i]) => `<button class="rb press" data-v="${k}" data-tap="go('${k}')">${ic(i)}<span>${t}</span></button>`).join("");
 function go(v){
   VIEW = v;
   document.querySelectorAll(".rb").forEach(b => b.classList.toggle("on", b.dataset.v === v));
@@ -257,8 +267,23 @@ function wireBar(id, onSet){
 
 // ---------- ritning: varje vy byggs om bara när något har ändrats ----------
 const sig = {};
+// Ett finger på skärmen: rita inte om något (en knapp som byts ut mitt i trycket tappar trycket).
+let touching = false, lastTouch = 0, pendingRender = false;
+document.addEventListener("pointerdown", e => { touching = true; const b = e.target.closest(".press"); if (b){ b.classList.add("down"); } }, true);
+const lift = () => { touching = false; lastTouch = Date.now(); document.querySelectorAll(".down").forEach(x => x.classList.remove("down"));
+  if (pendingRender){ pendingRender = false; setTimeout(() => render(), 450); } };
+document.addEventListener("pointerup", lift, true);
+document.addEventListener("pointercancel", lift, true);
+// tryck reagerar på "pointerup" direkt i stället för att vänta på webbläsarens "click"
+document.addEventListener("pointerup", e => {
+  const b = e.target.closest("[data-tap]"); if (!b || b._moved) return;
+  e.preventDefault(); (0, eval)(b.dataset.tap);
+}, true);
+document.addEventListener("pointerdown", e => { const b = e.target.closest("[data-tap]"); if (b){ b._moved = false; b._x = e.clientX; b._y = e.clientY; } }, true);
+document.addEventListener("pointermove", e => { const b = e.target.closest("[data-tap]"); if (b && (Math.abs(e.clientX - b._x) > 14 || Math.abs(e.clientY - b._y) > 14)) b._moved = true; }, true);
 function render(force){
   paintPlayer(); paintRing();
+  if (!force && (touching || Date.now() - lastTouch < 450)){ pendingRender = true; return; }
   const f = { hem: rHem, musik: rMusik, ljus: rLjus, scener: rScener, larm: rLarm }[VIEW];
   const s = f.sig ? f.sig() : "";
   if (!force && sig[VIEW] === s) return;
@@ -284,17 +309,17 @@ function rHem(){
       <div class="date">${d.toLocaleDateString("sv-SE", { weekday:"long", day:"numeric", month:"long" })}</div>
       ${w ? `<div class="wx">${ic(wxIcon(w.c, w.day))}<div><b>${Math.round(w.t)}°</b><div class="mut">${WXT(w.c)} · ${Math.round(w.hi)}° / ${Math.round(w.lo)}°</div></div></div>` : ""}
       <div class="info">
-        <button class="pill press" onclick="go('larm')">${ic("alarm")}<span>${na ? (na.sn ? "Snoozat till " : "Larm ") + hhmm(na.at) : "Inget larm på"}</span></button>
-        ${sl ? `<button class="pill hot press" onclick="go('larm')">${ic("moon")}<span>Tystnar ${hhmm(sl.end)}</span></button>` : ""}
-        ${tm.map(t => `<button class="pill hot press" onclick="go('larm')">${ic("timer")}<span>${esc(t.name)} <b class="cd" data-end="${t.end}"></b></span></button>`).join("")}
-        ${runs.length ? `<button class="pill hot press" onclick="go('scener')">${ic("spark")}<span>${runs.map(r => esc(r.name)).join(", ")}</span></button>` : ""}
-        <button class="pill press" id="bpBtn" onclick="bpToggle()">${ic("tv")}<span>Blaupunkt-skärmen</span></button>
+        <button class="pill press" data-tap="go('larm')">${ic("alarm")}<span>${na ? (na.sn ? "Snoozat till " : "Larm ") + hhmm(na.at) : "Inget larm på"}</span></button>
+        ${sl ? `<button class="pill hot press" data-tap="go('larm')">${ic("moon")}<span>Tystnar ${hhmm(sl.end)}</span></button>` : ""}
+        ${tm.map(t => `<button class="pill hot press" data-tap="go('larm')">${ic("timer")}<span>${esc(t.name)} <b class="cd" data-end="${t.end}"></b></span></button>`).join("")}
+        ${runs.length ? `<button class="pill hot press" data-tap="go('scener')">${ic("spark")}<span>${runs.map(r => esc(r.name)).join(", ")}</span></button>` : ""}
+        <button class="pill press" id="bpBtn" data-tap="bpToggle()">${ic("tv")}<span>Blaupunkt-skärmen</span></button>
       </div></div>
     <div class="np card">
       <div class="nptop"><div class="cov" id="hCov"></div><div style="min-width:0;flex:1"><div class="npT" id="hT"></div><div class="npA" id="hA"></div>
-        <button class="npR press" onclick="openRooms()">${ic("speaker")}<span id="hR"></span></button></div></div>
-      <div class="ctl"><button class="cb press" onclick="sonos('prev')">${ic("prev")}</button><button class="cb play press" id="hPP" onclick="playPause()"></button><button class="cb press" onclick="sonos('next')">${ic("next")}</button></div>
-      <div class="volrow"><button class="vb press" onclick="volStep(-4)">−</button><div style="flex:1" id="hVolW"></div><button class="vb press" onclick="volStep(4)">+</button></div>
+        <button class="npR press" data-tap="openRooms()">${ic("speaker")}<span id="hR"></span></button></div></div>
+      <div class="ctl"><button class="cb press" data-tap="sonos('prev')">${ic("prev")}</button><button class="cb play press" id="hPP" data-tap="playPause()"></button><button class="cb press" data-tap="sonos('next')">${ic("next")}</button></div>
+      <div class="volrow"><button class="vb press" data-tap="volStep(-4)">−</button><div style="flex:1" id="hVolW"></div><button class="vb press" data-tap="volStep(4)">+</button></div>
     </div></div>`;
   paintPlayer(true); tickCountdowns();
 }
@@ -322,18 +347,51 @@ rMusik.sig = () => JSON.stringify([MTAB, D.pls.map(p => p.id), ((D.st.sonos || {
 function rMusik(){
   const favs = (D.st.sonos || {}).favs || [];
   let body = "";
+  if (MTAB === "sok"){ rSearch(); return; }
   if (MTAB === "pl"){
     body = !D.sp ? `<div class="empty">Logga in med Spotify i appen i mobilen (Musik), så kommer dina spellistor hit.</div>`
-      : `<div class="covers">${D.pls.map((p, i) => `<button class="cv press" onclick="playPl(${i})"><div class="im">${p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy">` : ic("music")}</div><b>${esc(p.name)}</b></button>`).join("")}</div>`;
+      : `<div class="covers">${D.pls.map((p, i) => `<button class="cv press" data-tap="playPl(${i})"><div class="im">${p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy">` : ic("music")}</div><b>${esc(p.name)}</b></button>`).join("")}</div>`;
   } else if (MTAB === "fav"){
-    body = favs.length ? `<div class="list">${favs.map((f, i) => `<button class="li press" onclick="playFav(${JSON.stringify(f).replace(/"/g, "&quot;")})">${ic("star")}<span>${esc(f)}</span></button>`).join("")}</div>` : `<div class="empty">Sonos-favoriterna kommer när hubben läst av högtalarna.</div>`;
+    body = favs.length ? `<div class="list">${favs.map((f, i) => `<button class="li press" data-tap="playFav(${JSON.stringify(f).replace(/"/g, "&quot;")})">${ic("star")}<span>${esc(f)}</span></button>`).join("")}</div>` : `<div class="empty">Sonos-favoriterna kommer när hubben läst av högtalarna.</div>`;
   } else {
-    body = D.radio.length ? `<div class="list">${D.radio.map((s, i) => `<button class="li press" onclick="playRadio(${i})">${s.icon ? `<img src="${esc(s.icon)}" alt="" loading="lazy" onerror="this.remove()">` : ic("radio")}<span>${esc(s.name)}</span></button>`).join("")}</div>` : `<div class="empty">Hämtar radiostationer…</div>`;
+    body = D.radio.length ? `<div class="list">${D.radio.map((s, i) => `<button class="li press" data-tap="playRadio(${i})">${s.icon ? `<img src="${esc(s.icon)}" alt="" loading="lazy" onerror="this.remove()">` : ic("radio")}<span>${esc(s.name)}</span></button>`).join("")}</div>` : `<div class="empty">Hämtar radiostationer…</div>`;
     if (!D.radio.length) loadRadio();
   }
-  $("#v-musik").innerHTML = `<div class="seg">${[["pl","Spellistor"],["fav","Favoriter"],["radio","Radio"]].map(([k, t]) => `<button class="press${MTAB === k ? " on" : ""}" onclick="MTAB='${k}';store.set('mtab','${k}');render(true)">${t}</button>`).join("")}
-    <button class="press" style="margin-left:auto" onclick="openRooms()">${ic("speaker")} ${esc(room())}</button></div>${body}`;
+  $("#v-musik").innerHTML = `<div class="seg">${[["pl","Spellistor"],["sok","Sök"],["fav","Favoriter"],["radio","Radio"]].map(([k, t]) => `<button class="press${MTAB === k ? " on" : ""}" data-tap="MTAB='${k}';store.set('mtab','${k}');render(true)">${t}</button>`).join("")}
+    <button class="press" style="margin-left:auto" data-tap="openRooms()">${ic("speaker")} ${esc(room())}</button></div>${body}`;
 }
+// ---------- Sök på Spotify: eget tangentbord (Nest Hub har inget för webbsidor) ----------
+let SQ = "", SRES = null, SBUSY = false, SKB = true;
+const KB = ["qwertyuiopå", "asdfghjklöä", "zxcvbnm"];
+function rSearch(){
+  const res = SRES;
+  const row = (it, i) => `<button class="li press" data-tap="playRes(${i})">${it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy">` : ic(it.kind === "artist" ? "speaker" : "music")}<span style="min-width:0"><span style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.name)}</span><span style="display:block;font-size:15px;color:var(--mut);font-weight:600">${esc(it.sub)}</span></span></button>`;
+  $("#v-musik").innerHTML = `<div class="seg">${[["pl","Spellistor"],["sok","Sök"],["fav","Favoriter"],["radio","Radio"]].map(([k, t]) => `<button class="press${MTAB === k ? " on" : ""}" data-tap="MTAB='${k}';store.set('mtab','${k}');render(true)">${t}</button>`).join("")}</div>
+    <div class="sbox"><div class="sq press" id="sq" data-tap="SKB=true;rSearch()">${esc(SQ) || '<span class="mut">Skriv vad du söker…</span>'}</div><button class="press sclr" data-tap="SQ='';SRES=null;rSearch()">${ic("x")}</button></div>
+    <div class="kb"${SKB ? "" : ' style="display:none"'}>${KB.map(r => `<div class="kr">${[...r].map(k => `<button class="press" data-tap="key('${k}')">${k}</button>`).join("")}</div>`).join("")}
+      <div class="kr"><button class="press wide" data-tap="key(' ')">mellanslag</button><button class="press" data-tap="key('<')">⌫</button><button class="press go" data-tap="doSearch()">Sök</button></div></div>
+    <div id="sres">${SBUSY ? '<div class="empty">Söker…</div>' : res ? (res.length ? `<div class="list">${res.map(row).join("")}</div>` : '<div class="empty">Inga träffar.</div>') : ""}</div>`;
+}
+function key(k){ SQ = k === "<" ? SQ.slice(0, -1) : (SQ + k).slice(0, 40); const el = $("#sq"); if (el) el.innerHTML = esc(SQ) || '<span class="mut">Skriv vad du söker…</span>'; clearTimeout(key.t); if (SQ.length >= 3) key.t = setTimeout(doSearch, 900); }
+async function doSearch(){
+  if (!SQ.trim()) return;
+  if (!D.sp){ toast("Logga in med Spotify i mobilen först"); return; }
+  SBUSY = true; rSearch();
+  try {
+    const j = await getJ("/api/sp/api?" + new URLSearchParams({ path:"search", q: SQ.trim(), type:"track,artist,album,playlist", limit: 6, market:"SE" }));
+    const im = a => { a = (a || []).slice().sort((x, y) => (x.width || 0) - (y.width || 0)); return ((a.find(x => (x.width || 0) >= 64) || a[0]) || {}).url || ""; };
+    const out = [];
+    ((j.artists || {}).items || []).slice(0, 2).forEach(x => out.push({ kind:"artist", uri: x.uri, name: x.name, sub: "Artist", img: im(x.images) }));
+    ((j.tracks || {}).items || []).forEach(x => x && out.push({ kind:"track", uri: x.uri, name: x.name, sub: "Låt · " + x.artists.map(a => a.name).join(", "), img: im(x.album.images) }));
+    ((j.albums || {}).items || []).slice(0, 4).forEach(x => x && out.push({ kind:"album", uri: x.uri, name: x.name, sub: "Album · " + x.artists.map(a => a.name).join(", "), img: im(x.images) }));
+    ((j.playlists || {}).items || []).filter(Boolean).slice(0, 4).forEach(x => out.push({ kind:"playlist", uri: x.uri, name: x.name, sub: "Spellista", img: im(x.images) }));
+    SRES = out;
+  } catch(e){ SRES = []; toast("Sökningen fungerade inte"); }
+  SBUSY = false; SKB = !SRES.length; if (MTAB === "sok" && VIEW === "musik") rSearch();
+}
+function playRes(i){ const it = (SRES || [])[i]; if (!it) return;
+  if (it.kind === "artist"){ getJ("/api/sp/api?" + new URLSearchParams({ path: "artists/" + it.uri.split(":").pop() + "/top-tracks", market: "SE" })).then(j => { const t = (j.tracks || [])[0]; if (t) playLink(t.uri, it.name); }).catch(() => toast("Hittade inget")); return; }
+  playLink(it.uri, it.name); }
 function playPl(i){ const p = D.pls[i]; if (p) playLink(p.uri, p.name); }
 async function loadRadio(){ try { const j = await getJ("/api/radio?top=SE"); if (Array.isArray(j)){ D.radio = j.slice(0, 24); render(); } } catch(e){} }
 // Ljus
@@ -347,10 +405,10 @@ function rLjus(){
   const groups = D.st.groups || [], on = groupsOn(), vals = D.st.vals || {};
   if (!groups.length){ $("#v-ljus").innerHTML = `<div class="empty">Inga lampgrupper ännu. Hubben skickar dem när den har kontakt med Trådfri.</div>`; return; }
   $("#v-ljus").innerHTML = `<div class="groups">${groups.map((g, i) => { const n = g.name, dim = held("dim:" + n, vals["dim:" + n] ?? 70);
-    return `<div class="grp"><div class="gh"><b>${esc(n)}</b><button class="tog press${on[n] ? " on" : ""}" onclick="gToggle(${i})"></button></div>
+    return `<div class="grp"><div class="gh"><b>${esc(n)}</b><button class="tog press${on[n] ? " on" : ""}" data-tap="gToggle(${i})"></button></div>
       ${bar("gb" + i, dim, on[n] ? "Ljus" : "Släckt", !on[n])}
-      <div class="temps">${TEMPS.map(([t, v, c]) => `<button class="press" style="background:${c}" onclick="gTemp(${i},${v},'${t}')">${t}</button>`).join("")}<button class="press" style="background:linear-gradient(90deg,#ff3b30,#ffcc00,#34c759,#007aff,#af52de)" onclick="gColors(${i})">Färg</button></div>
-      ${(g.moods || []).length ? `<div class="moods">${g.moods.slice(0, 6).map(m => `<button class="press" onclick="gMood(${i},${JSON.stringify(m.name || m).replace(/"/g, "&quot;")})">${esc(m.name || m)}</button>`).join("")}</div>` : ""}</div>`; }).join("")}</div>`;
+      <div class="temps">${TEMPS.map(([t, v, c]) => `<button class="press" style="background:${c}" data-tap="gTemp(${i},${v},'${t}')">${t}</button>`).join("")}<button class="press" style="background:linear-gradient(90deg,#ff3b30,#ffcc00,#34c759,#007aff,#af52de)" data-tap="gColors(${i})">Färg</button></div>
+      ${(g.moods || []).length ? `<div class="moods">${g.moods.slice(0, 6).map(m => `<button class="press" data-tap="gMood(${i},${JSON.stringify(m.name || m).replace(/"/g, "&quot;")})">${esc(m.name || m)}</button>`).join("")}</div>` : ""}</div>`; }).join("")}</div>`;
   groups.forEach((g, i) => wireBar("gb" + i, (v, done) => { hold("dim:" + g.name, v); hold("on:" + g.name, true); clearTimeout(wireBar["t" + i]); wireBar["t" + i] = setTimeout(() => light(g.name, "dim", v), done ? 0 : 150); }));
 }
 function light(g, action, value){ send("light:" + JSON.stringify({ group: g, action, value: value ?? null })); }
@@ -358,13 +416,13 @@ function gToggle(i){ const g = (D.st.groups || [])[i]; if (!g) return; const now
 function gTemp(i, v, t){ const g = D.st.groups[i]; hold("on:" + g.name, true); light(g.name, "temp", v); toast(g.name + ": " + t.toLowerCase()); }
 function gMood(i, m){ const g = D.st.groups[i]; hold("on:" + g.name, true); light(g.name, "scene", m); toast(m); }
 const COLORS = ["#ff3b30","#ff6a00","#ff9500","#ffcc00","#a8e05f","#34c759","#30b0c7","#5ac8fa","#007aff","#5856d6","#af52de","#ff2d55"];
-function gColors(i){ const g = D.st.groups[i]; openSheet(`<h2>Färg i ${esc(g.name)}</h2><div class="swatches">${COLORS.map(c => `<button class="press" style="background:${c}" onclick="light(${JSON.stringify(g.name).replace(/"/g, "&quot;")},'color','${c}');closeSheet()"></button>`).join("")}</div>`); }
+function gColors(i){ const g = D.st.groups[i]; openSheet(`<h2>Färg i ${esc(g.name)}</h2><div class="swatches">${COLORS.map(c => `<button class="press" style="background:${c}" data-tap="light(${JSON.stringify(g.name).replace(/"/g, "&quot;")},'color','${c}');closeSheet()"></button>`).join("")}</div>`); }
 // Scener
 rScener.sig = () => JSON.stringify([(D.deck.scenes || []).map(s => s.id + s.name), sceneRuns().map(r => r.id), Object.keys(HOLD).filter(k => k.startsWith("sc:"))]);
 function rScener(){
   const scenes = D.deck.scenes || [], run = new Set(sceneRuns().map(r => String(r.id)));
   $("#v-scener").innerHTML = scenes.length ? `<div class="tiles">${scenes.map((s, i) => { const on = held("sc:" + s.id, run.has(String(s.id)));
-    return `<button class="tile press${on ? " on" : ""}" onclick="scene(${i})">${ic("spark")}<div><b>${esc(s.name || "Scen")}</b>${on ? "<small>på · tryck för att gå tillbaka</small>" : ""}</div></button>`; }).join("")}</div>`
+    return `<button class="tile press${on ? " on" : ""}" data-tap="scene(${i})">${ic("spark")}<div><b>${esc(s.name || "Scen")}</b>${on ? "<small>på · tryck för att gå tillbaka</small>" : ""}</div></button>`; }).join("")}</div>`
     : `<div class="empty">Inga scener ännu. Bygg dem i deck-redigeraren på datorn.</div>`;
 }
 function scene(i){ const s = D.deck.scenes[i]; const was = held("sc:" + s.id, sceneRuns().some(r => String(r.id) === String(s.id))); hold("sc:" + s.id, !was, 8000); send("scene:" + s.id); toast(was ? s.name + ": tillbaka som innan" : s.name); render(true); }
@@ -380,11 +438,11 @@ function rLarm(){
     </div><div>
       <div class="h">Sov-timer</div>
       ${sl ? `<div class="card" style="margin-bottom:12px"><div class="count">${Math.max(0, Math.round((sl.end * 1000 - Date.now()) / 60000))} min</div><div class="mut" style="font-size:19px">${esc(sl.room)} tystnar ${hhmm(sl.end)}</div>
-          <div class="row" style="margin-top:12px"><button class="btn press" onclick="send('sleep:add:15');toast('+15 min')">+15</button><button class="btn bad press" onclick="send('sleep:off');toast('Sov-timern av')">Av</button></div></div>`
-        : `<div class="qgrid" style="margin-bottom:16px">${[15,30,45,60].map(m => `<button class="press" onclick="sleep(${m})">${m} min</button>`).join("")}</div>`}
+          <div class="row" style="margin-top:12px"><button class="btn press" data-tap="send('sleep:add:15');toast('+15 min')">+15</button><button class="btn bad press" data-tap="send('sleep:off');toast('Sov-timern av')">Av</button></div></div>`
+        : `<div class="qgrid" style="margin-bottom:16px">${[15,30,45,60].map(m => `<button class="press" data-tap="sleep(${m})">${m} min</button>`).join("")}</div>`}
       <div class="h">Timer</div>
-      ${tm.map(t => `<div class="card" style="margin-bottom:10px;display:flex;align-items:center;gap:14px"><div style="flex:1"><div class="count cd" data-end="${t.end}"></div><div class="mut" style="font-size:18px">${esc(t.name)}</div></div><button class="btn bad press" onclick="send('timer-off:${esc(t.id)}');toast('Timern stoppad')">Stoppa</button></div>`).join("")}
-      <div class="qgrid">${[3,5,10,15,20,30,45,60].map(m => `<button class="press" onclick="timer(${m})">${m} min</button>`).join("")}</div>
+      ${tm.map(t => `<div class="card" style="margin-bottom:10px;display:flex;align-items:center;gap:14px"><div style="flex:1"><div class="count cd" data-end="${t.end}"></div><div class="mut" style="font-size:18px">${esc(t.name)}</div></div><button class="btn bad press" data-tap="send('timer-off:${esc(t.id)}');toast('Timern stoppad')">Stoppa</button></div>`).join("")}
+      <div class="qgrid">${[3,5,10,15,20,30,45,60].map(m => `<button class="press" data-tap="timer(${m})">${m} min</button>`).join("")}</div>
     </div></div>`;
   tickCountdowns();
 }
@@ -395,8 +453,8 @@ setInterval(tickCountdowns, 1000);
 // rum
 function openRooms(){
   const sg = (D.st.sonos || {}).groups || [], mine = (sg.find(g => g.members.includes(room())) || { members: [room()] }).members;
-  openSheet(`<h2>Högtalare</h2><div class="list">${rooms().map(r => `<button class="li press" style="${r === room() ? "background:var(--acc);color:var(--ink)" : ""}" onclick="pickRoom(${JSON.stringify(r).replace(/"/g, "&quot;")})">${ic("speaker")}<span>${esc(r)}${r !== room() && mine.includes(r) ? " · spelar med" : ""}</span></button>`).join("")}</div>
-    <div class="row" style="margin-top:16px"><button class="btn press" onclick="sonos('group-all');closeSheet();toast('Alla rum spelar samma')">Alla rum tillsammans</button><button class="btn press" onclick="sonos('ungroup-all');closeSheet();toast('Rummen delas upp')">Dela upp</button></div>`);
+  openSheet(`<h2>Högtalare</h2><div class="list">${rooms().map(r => `<button class="li press" style="${r === room() ? "background:var(--acc);color:var(--ink)" : ""}" data-tap="pickRoom(${JSON.stringify(r).replace(/"/g, "&quot;")})">${ic("speaker")}<span>${esc(r)}${r !== room() && mine.includes(r) ? " · spelar med" : ""}</span></button>`).join("")}</div>
+    <div class="row" style="margin-top:16px"><button class="btn press" data-tap="sonos('group-all');closeSheet();toast('Alla rum spelar samma')">Alla rum tillsammans</button><button class="btn press" data-tap="sonos('ungroup-all');closeSheet();toast('Rummen delas upp')">Dela upp</button></div>`);
 }
 function pickRoom(r){ ROOM = r; store.set("room", r); send("sonos-focus:" + r); closeSheet(); render(true); toast("Styr " + r); }
 function openSheet(h){ $("#sheetIn").innerHTML = h; $("#sheet").classList.add("on"); }
