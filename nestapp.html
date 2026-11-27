@@ -437,47 +437,90 @@ async function tvMore(){
     if (j.error) TV.err = j.error; else TV.items[k] = { items: cur.items.concat(j.items || []), total: j.total || 0 }; } catch(e){ TV.err = "Plex svarar inte"; }
   TV.busy = false; render(true);
 }
-function tvTab(t){ TV.tab = t; store.set("tvtab", t); TV.err = ""; $("#v-tv").scrollTop = 0; tvLoad(); render(true); }
+function tvTab(t){ tvTop(); TV.tab = t; store.set("tvtab", t); TV.err = ""; $("#v-tv").scrollTop = 0; tvLoad(); render(true); }
 function tvSort(s){ TV.sort = s; store.set("tvsort", s); $("#v-tv").scrollTop = 0; tvLoad(); render(true); }
-rTv.sig = () => JSON.stringify([TV.tab, TV.sort, TV.ch, (TV.secs || []).length, ((TV.items[TV.tab + TV.sort] || {}).items || []).length, TV.busy, TV.err]);
+// Inne i TV: en sida i taget (kanal, film, serie, säsong, avsnitt) med "‹ Tillbaka" överst.
+// Allt spelas på Blaupunkt-skärmen tills projektorn är inkopplad.
+TV.stack = []; TV.meta = {}; TV.kids = {}; TV.scroll = [];
+const curItems = () => (TV.items[TV.tab + TV.sort] || {}).items || [];
+function tvOpen(page){ TV.scroll.push($("#v-tv").scrollTop); TV.stack.push(page); tvFetch(page); render(true); $("#v-tv").scrollTop = 0; }
+function tvBack(){ TV.stack.pop(); render(true); $("#v-tv").scrollTop = TV.scroll.pop() || 0; }
+function tvTop(){ TV.stack = []; TV.scroll = []; }
+async function tvFetch(pg){
+  const need = [];
+  if ((pg.k === "item" || pg.k === "show") && !(TV.meta[pg.key] || {}).full) need.push(getJ("/api/tv?meta=" + pg.key).then(j => { if (j.item) TV.meta[pg.key] = Object.assign(j.item, { full: true }); else TV.err2 = j.error || "Plex svarar inte"; }));
+  if ((pg.k === "show" || pg.k === "season") && !TV.kids[pg.key]) need.push(getJ("/api/tv?children=" + pg.key).then(j => { TV.kids[pg.key] = j.items || []; }));
+  if (!need.length) return;
+  TV.err2 = ""; await Promise.all(need).catch(() => { TV.err2 = "Plex svarar inte"; });
+  if (pg.k === "show"){ const ss = TV.kids[pg.key] || []; if (ss.length && !pg.season){ pg.season = (ss.find(x => !x.seen) || ss[0]).key; tvFetch({ k: "season", key: pg.season }); } }
+  render(true);
+}
+rTv.sig = () => JSON.stringify([TV.tab, TV.sort, TV.ch, (TV.secs || []).length, curItems().length, TV.busy, TV.err, TV.err2, TV.stack, Object.values(TV.meta).filter(x => x && x.full).length, Object.keys(TV.meta).length, Object.keys(TV.kids).length]);
+const mins = m => m >= 60 ? Math.floor(m / 60) + " h " + (m % 60 ? m % 60 + " min" : "") : m + " min";
 function rTv(){
+  if (TV.stack.length) return rTvPage(TV.stack[TV.stack.length - 1]);
   const secs = TV.secs || [];
   if (TV.tab !== "svt" && TV.secs && !secs.some(x => x.key === TV.tab)) TV.tab = "svt";
   let body = "";
   if (TV.tab === "svt"){
-    body = TV.ch.length ? `<div class="chan">${TV.ch.map((c, i) => `<button class="ch press" style="background:${esc(c.color)}" data-tap="tvChan(${i})">${c.img ? `<img src="${esc(c.img)}" alt="" loading="lazy" onerror="this.remove()">` : ""}<span class="live">DIREKT</span><div><b${c.name.length > 10 ? ' style="font-size:27px"' : ""}>${esc(c.name)}</b>${c.now ? `<small>${esc(c.now)}</small>` : ""}</div></button>`).join("")}</div>`
+    body = TV.ch.length ? `<div class="chan">${TV.ch.map((c, i) => `<button class="ch press" style="background:${esc(c.color)}" data-tap="tvOpen({k:'chan',i:${i}})">${c.img ? `<img src="${esc(c.img)}" alt="" loading="lazy" onerror="this.remove()">` : ""}<span class="live">DIREKT</span><div><b${c.name.length > 10 ? ' style="font-size:27px"' : ""}>${esc(c.name)}</b>${c.now ? `<small>${esc(c.now)}</small>` : ""}</div></button>`).join("")}</div>`
       : `<div class="empty">Hämtar kanalerna…</div>`;
   } else {
     const cur = TV.items[TV.tab + TV.sort] || { items: [], total: 0 };
     body = `<div class="seg" style="margin-bottom:12px">${[["titleSort","A–Ö"],["addedAt:desc","Senast tillagt"],["year:desc","Nyast"]].map(([k, t]) => `<button class="press${TV.sort === k ? " on" : ""}" data-tap="tvSort('${k}')">${t}</button>`).join("")}
       ${cur.total ? `<span class="mut" style="align-self:center;margin-left:auto;font-size:18px">${cur.total} titlar</span>` : ""}</div>`
-      + (cur.items.length ? `<div class="posters">${cur.items.map((m, i) => `<button class="po press" data-tap="tvItem(${i})"><div class="im">${m.poster ? `<img src="${esc(m.poster)}" alt="" loading="lazy">` : ic("film")}${m.seen ? "" : "<i></i>"}</div><b>${esc(m.title)}</b><span>${m.year || ""}</span></button>`).join("")}</div>` : "")
+      + (cur.items.length ? `<div class="posters">${cur.items.map((m, i) => `<button class="po press" data-tap="tvPick(${i})"><div class="im">${m.poster ? `<img src="${esc(m.poster)}" alt="" loading="lazy">` : ic("film")}${m.seen ? "" : "<i></i>"}</div><b>${esc(m.title)}</b><span>${m.year || ""}${m.type === "show" && m.seasons ? " · " + m.seasons + " säs." : ""}</span></button>`).join("")}</div>` : "")
       + (TV.busy ? `<div class="empty">Hämtar…</div>` : cur.items.length < cur.total ? `<div class="row" style="margin-top:16px"><button class="btn press" data-tap="tvMore()">Visa fler (${cur.total - cur.items.length} kvar)</button></div>` : "")
       + (TV.err ? `<div class="empty">${esc(TV.err)}</div>` : !cur.items.length && !TV.busy ? `<div class="empty">Inget här.</div>` : "");
   }
-  $("#v-tv").innerHTML = `<div class="segs"><button class="press${TV.tab === "svt" ? " on" : ""}" data-tap="tvTab('svt')">${ic("tv")} SVT</button>${secs.map(x => `<button class="press${TV.tab === x.key ? " on" : ""}" data-tap="tvTab('${esc(x.key)}')">${ic("film")} ${esc(x.title)}</button>`).join("")}</div>`
-    + body;
+  $("#v-tv").innerHTML = `<div class="segs"><button class="press${TV.tab === "svt" ? " on" : ""}" data-tap="tvTab('svt')">${ic("tv")} SVT</button>${secs.map(x => `<button class="press${TV.tab === x.key ? " on" : ""}" data-tap="tvTab('${esc(x.key)}')">${ic("film")} ${esc(x.title)}</button>`).join("")}</div>` + body;
 }
-let TVROOM = "";
-function tvChan(i){ const c = TV.ch[i]; if (!c) return;
-  // Bilden på Blaupunkt-skärmen, ljudet till Sonos (via AirPlay från skärmen, som klippen)
-  const r = TVROOM && rooms().includes(TVROOM) ? TVROOM : room();
-  openSheet(`<h2>${esc(c.name)}</h2>${c.now ? `<div class="mut" style="font-size:21px;margin:-6px 0 16px">Just nu: ${esc(c.now)}</div>` : ""}
-    <div class="h">Ljudet i</div>
-    <div class="moods" style="margin-bottom:18px">${rooms().map(x => `<button class="press" style="${x === r ? "background:var(--acc);color:var(--ink)" : ""}" data-tap="TVROOM=${JSON.stringify(x).replace(/"/g, "&quot;")};tvChan(${i})">${ic("speaker")} ${esc(x)}</button>`).join("")}</div>
-    <div class="row"><button class="btn pri press" data-tap="tvShow(${i})">${ic("tv")} Visa på Blaupunkt-skärmen</button>
-      <button class="btn press" data-tap="watch(${JSON.stringify({ id: c.id, name: c.name, now: c.now }).replace(/"/g, "&quot;")})">${ic("film")} Projektorn</button></div>
-    <div class="row" style="margin-top:12px"><button class="btn press" data-tap="send('svtlive:'+JSON.stringify({id:'stop'}));closeSheet();toast('Stängt')">Stäng tv:n på skärmen</button></div>`); }
-function tvShow(i){ const c = TV.ch[i]; if (!c) return; const r = TVROOM && rooms().includes(TVROOM) ? TVROOM : room();
-  if (!bpOpen){ bpOpen = true; store.set("bp", true); send("open"); }
-  send("svtlive:" + JSON.stringify({ id: c.id, name: c.name, now: c.now, room: r })); closeSheet(); toast(c.name + " på skärmen, ljudet i " + r); }
-function tvItem(i){ const m = ((TV.items[TV.tab + TV.sort] || {}).items || [])[i]; if (!m) return;
-  const meta = [m.year, m.type === "show" ? (m.seasons ? m.seasons + (m.seasons === 1 ? " säsong" : " säsonger") : "") + (m.eps ? " · " + m.eps + " avsnitt" : "") : m.minutes ? m.minutes + " min" : "", m.seen ? "sedd" : ""].filter(Boolean).join(" · ");
-  const arg = JSON.stringify({ src: "plex", key: m.key, type: m.type, title: m.title }).replace(/"/g, "&quot;");
-  openSheet(`<div class="det"><div class="pimg">${m.poster ? `<img src="${esc(m.poster)}" alt="">` : ""}</div><div style="flex:1;min-width:0">
-    <h2 style="margin:0">${esc(m.title)}</h2><div class="mut" style="font-size:19px;margin-top:6px">${esc(meta)}</div>
-    <p>${esc(m.summary || "")}</p><div class="row"><button class="btn pri press" data-tap="watch(${arg})">${ic("play")} Spela på projektorn</button></div></div></div>`); }
-function watch(o){ send("watch:" + JSON.stringify(Object.assign({ src: "svt" }, o, { title: o.title || o.name }))); closeSheet(); toast("Projektorn är inte inkopplad än"); }
+function tvPick(i){ const m = curItems()[i]; if (!m) return; if (!TV.meta[m.key]) TV.meta[m.key] = Object.assign({}, m); tvOpen({ k: m.type === "show" ? "show" : "item", key: m.key, title: m.title }); }
+const backBar = t => `<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px"><button class="btn press" style="min-height:64px" data-tap="tvBack()">‹ Tillbaka</button><div class="mut" style="font-size:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t || "")}</div></div>`;
+function rTvPage(pg){
+  const el = $("#v-tv");
+  if (pg.k === "chan"){
+    const c = TV.ch[pg.i] || {};
+    el.innerHTML = backBar("SVT") + `<div class="ch" style="background:${esc(c.color)};min-height:230px;cursor:default">${c.img ? `<img src="${esc(c.img)}" alt="">` : ""}<span class="live">DIREKT</span>
+        <div><b style="font-size:52px">${esc(c.name)}</b>${c.now ? `<small style="font-size:24px;margin-top:10px;display:block">Just nu: ${esc(c.now)}</small>` : `<small style="font-size:20px;margin-top:10px;display:block">Det som sänds just nu</small>`}</div></div>
+      <div class="row" style="margin-top:18px"><button class="btn pri press" data-tap="tvPlayChan(${pg.i})">${ic("play")} Spela på Blaupunkt-skärmen</button><button class="btn press" style="flex:.6" data-tap="tvStop()">Stäng på skärmen</button></div>`;
+    return;
+  }
+  const m = TV.meta[pg.key];
+  if (!m){ el.innerHTML = backBar(pg.title) + `<div class="empty">${TV.err2 ? esc(TV.err2) : "Hämtar…"}</div>`; return; }
+  const meta = [m.type === "episode" && m.parent != null ? "Säsong " + m.parent + ", avsnitt " + m.index : "", m.year, m.minutes ? mins(m.minutes) : "",
+    m.type === "show" && m.seasons ? m.seasons + (m.seasons === 1 ? " säsong" : " säsonger") : "", m.rated, m.imdb ? "IMDb " + m.imdb : "", m.seen ? "Sedd" : ""].filter(Boolean).join(" · ");
+  const pic = m.type === "episode" && m.thumb ? `<div class="pimg" style="aspect-ratio:16/9;width:300px"><img src="${esc(m.thumb)}" alt=""></div>` : `<div class="pimg">${m.poster ? `<img src="${esc(m.poster)}" alt="">` : ""}</div>`;
+  const play = m.type === "show" ? "" : `<div class="row" style="margin-top:6px">${m.offset > 60 ? `<button class="btn pri press" data-tap="tvPlay('${m.key}',${m.offset})">${ic("play")} Fortsätt (${mins(Math.round(m.offset / 60))} in)</button><button class="btn press" data-tap="tvPlay('${m.key}',0)">Från början</button>` : `<button class="btn pri press" data-tap="tvPlay('${m.key}',0)">${ic("play")} Spela på Blaupunkt-skärmen</button>`}</div>`;
+  let html = backBar(m.type === "episode" ? m.show : pg.k === "show" ? "Serie" : "Film") + `<div class="det">${pic}<div style="flex:1;min-width:0">
+      ${m.type === "episode" ? `<div class="mut" style="font-size:20px;font-weight:700">${esc(m.show)}</div>` : ""}
+      <h2 style="margin:0;font-size:32px;line-height:1.1">${esc(m.title)}</h2>
+      <div class="mut" style="font-size:19px;margin-top:8px">${esc(meta)}</div>
+      ${(m.genres || []).length ? `<div class="mut" style="font-size:17px;margin-top:6px">${esc(m.genres.join(", "))}</div>` : ""}
+      <p>${esc(m.summary || "Ingen beskrivning.")}</p>
+      ${m.director ? `<div class="mut" style="font-size:17px">Regi: ${esc(m.director)}</div>` : ""}
+      ${(m.cast || []).length ? `<div class="mut" style="font-size:17px;margin:4px 0 14px">Med: ${esc(m.cast.join(", "))}</div>` : ""}
+      ${play}</div></div>`;
+  if (pg.k === "show"){
+    const ss = TV.kids[pg.key];
+    if (!ss) html += `<div class="empty">Hämtar säsongerna…</div>`;
+    else {
+      html += `<div class="segs" style="margin-top:18px">${ss.map(x => `<button class="press${pg.season === x.key ? " on" : ""}" data-tap="tvSeason('${x.key}')">${esc(x.title)}${x.seen ? " ✓" : ""}</button>`).join("")}</div>`;
+      const eps = pg.season ? TV.kids[pg.season] : null;
+      html += !pg.season ? "" : !eps ? `<div class="empty">Hämtar avsnitten…</div>` : `<div style="display:flex;flex-direction:column;gap:10px">${eps.map(e => `<button class="li press" style="min-height:96px;padding:10px 16px" data-tap="tvEp('${e.key}')">
+          <div style="width:144px;height:81px;border-radius:10px;overflow:hidden;background:var(--card2);flex:none;position:relative">${e.thumb ? `<img src="${esc(e.thumb)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover">` : ""}</div>
+          <div style="flex:1;min-width:0"><div style="font-size:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.index != null ? e.index + ". " : ""}${esc(e.title)}</div><div class="mut" style="font-size:16px;font-weight:600">${[e.minutes ? mins(e.minutes) : "", e.seen ? "Sedd" : e.offset > 60 ? "Påbörjad" : ""].filter(Boolean).join(" · ")}</div></div>
+          ${e.seen ? "" : `<span style="width:14px;height:14px;border-radius:50%;background:var(--acc);flex:none"></span>`}</button>`).join("")}</div>`;
+    }
+  }
+  el.innerHTML = html;
+}
+function tvSeason(k){ const pg = TV.stack[TV.stack.length - 1]; pg.season = k; tvFetch({ k: "season", key: k }); render(true); }
+function tvEp(k){ const pg = TV.stack[TV.stack.length - 1]; (TV.kids[pg.season] || []).forEach(e => { if (e.key === k && !(TV.meta[k] || {}).full) TV.meta[k] = Object.assign({}, e); }); tvOpen({ k: "item", key: k }); }
+function bpEnsure(){ if (!bpOpen){ bpOpen = true; store.set("bp", true); send("open"); } }
+function tvPlayChan(i){ const c = TV.ch[i]; if (!c) return; bpEnsure(); send("svtlive:" + JSON.stringify({ id: c.id, name: c.name, now: c.now })); toast(c.name + " på Blaupunkt-skärmen"); }
+function tvPlay(key, offset){ const m = TV.meta[key] || {}; bpEnsure(); send("plexplay:" + JSON.stringify({ key, offset: offset || 0 })); toast((m.title || "Startar") + " på Blaupunkt-skärmen"); }
+function tvStop(){ send("svtlive:" + JSON.stringify({ id: "stop" })); toast("Stängt på skärmen"); }
 // Ljus
 const TEMPS = [["Varm", 10, "#ffb35c"], ["Neutral", 50, "#ffe2b3"], ["Kall", 90, "#e6f0ff"]];
 rLjus.sig = () => JSON.stringify([(D.st.groups || []).map(g => g.name), D.st.vals || {}, groupsOn()]);

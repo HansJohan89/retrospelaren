@@ -3505,6 +3505,8 @@ function runCmd(c){
   else if (c.startsWith("page:")) showIdlePage(c.slice(5));
   else if (c.startsWith("hl:")) showHighlights(c.slice(3));
   else if (c.startsWith("svt:")) showSvtProgram(c.slice(4));
+  // plexplay:{"key":"123","offset":0}  film eller avsnitt från Plex (från Nest Hubs TV-del)
+  else if (c.startsWith("plexplay:")){ let o = {}; try { o = JSON.parse(c.slice(9)); } catch(e){} if (o.key) playPlexKey(o); }
   // svtlive:{"id":"ch-svt1","name":"SVT1"}  en av SVT:s kanaler direkt (från Nest Hubs TV-del)
   else if (c.startsWith("svtlive:")){ let o = {}; try { o = JSON.parse(c.slice(8)); } catch(e){ o = { id: c.slice(8) }; }
     if (o.id === "stop") hideHighlights(); else if (o.id) playItem({ src:"svt", id: String(o.id), title: o.now || "Direkt", program: o.name || "SVT", secs: 4 * 3600, room: o.room || "" }, "live"); }
@@ -3987,8 +3989,37 @@ async function playItem(it, prog){
     await new Promise(r => setTimeout(r, 4000));
     if (!HL.on || HL.item !== it) return;
   }
-  try { it.src === "svt" ? await playSvt(it, el, "") : playYt(it, el); }
+  try { it.src === "svt" ? await playSvt(it, el, "") : it.src === "plex" ? await playPlex(it, el) : playYt(it, el); }
   catch(e){ console.warn("highlights", e); osd(e.message || "Klippet gick inte att spela"); hideHighlights(); }
+}
+// Film eller avsnitt från Plex (omkodat till HLS av Plex). Adresserna provas i tur och ordning:
+// Plex-servern på hemnätet först, sedan utifrån.
+async function playPlex(it, el){
+  if (!window.Hls) await loadScript("https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js").catch(() => {});
+  const v = Object.assign(document.createElement("video"), { autoplay: true, playsInline: true });
+  v.onended = () => hideHighlights();
+  el.prepend(v); v.volume = 1;
+  const urls = (it.urls || []).slice();
+  const next = () => {
+    const u = urls.shift();
+    if (!u){ osd("Plex gick inte att spela här"); hideHighlights(); return; }
+    if (HL.hls){ try { HL.hls.destroy(); } catch(e){} HL.hls = null; }
+    if (!(window.Hls && Hls.isSupported())){ v.src = u; v.onerror = next; return; }
+    const hls = HL.hls = new Hls({ maxBufferLength: 40, startLevel: -1 });
+    let ok = false;
+    hls.on(Hls.Events.MANIFEST_PARSED, () => { ok = true; v.play().catch(() => {}); });
+    hls.on(Hls.Events.ERROR, (_, data) => { if (data.fatal){ if (!ok) next(); else { osd("Plex-strömmen avbröts"); hideHighlights(); } } });
+    hls.loadSource(u); hls.attachMedia(v);
+  };
+  next();
+}
+async function playPlexKey(o){
+  osd("Hämtar från Plex…");
+  let d;
+  try { d = await (await fetch("/api/tv?" + new URLSearchParams({ stream: o.key, offset: o.offset || 0 }), { cache:"no-store" })).json(); }
+  catch(e){ osd("Plex svarar inte"); return; }
+  if (!d.urls || !d.urls.length){ osd(d.error || "Plex gick inte att spela"); return; }
+  await playItem({ src:"plex", urls: d.urls, title: d.title, program: d.show || "Plex", secs: (d.secs || 7200) - (o.offset || 0) }, "plex");
 }
 async function playSvt(it, el, room){
   const j = await (await fetch("https://api.svt.se/video/" + encodeURIComponent(it.id))).json();

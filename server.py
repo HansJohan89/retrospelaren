@@ -1037,17 +1037,93 @@ def plex_lib(section=None, sort="titleSort", start=0):
         with _plex_open(base + "/library/sections/%s/all?sort=%s&X-Plex-Container-Start=%d&X-Plex-Container-Size=60"
                         % (urllib.parse.quote(str(section)), urllib.parse.quote(sort), max(0, int(start))), timeout=20) as r:
             mc = json.loads(r.read().decode("utf-8")).get("MediaContainer") or {}
-        items = [{"src": "plex", "key": str(m.get("ratingKey") or ""), "type": m.get("type"), "title": m.get("title") or "", "year": m.get("year"),
-                  "summary": (m.get("summary") or "")[:600], "minutes": round((m.get("duration") or 0) / 60000),
-                  "seen": bool(m.get("viewCount")) if m.get("type") == "movie" else (m.get("viewedLeafCount") or 0) >= (m.get("leafCount") or 1),
-                  "eps": m.get("leafCount"), "seasons": m.get("childCount"),
-                  "poster": img(m.get("thumb"), 300, 450), "art": img(m.get("art"), 960, 540)} for m in mc.get("Metadata") or []]
+        items = [_plex_item(m, img) for m in mc.get("Metadata") or []]
         out = {"items": items, "total": mc.get("totalSize") or mc.get("size") or len(items), "start": int(start)}
     TV_CACHE[key] = (time.time(), out)
     if len(TV_CACHE) > 200:
         for k in sorted(TV_CACHE, key=lambda k: TV_CACHE[k][0])[:80]:
             TV_CACHE.pop(k, None)
     return out
+
+
+def _plex_item(m, img):
+    """En titel (film, serie, säsong eller avsnitt) i den form Nest Hub visar."""
+    t = m.get("type")
+    return {"src": "plex", "key": str(m.get("ratingKey") or ""), "type": t, "title": m.get("title") or "", "year": m.get("year"),
+            "summary": (m.get("summary") or "")[:1200], "minutes": round((m.get("duration") or 0) / 60000),
+            "offset": round((m.get("viewOffset") or 0) / 1000),
+            "seen": bool(m.get("viewCount")) if t in ("movie", "episode") else (m.get("viewedLeafCount") or 0) >= (m.get("leafCount") or 1),
+            "eps": m.get("leafCount"), "seasons": m.get("childCount"), "index": m.get("index"), "parent": m.get("parentIndex"),
+            "show": m.get("grandparentTitle") or m.get("parentTitle") or "",
+            "genres": [g.get("tag") for g in (m.get("Genre") or [])][:4],
+            "director": ", ".join(d.get("tag") for d in (m.get("Director") or [])[:2]),
+            "cast": [r.get("tag") for r in (m.get("Role") or [])][:6],
+            "rated": m.get("contentRating") or "", "imdb": _imdb_of(m), "studio": m.get("studio") or "",
+            "aired": m.get("originallyAvailableAt") or "",
+            "poster": img(m.get("thumb") if t != "episode" else (m.get("grandparentThumb") or m.get("thumb")), 300, 450),
+            "thumb": img(m.get("thumb"), 480, 270) if t == "episode" else "",
+            "art": img(m.get("art") or m.get("grandparentArt"), 960, 540)}
+
+
+def plex_meta(key, children=False):
+    """En titel med allt om den, eller dess delar (seriens säsonger, säsongens avsnitt)."""
+    if not PLEX_TOKEN:
+        raise RuntimeError("Plex är inte inställt")
+    key = "".join(c for c in str(key) if c.isdigit())
+    ck = "plexmeta:%s:%s" % (key, children)
+    hit = TV_CACHE.get(ck)
+    if hit and time.time() - hit[0] < 120:
+        return hit[1]
+    base = plex_base()
+    img = lambda p, w, h: ("/api/plex-img?w=%d&h=%d&p=%s" % (w, h, urllib.parse.quote(p, safe=""))) if p else ""
+    with _plex_open(base + "/library/metadata/%s%s" % (key, "/children" if children else ""), timeout=15) as r:
+        mc = json.loads(r.read().decode("utf-8")).get("MediaContainer") or {}
+    items = [_plex_item(m, img) for m in mc.get("Metadata") or []]
+    out = {"items": items} if children else {"item": items[0] if items else None}
+    TV_CACHE[ck] = (time.time(), out)
+    return out
+
+
+PLEX_PLAY = {"tok": "", "at": 0, "conns": [], "conns_at": 0}
+
+
+def plex_stream(key, offset=0):
+    """Adresser som Blaupunkt-skärmen kan spela en film eller ett avsnitt från (HLS, 720p, omkodat av
+    Plex). Skärmen står hemma, så Plex-serverns adress på hemnätet provas först och den utifrån sedan.
+    Adresserna bär en tillfällig token från Plex (inte den riktiga), som slutar gälla av sig själv."""
+    if not PLEX_TOKEN:
+        raise RuntimeError("Plex är inte inställt")
+    import uuid
+    key = "".join(c for c in str(key) if c.isdigit())
+    base = plex_base()
+    if not PLEX_PLAY["tok"] or time.time() - PLEX_PLAY["at"] > 6 * 3600:
+        with _plex_open(base + "/security/token?type=delegation&scope=all") as r:
+            PLEX_PLAY["tok"] = (json.loads(r.read().decode("utf-8")).get("MediaContainer") or {}).get("token") or ""
+            PLEX_PLAY["at"] = time.time()
+    if not PLEX_PLAY["tok"]:
+        raise RuntimeError("Plex gav ingen tillfällig token")
+    if not PLEX_PLAY["conns"] or time.time() - PLEX_PLAY["conns_at"] > 3600:
+        conns = []
+        try:
+            with _plex_open("https://plex.tv/api/v2/resources?includeHttps=1&includeRelay=1") as r:
+                for dev in json.loads(r.read().decode("utf-8")):
+                    if "server" in (dev.get("provides") or ""):
+                        for c in dev.get("connections") or []:
+                            if c.get("uri"):
+                                conns.append((0 if c.get("local") else 1 if not c.get("relay") else 2, c["uri"].rstrip("/")))
+        except Exception:
+            pass
+        PLEX_PLAY["conns"] = [u for _, u in sorted(conns)] or [base]
+        PLEX_PLAY["conns_at"] = time.time()
+    meta = plex_meta(key).get("item") or {}
+    sess = uuid.uuid4().hex[:16]
+    q = urllib.parse.urlencode({"path": "/library/metadata/" + key, "mediaIndex": 0, "partIndex": 0, "protocol": "hls", "fastSeek": 1,
+                                "directPlay": 0, "directStream": 1, "subtitleSize": 100, "audioBoost": 100, "location": "lan",
+                                "maxVideoBitrate": 6000, "videoResolution": "1280x720", "videoQuality": 90, "offset": max(0, int(offset)),
+                                "session": sess, "X-Plex-Session-Identifier": sess, "X-Plex-Platform": "Chrome", "X-Plex-Product": "Blaupunkt",
+                                "X-Plex-Client-Identifier": "blaupunkt-screen", "X-Plex-Device": "Blaupunkt", "X-Plex-Token": PLEX_PLAY["tok"]})
+    return {"urls": [u + "/video/:/transcode/universal/start.m3u8?" + q for u in PLEX_PLAY["conns"]],
+            "title": meta.get("title") or "", "show": meta.get("show") or "", "secs": (meta.get("minutes") or 0) * 60}
 
 
 HL_CACHE = {}
@@ -1418,6 +1494,12 @@ class Handler(SimpleHTTPRequestHandler):
                         return self._json({"channels": svt_channels()})
                     if q.get("libs"):
                         return self._json(plex_lib(None))
+                    if q.get("meta"):
+                        return self._json(plex_meta(q["meta"][0]))
+                    if q.get("children"):
+                        return self._json(plex_meta(q["children"][0], children=True))
+                    if q.get("stream"):
+                        return self._json(plex_stream(q["stream"][0], int(float((q.get("offset") or ["0"])[0] or 0))))
                     return self._json(plex_lib((q.get("plex") or [""])[0] or None, (q.get("sort") or ["titleSort"])[0], int((q.get("start") or ["0"])[0] or 0)))
                 except Exception as e:
                     return self._json({"error": str(e)}, 200)
