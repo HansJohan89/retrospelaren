@@ -4024,7 +4024,7 @@ async function playPlex(it, el){
     const hls = HL.hls = new Hls({ maxBufferLength: 40, startLevel: -1 });
     let ok = false;
     hls.on(Hls.Events.MANIFEST_PARSED, () => { ok = true; v.play().catch(() => {}); });
-    hls.on(Hls.Events.ERROR, (_, data) => { if (data.fatal){ scrLog("plex: hls-fel " + data.type + "/" + data.details + (data.response ? " " + data.response.code : "")); if (!ok) next(); else { osd("Plex-strömmen avbröts"); hideHighlights(); } } });
+    hls.on(Hls.Events.ERROR, (_, data) => { if (data.fatal){ scrLog("plex: hls-fel " + data.type + "/" + data.details + (data.response ? " " + data.response.code : "") + (data.networkDetails && data.networkDetails.responseText ? " " + String(data.networkDetails.responseText).slice(0, 160) : "")); if (!ok) next(); else { osd("Plex-strömmen avbröts"); hideHighlights(); } } });
     hls.loadSource(u); hls.attachMedia(v);
   };
   next();

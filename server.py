@@ -1117,13 +1117,20 @@ def plex_stream(key, offset=0):
         PLEX_PLAY["conns"] = [u for _, u in sorted(conns)] or [base]
         PLEX_PLAY["conns_at"] = time.time()
     meta = plex_meta(key).get("item") or {}
-    sess = uuid.uuid4().hex[:16]
-    q = urllib.parse.urlencode({"path": "/library/metadata/" + key, "mediaIndex": 0, "partIndex": 0, "protocol": "hls", "fastSeek": 1,
-                                "directPlay": 0, "directStream": 1, "subtitleSize": 100, "audioBoost": 100, "location": "lan",
-                                "maxVideoBitrate": 6000, "videoResolution": "1280x720", "videoQuality": 90, "offset": max(0, int(offset)),
-                                "session": sess, "X-Plex-Session-Identifier": sess, "X-Plex-Platform": "Chrome", "X-Plex-Product": "Blaupunkt",
-                                "X-Plex-Client-Identifier": "blaupunkt-screen", "X-Plex-Device": "Blaupunkt", "X-Plex-Token": PLEX_PLAY["tok"]})
-    return {"urls": [u + "/video/:/transcode/universal/start.m3u8?" + q for u in PLEX_PLAY["conns"]],
+
+    def url(u):
+        # en egen session per adress: Plex svarar 400 om samma session startas två gånger
+        sess = uuid.uuid4().hex[:16]
+        q = urllib.parse.urlencode({"path": "/library/metadata/" + key, "mediaIndex": 0, "partIndex": 0, "protocol": "hls", "fastSeek": 1,
+                                    "directPlay": 0, "directStream": 1, "subtitleSize": 100, "audioBoost": 100, "location": "lan",
+                                    "maxVideoBitrate": 6000, "videoResolution": "1280x720", "videoQuality": 90, "offset": max(0, int(offset)),
+                                    "session": sess, "X-Plex-Session-Identifier": sess, "X-Plex-Platform": "Chrome", "X-Plex-Product": "Blaupunkt",
+                                    "X-Plex-Client-Identifier": "blaupunkt-screen-" + sess[:6], "X-Plex-Device": "Blaupunkt", "X-Plex-Token": PLEX_PLAY["tok"]})
+        return u + "/video/:/transcode/universal/start.m3u8?" + q
+    # Utifrån först: skärmens webbläsare stoppar sidor på internet från att hämta från hemnätets
+    # adresser (192.168…), men adressen utifrån når Plex även hemifrån.
+    conns = sorted(PLEX_PLAY["conns"], key=lambda u: (0 if not re.search(r"//(192-168|10-|172-(1[6-9]|2\d|3[01])-)", u) and ":8443" not in u else 1 if ":8443" not in u else 2))
+    return {"urls": [url(u) for u in conns],
             "title": meta.get("title") or "", "show": meta.get("show") or "", "secs": (meta.get("minutes") or 0) * 60}
 
 
