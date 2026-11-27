@@ -81,6 +81,33 @@ class Gamepad:
             self.log("  Handkontroll: inlärning av")
         elif rest == "pair":
             threading.Thread(target=self.pair, daemon=True).start()
+        elif rest == "diag":
+            threading.Thread(target=self.diag, daemon=True).start()
+
+    def diag(self):
+        """Vad Pi:n ser: inmatningsenheterna och Bluetooth-läget för parade kontroller."""
+        try:
+            import evdev
+            for path in evdev.list_devices():
+                try:
+                    d = evdev.InputDevice(path)
+                    keys = d.capabilities().get(evdev.ecodes.EV_KEY, [])
+                    self.log("  Diagnos: %s \"%s\" (%d knappar, gamepad=%s)" % (path, d.name, len(keys), evdev.ecodes.BTN_SOUTH in keys or evdev.ecodes.BTN_GAMEPAD in keys))
+                    d.close()
+                except Exception as e:
+                    self.log("  Diagnos: %s går inte att öppna: %s" % (path, e))
+        except Exception as e:
+            self.log("  Diagnos: evdev: %s" % e)
+        try:
+            out = subprocess.run(["bash", "-c", "ls -l /dev/input/ | tail -n +2 | awk '{print $1, $3, $4, $NF}' | tr '\\n' ';'; echo; id; "
+                                  "for m in $(bluetoothctl devices Paired 2>/dev/null | awk '{print $2}'); do bluetoothctl info $m | grep -E 'Name|Connected|Paired|Trusted|UUID: Human' | tr -s ' ' | tr '\\n' ';'; echo; done; "
+                                  "lsmod | grep -E '^uhid|^hid' | awk '{print $1}' | tr '\\n' ' '"],
+                                 capture_output=True, text=True, timeout=20).stdout
+            for ln in out.splitlines():
+                if ln.strip():
+                    self.log("  Diagnos: " + ln.strip()[:380])
+        except Exception as e:
+            self.log("  Diagnos: %s" % e)
 
     # ---- inställningarna (från deck-redigeraren) ----
     def set_cfg(self, cfg):
