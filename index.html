@@ -3507,7 +3507,7 @@ function runCmd(c){
   else if (c.startsWith("svt:")) showSvtProgram(c.slice(4));
   // svtlive:{"id":"ch-svt1","name":"SVT1"}  en av SVT:s kanaler direkt (från Nest Hubs TV-del)
   else if (c.startsWith("svtlive:")){ let o = {}; try { o = JSON.parse(c.slice(8)); } catch(e){ o = { id: c.slice(8) }; }
-    if (o.id === "stop") hideHighlights(); else if (o.id) playItem({ src:"svt", id: String(o.id), title: o.now || "Direkt", program: o.name || "SVT", secs: 4 * 3600 }, "live"); }
+    if (o.id === "stop") hideHighlights(); else if (o.id) playItem({ src:"svt", id: String(o.id), title: o.now || "Direkt", program: o.name || "SVT", secs: 4 * 3600, room: o.room || "" }, "live"); }
   else if (c.startsWith("sp:")){ try { spDeck(JSON.parse(c.slice(3))); } catch(e){} }
   else if (c.startsWith("screen:")){ try { runScreen(JSON.parse(c.slice(7))); } catch(e){} }
 }
@@ -3978,9 +3978,12 @@ async function playItem(it, prog){
   clearTimeout(HL.t); HL.t = setTimeout(hideHighlights, Math.max(60, (+it.secs || 600) + 60) * 1000);   // om slutet aldrig märks
   // På skärmen i skåpet: ljudet till Sonos via AirPlay (hubben). Pi:ns ljud börjar på 40 %, och
   // volymratten styr det så länge klippet visas. AirPlay behöver ett par sekunder att koppla upp.
-  HL.audio = LITE && !!S.clipRoom;
-  if (HL.audio && !audioOn){
-    fetch("/api/send?c=" + encodeURIComponent("clip-audio:on:" + S.clipRoom)).catch(() => {});
+  // it.room (från Nest Hub) väljer Sonos-rummet för just det här; annars rummet i inställningarna
+  const aroom = it.room || S.clipRoom;
+  HL.audio = LITE && !!aroom;
+  if (HL.audio && (!audioOn || HL.audioRoom !== aroom)){
+    HL.audioRoom = aroom;
+    fetch("/api/send?c=" + encodeURIComponent("clip-audio:on:" + aroom)).catch(() => {});
     await new Promise(r => setTimeout(r, 4000));
     if (!HL.on || HL.item !== it) return;
   }
@@ -4064,7 +4067,7 @@ addEventListener("message", e => {
 });
 function hideHighlights(quick, keepAudio){
   clearTimeout(HL.t);
-  if (HL.audio && !keepAudio){ HL.audio = false; fetch("/api/send?c=clip-audio:off").catch(() => {}); }
+  if (HL.audio && !keepAudio){ HL.audio = false; HL.audioRoom = ""; fetch("/api/send?c=clip-audio:off").catch(() => {}); }
   const el = $("#hl");
   if (HL.hls){ try { HL.hls.destroy(); } catch(e){} HL.hls = null; }
   const done = () => { document.documentElement.classList.remove("clip"); el.querySelectorAll("video").forEach(v => { v.pause(); v.removeAttribute("src"); v.load(); }); el.innerHTML = ""; el.classList.remove("on"); };

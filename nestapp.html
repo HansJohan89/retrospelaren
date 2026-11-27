@@ -458,12 +458,19 @@ function rTv(){
   $("#v-tv").innerHTML = `<div class="segs"><button class="press${TV.tab === "svt" ? " on" : ""}" data-tap="tvTab('svt')">${ic("tv")} SVT</button>${secs.map(x => `<button class="press${TV.tab === x.key ? " on" : ""}" data-tap="tvTab('${esc(x.key)}')">${ic("film")} ${esc(x.title)}</button>`).join("")}</div>`
     + body;
 }
+let TVROOM = "";
 function tvChan(i){ const c = TV.ch[i]; if (!c) return;
-  const arg = JSON.stringify({ id: c.id, name: c.name, now: c.now }).replace(/"/g, "&quot;");
+  // Bilden på Blaupunkt-skärmen, ljudet till Sonos (via AirPlay från skärmen, som klippen)
+  const r = TVROOM && rooms().includes(TVROOM) ? TVROOM : room();
   openSheet(`<h2>${esc(c.name)}</h2>${c.now ? `<div class="mut" style="font-size:21px;margin:-6px 0 16px">Just nu: ${esc(c.now)}</div>` : ""}
-    <div class="row"><button class="btn pri press" data-tap="send('svtlive:'+JSON.stringify(${arg}));closeSheet();toast('${esc(c.name)} på Blaupunkt-skärmen')">${ic("tv")} Visa på Blaupunkt-skärmen</button>
-      <button class="btn press" data-tap="watch(${arg})">${ic("film")} Projektorn</button></div>
+    <div class="h">Ljudet i</div>
+    <div class="moods" style="margin-bottom:18px">${rooms().map(x => `<button class="press" style="${x === r ? "background:var(--acc);color:var(--ink)" : ""}" data-tap="TVROOM=${JSON.stringify(x).replace(/"/g, "&quot;")};tvChan(${i})">${ic("speaker")} ${esc(x)}</button>`).join("")}</div>
+    <div class="row"><button class="btn pri press" data-tap="tvShow(${i})">${ic("tv")} Visa på Blaupunkt-skärmen</button>
+      <button class="btn press" data-tap="watch(${JSON.stringify({ id: c.id, name: c.name, now: c.now }).replace(/"/g, "&quot;")})">${ic("film")} Projektorn</button></div>
     <div class="row" style="margin-top:12px"><button class="btn press" data-tap="send('svtlive:'+JSON.stringify({id:'stop'}));closeSheet();toast('Stängt')">Stäng tv:n på skärmen</button></div>`); }
+function tvShow(i){ const c = TV.ch[i]; if (!c) return; const r = TVROOM && rooms().includes(TVROOM) ? TVROOM : room();
+  if (!bpOpen){ bpOpen = true; store.set("bp", true); send("open"); }
+  send("svtlive:" + JSON.stringify({ id: c.id, name: c.name, now: c.now, room: r })); closeSheet(); toast(c.name + " på skärmen, ljudet i " + r); }
 function tvItem(i){ const m = ((TV.items[TV.tab + TV.sort] || {}).items || [])[i]; if (!m) return;
   const meta = [m.year, m.type === "show" ? (m.seasons ? m.seasons + (m.seasons === 1 ? " säsong" : " säsonger") : "") + (m.eps ? " · " + m.eps + " avsnitt" : "") : m.minutes ? m.minutes + " min" : "", m.seen ? "sedd" : ""].filter(Boolean).join(" · ");
   const arg = JSON.stringify({ src: "plex", key: m.key, type: m.type, title: m.title }).replace(/"/g, "&quot;");
