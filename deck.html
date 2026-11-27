@@ -3149,7 +3149,7 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) poll
 // Appen bläddrar mellan sidorna på egen hand (den riktiga enheten byter inte sida när du gör det
 // i telefonen); allt annat, som lägen på knappar med flera lägen, delas.
 const NEST = location.pathname === "/nestapp";          // appen på Google Nest Hub: styra går, ändra konfigurationen inte
-const APP = NEST || location.pathname === "/app" || new URLSearchParams(location.search).has("app");
+const APP = NEST || location.pathname === "/app" || location.pathname === "/app-pad" || new URLSearchParams(location.search).has("app");
 const appEl = { keys:[], btns:[], bcap:[], encs:[], ecap:[] };
 function buildApp(){
   document.body.classList.add("appMode");
@@ -3178,7 +3178,7 @@ function buildApp(){
   }
   root.append(hd, tabs, crumb, grid, btns, encs, h("div", { id:"apToast" }));
   document.body.append(root);
-  if (window.remoteBuild) window.remoteBuild(root);      // flikarna Hem, Musik, Ljus … runt knapparna
+  if (window.remoteBuild && location.pathname !== "/app-pad") window.remoteBuild(root);      // (appen är numera app.html; /app-pad visar bara knapparna)
   // tryck på knappar: ned och upp (håll inne fungerar som på enheten)
   const down = (kind, i) => ev => { ev.preventDefault(); try { navigator.vibrate && navigator.vibrate(12); } catch(e){} appHeld = { kind, i }; useInput(kind, i, true); appPressFx(kind, i, true); };
   appEl.keys.forEach((k, i) => k.addEventListener("pointerdown", down("key", i)));

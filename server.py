@@ -65,6 +65,7 @@ import urllib.parse
 import urllib.request
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import hacast                      # Nest Hub med touch: en låtsas-Home Assistant för Cast-mottagaren
+import appapi                      # appen: Spotify, radio, skärmbild, rum, ringsignal
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 UA = "Retrospelaren/1.0"
@@ -237,6 +238,26 @@ def save_deck(data):
                 faces = {str(k): v for k, v in faces.items() if _face_ok(v)}
                 DECK_CACHE["faces"] = faces
                 _write_json(DECK_FACES_FILE, {"rev": DECK_CACHE["rev"], "faces": faces})
+        except OSError as e:
+            return {"ok": False, "error": str(e)}
+        return {"ok": True, "rev": DECK_CACHE["rev"]}
+
+
+def patch_deck(data):
+    """Appen ändrar bara vissa delar (larm, tider, scenernas "tryck igen", lampregler) utan att
+    röra resten eller knappbilderna."""
+    _deck_load()
+    with DECK_LOCK:
+        deck = dict(DECK_CACHE["deck"] or {})
+        for k in ("alarms", "schedules", "lampRules", "appPrefs"):
+            if isinstance(data.get(k), list) or (k == "appPrefs" and isinstance(data.get(k), dict)):
+                deck[k] = data[k]
+        DECK_CACHE["rev"] += 1
+        DECK_CACHE["deck"] = deck
+        DECK_LIVE["seq"] += 1
+        DECK_COND.notify_all()
+        try:
+            _write_json(DECK_FILE, {"rev": DECK_CACHE["rev"], "deck": deck})
         except OSError as e:
             return {"ok": False, "error": str(e)}
         return {"ok": True, "rev": DECK_CACHE["rev"]}
@@ -642,6 +663,8 @@ def set_tradfri_list(patch):
         # insomningstimern och snoozade larm (appen och Nest Hub visar dem)
         if isinstance(patch.get("sleep"), dict):
             TRADFRI_LIST["sleep"] = patch["sleep"]
+        if isinstance(patch.get("timers"), list) and len(patch["timers"]) <= 50:
+            TRADFRI_LIST["timers"] = patch["timers"]
         if isinstance(patch.get("snoozed"), dict) and len(patch["snoozed"]) <= 50:
             TRADFRI_LIST["snoozed"] = patch["snoozed"]
         if isinstance(patch.get("upcoming"), list) and len(patch["upcoming"]) <= 200:
@@ -1091,6 +1114,9 @@ def read_icy_title(url, timeout=8):
         return info
 
 
+SPOTIFY = appapi.Spotify(DATA_DIR, lambda: str((load_state().get("settings") or {}).get("clientId") or "").strip())
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *a, **kw):
         super().__init__(*a, directory=ROOT, **kw)
@@ -1147,7 +1173,7 @@ class Handler(SimpleHTTPRequestHandler):
     def do_HEAD(self):
         path = urllib.parse.urlparse(self.path).path
         name = path[len("/assets/"):] if path.startswith("/assets/") else ""
-        ok = path in ("/", "/callback", "/index.html", "/deck", "/deck.html", "/app", "/nest", "/api/ping") or (
+        ok = path in ("/", "/callback", "/index.html", "/deck", "/deck.html", "/app", "/app-pad", "/nest", "/nestapp", "/api/ping") or (
             name and "/" not in name and not name.startswith(".") and os.path.isfile(os.path.join(ROOT, "assets", name)))
         self.send_response(200 if ok else 404)
         self.end_headers()
@@ -1166,8 +1192,51 @@ class Handler(SimpleHTTPRequestHandler):
                 return hacast.card_js(self)
             if path == "/nestapp":
                 # appen på Nest Hub (inuti Home Assistants Cast-mottagare): styra går, ändra konfigurationen inte
-                self.path = "/deck.html"
+                self.path = "/app.html"
                 return super().do_GET()
+            if path == "/api/sp/status":
+                return self._json(SPOTIFY.status())
+            if path == "/api/sp/api":
+                try:
+                    sp_path = (q.get("path") or [""])[0]
+                    query = {k: v[0] for k, v in q.items() if k != "path"}
+                    return self._json(SPOTIFY.read(sp_path, query))
+                except PermissionError as e:
+                    return self._json({"error": str(e), "login": True}, 401)
+                except urllib.error.HTTPError as e:
+                    return self._json({"error": "Spotify svarade %s" % e.code}, 502)
+                except Exception as e:
+                    return self._json({"error": str(e)}, 400)
+            if path == "/api/radio":
+                try:
+                    return self._json(appapi.radio((q.get("q") or [""])[0].strip() or None, (q.get("top") or ["SE"])[0]))
+                except Exception as e:
+                    return self._json({"error": str(e)}, 502)
+            if path == "/api/screenshot":
+                jpg, at = appapi.shot_get()
+                if q.get("meta"):
+                    return self._json({"at": at})
+                if not jpg:
+                    return self._json({"error": "ingen bild än"}, 404)
+                self.send_response(200)
+                self.send_header("Content-Type", "image/png" if jpg.startswith(b"\x89PNG") else "image/jpeg")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("X-Shot-At", str(at))
+                self.send_header("Content-Length", str(len(jpg)))
+                self.end_headers()
+                self.wfile.write(jpg)
+                return
+            if path == "/api/sonos-rooms":
+                return self._json(appapi.rooms_get())
+            if path == "/api/chime.wav":
+                b = appapi.chime()
+                self.send_response(200)
+                self.send_header("Content-Type", "audio/wav")
+                self.send_header("Cache-Control", "public, max-age=86400")
+                self.send_header("Content-Length", str(len(b)))
+                self.end_headers()
+                self.wfile.write(b)
+                return
             if path in ("/nest", "/nest.html"):
                 # Nest Hub-skärmen (castas dit av hubben): bara visning, ingen inloggning
                 self.path = "/nest.html"
@@ -1183,7 +1252,7 @@ class Handler(SimpleHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(body)
                 return
-            if path in ("/deck", "/deck.html", "/app"):
+            if path in ("/deck", "/deck.html", "/app", "/app-pad"):
                 if not self.authed():
                     body = LOGIN_PAGE.encode("utf-8")
                     self.send_response(200)
@@ -1192,7 +1261,8 @@ class Handler(SimpleHTTPRequestHandler):
                     self.end_headers()
                     self.wfile.write(body)
                     return
-                self.path = "/deck.html"
+                # /app = appen (app.html); /app-pad = Stream Controller-emulatorn som appen visar under Skärmen
+                self.path = "/app.html" if path == "/app" else "/deck.html"
                 return super().do_GET()
             if path == "/api/auth":
                 return self._json({"required": bool(ADMIN_PASSWORD), "ok": self.authed()})
@@ -1284,6 +1354,40 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/auth/token":
             n = int(self.headers.get("Content-Length") or 0)
             return hacast.token(self, self.rfile.read(n) if 0 < n < 8192 else b"")
+        if path == "/api/screenshot":
+            n = int(self.headers.get("Content-Length") or 0)
+            if not 0 < n < 3 * 1024 * 1024:
+                return self._json({"error": "fel storlek"}, 400)
+            try:
+                appapi.shot_put(self.rfile.read(n))
+            except ValueError as e:
+                return self._json({"error": str(e)}, 400)
+            return self._json({"ok": True})
+        if path in ("/api/sp/connect", "/api/sp/logout", "/api/sp/like", "/api/sonos-rooms", "/api/deck-patch"):
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+                data = json.loads(self.rfile.read(n).decode("utf-8")) if 0 < n < 256 * 1024 else {}
+            except ValueError:
+                data = {}
+            if path == "/api/sonos-rooms":
+                appapi.rooms_put(data)
+                return self._json({"ok": True})
+            if not self.authed():
+                return self._json({"error": "inloggning krävs"}, 401)
+            if path == "/api/deck-patch":
+                return self._json(patch_deck(data))
+            try:
+                if path == "/api/sp/connect":
+                    return self._json(SPOTIFY.connect(str(data.get("code") or ""), str(data.get("verifier") or ""),
+                                                      str(data.get("redirect") or ""), str(data.get("clientId") or "") or None))
+                if path == "/api/sp/logout":
+                    SPOTIFY.logout()
+                    return self._json({"ok": True})
+                return self._json(SPOTIFY.like(str(data.get("id") or ""), bool(data.get("on"))))
+            except urllib.error.HTTPError as e:
+                return self._json({"error": "Spotify svarade %s: %s" % (e.code, e.read()[:200].decode("utf-8", "replace"))}, 502)
+            except Exception as e:
+                return self._json({"error": str(e)}, 400)
         if path not in ("/api/clipstate", "/api/login", "/api/state", "/api/sonos-now", "/api/tradfri-list", "/api/deck", "/api/deck/live", "/api/sonos-art", "/api/plex"):
             return self._json({"error": "hittades inte"}, 404)
         limit = DECK_MAX_BYTES if path == "/api/deck" else 2500 * 1024 if path == "/api/sonos-art" else 512 * 1024

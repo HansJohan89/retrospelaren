@@ -1,0 +1,977 @@
+<!doctype html>
+<html lang="sv" translate="no">
+<head>
+<meta charset="utf-8">
+<meta name="google" content="notranslate">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e0f11">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/app.webmanifest">
+<link rel="icon" href="/assets/app-icon-192.png">
+<title>Blaupunkt</title>
+<style>
+:root{--bg:#0e0f11;--card:#17191d;--card2:#1d2025;--line:#262a30;--line2:#30353d;--tx:#eceae4;--mut:#959aa3;--dim:#5d626b;--acc:#e8a33d;--accInk:#1a1204;--ok:#30d158;--bad:#ff5a4f;--tab:64px;--player:0px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 "Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+svg.ic{width:20px;height:20px;flex:none}
+.hidden{display:none!important}
+/* rubrik */
+header.top{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:12px;padding:calc(env(safe-area-inset-top) + 10px) 18px 10px;background:rgba(14,15,17,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.brand{font-weight:800;letter-spacing:.34em;font-size:13px;color:var(--acc)}
+.ttl{font-weight:700;font-size:15px;color:var(--mut);margin-left:4px}
+.hubdot{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:12px;color:var(--mut)}
+.hubdot i{width:9px;height:9px;border-radius:50%;background:var(--dim)}
+.hubdot.ok i{background:var(--ok);box-shadow:0 0 8px rgba(48,209,88,.6)}
+main{max-width:620px;margin:0 auto;padding:14px 14px calc(var(--tab) + var(--player) + env(safe-area-inset-bottom) + 20px)}
+.panel{display:none}.panel.on{display:block}
+/* flikar */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;padding:6px 4px calc(env(safe-area-inset-bottom) + 6px);background:#15171a;border-top:1px solid var(--line)}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:0;color:var(--mut);font-size:11px;font-weight:650;padding:7px 0;border-radius:12px;position:relative}
+.tab svg{width:24px;height:24px}
+.tab.on{color:var(--acc);background:rgba(232,163,61,.1)}
+.tab.alert::after{content:"";position:absolute;top:5px;right:calc(50% - 17px);width:9px;height:9px;border-radius:50%;background:var(--bad);box-shadow:0 0 8px var(--bad);animation:pulse 1s infinite alternate}
+@keyframes pulse{to{opacity:.3}}
+/* kort och kontroller */
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px;margin-bottom:14px}
+.lbl{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--acc);font-weight:750;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.lbl .more{margin-left:auto;letter-spacing:normal;text-transform:none;color:var(--mut);font-weight:600;font-size:13px;background:none;border:0;padding:0}
+.sub{font-size:12.5px;color:var(--mut);font-weight:650;margin:12px 0 7px}
+.hint{font-size:12.5px;color:var(--mut);margin:6px 0;line-height:1.45}
+.mut{color:var(--mut)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.row.nw{flex-wrap:nowrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 15px;border-radius:12px;border:1px solid var(--line2);background:#22262c;color:var(--tx);font-weight:650;font-size:14px}
+.btn:active,.chip:active,.tile:active{transform:scale(.97)}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:var(--accInk)}
+.btn.bad{background:transparent;border-color:var(--bad);color:var(--bad)}
+.btn.big{min-height:54px;flex:1;font-size:15px}
+.btn.ghost{background:transparent}
+.btn.sq{width:44px;padding:0}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chips.scroll{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.chips.scroll::-webkit-scrollbar{display:none}
+.chip{flex:none;height:38px;padding:0 15px;border-radius:19px;border:1px solid var(--line2);background:var(--card2);color:var(--tx);font-weight:650;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+.chip.on{background:var(--acc);border-color:var(--acc);color:var(--accInk)}
+.sw{flex:none;width:52px;height:30px;border-radius:15px;border:0;background:#3a3f47;position:relative;transition:background .15s;padding:0}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#e8e9ec;transition:left .15s}
+.sw.on{background:var(--ok)}.sw.on::after{left:25px}
+.range{width:100%;height:32px;accent-color:var(--acc);margin:0}
+.slab{display:flex;justify-content:space-between;font-size:12.5px;color:var(--mut);margin-top:10px}
+.slab b{color:var(--tx);font-weight:650}
+.in{width:100%;min-height:46px;border-radius:12px;border:1px solid var(--line2);background:#0f1113;color:var(--tx);padding:0 13px;font-size:15px}
+select.in{appearance:auto}
+textarea.in{padding:10px 13px}
+.setrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-top:1px solid #22262c}
+.setrow:first-child{border-top:0}
+.setrow .t{font-weight:600}
+.setrow .s{font-size:12.5px;color:var(--mut)}
+.toast{position:fixed;left:50%;bottom:calc(var(--tab) + var(--player) + env(safe-area-inset-bottom) + 18px);transform:translateX(-50%) translateY(20px);opacity:0;z-index:90;background:#2a2e35;border:1px solid var(--line2);padding:11px 18px;border-radius:14px;font-weight:600;font-size:14px;transition:.2s;pointer-events:none;max-width:90vw;text-align:center}
+.toast.on{opacity:1;transform:translateX(-50%)}
+.empty{color:var(--mut);text-align:center;padding:26px 10px;font-size:14px}
+.spin{width:22px;height:22px;border:3px solid #333;border-top-color:var(--acc);border-radius:50%;animation:spin .8s linear infinite;margin:20px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* bladet underifrån */
+.sheetBg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:70;opacity:0;pointer-events:none;transition:opacity .2s}
+.sheetBg.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:71;max-height:86vh;overflow:auto;background:#16181c;border-top:1px solid var(--line2);border-radius:22px 22px 0 0;padding:10px 18px calc(env(safe-area-inset-bottom) + 20px);transform:translateY(105%);transition:transform .25s cubic-bezier(.2,.8,.2,1)}
+.sheet.on{transform:none}
+.sheet .grab{width:42px;height:5px;border-radius:3px;background:#3a3f47;margin:2px auto 12px}
+.sheet h3{margin:4px 0 12px;font-size:18px}
+@media (min-width:700px){.sheet{left:50%;right:auto;width:560px;margin-left:-280px}}
+/* ---- Skärmen ---- */
+.shot{position:relative;width:100%;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#000;border:1px solid var(--line2)}
+.shot img{width:100%;height:100%;object-fit:contain;display:block}
+.shot .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--mut);font-size:13px;padding:20px}
+.shotmeta{display:flex;justify-content:space-between;color:var(--mut);font-size:12.5px;margin-top:8px}
+.big2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.tile{display:flex;align-items:center;gap:10px;min-height:58px;padding:0 14px;border-radius:14px;border:1px solid var(--line2);background:var(--card2);color:var(--tx);font-weight:650;font-size:14px;text-align:left}
+.tile svg{width:22px;height:22px;color:var(--acc);flex:none}
+.tile.on{background:rgba(232,163,61,.16);border-color:var(--acc)}
+.tile small{display:block;font-weight:500;color:var(--mut);font-size:12px}
+.padframe{width:100%;border:0;border-radius:14px;background:#0e0f11;height:520px;display:block}
+/* ---- Musik ---- */
+.mlay{display:flex;gap:12px;align-items:flex-start}
+.mrail{position:sticky;top:64px;flex:none;width:58px;display:flex;flex-direction:column;gap:8px;max-height:calc(100vh - 64px - var(--tab) - var(--player) - 30px);overflow-y:auto;scrollbar-width:none;padding-bottom:8px}
+.mrail::-webkit-scrollbar{display:none}
+.ri{width:56px;height:56px;border-radius:14px;border:2px solid transparent;background:var(--card2);color:var(--tx);display:flex;align-items:center;justify-content:center;padding:0;overflow:hidden;flex:none;position:relative}
+.ri svg{width:26px;height:26px}
+.ri img{width:100%;height:100%;object-fit:cover}
+.ri.sel{border-color:var(--acc)}
+.rsep{height:1px;background:var(--line2);margin:2px 8px}
+.mmain{flex:1;min-width:0}
+.mhead{display:flex;gap:14px;align-items:flex-end;margin-bottom:14px}
+.mhead img,.mhead .nocov{width:120px;height:120px;border-radius:12px;object-fit:cover;flex:none;background:var(--card2);display:flex;align-items:center;justify-content:center;color:var(--dim)}
+.mhead h2{margin:0 0 4px;font-size:21px;line-height:1.15}
+.tl{display:flex;flex-direction:column}
+.tr{display:flex;align-items:center;gap:11px;padding:8px 6px;border-radius:10px;background:none;border:0;color:var(--tx);text-align:left;width:100%}
+.tr:active{background:var(--card2)}
+.tr img,.tr .nocov{width:44px;height:44px;border-radius:7px;object-fit:cover;flex:none;background:var(--card2);display:flex;align-items:center;justify-content:center;color:var(--dim)}
+.tr .tt{flex:1;min-width:0}
+.tr .t1{font-weight:620;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr .t2{font-size:12.5px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr .dur{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+.tr.now .t1{color:var(--acc)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:12px}
+.gi{background:none;border:0;padding:0;text-align:left;color:var(--tx)}
+.gi img,.gi .nocov{width:100%;aspect-ratio:1;border-radius:12px;object-fit:cover;background:var(--card2);display:flex;align-items:center;justify-content:center;color:var(--dim)}
+.gi .t1{font-weight:620;font-size:13.5px;margin-top:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.gi .t2{font-size:12px;color:var(--mut)}
+.gi.round img{border-radius:50%}
+.sect{font-size:16px;font-weight:750;margin:18px 0 10px}
+.sect:first-child{margin-top:0}
+/* spelaren */
+.player{position:fixed;left:0;right:0;bottom:calc(var(--tab) + env(safe-area-inset-bottom));z-index:45;background:#17191d;border-top:1px solid var(--line2);padding:10px 14px 12px;display:none}
+body.tab-musik .player{display:block}
+.player .in2{max-width:620px;margin:0 auto}
+.prow{display:flex;align-items:center;gap:12px}
+.pcov{width:52px;height:52px;border-radius:9px;object-fit:cover;flex:none;background:var(--card2);display:flex;align-items:center;justify-content:center;color:var(--dim);overflow:hidden}
+.pcov img{width:100%;height:100%;object-fit:cover}
+.ptxt{flex:1;min-width:0}
+.pt1{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pt2{font-size:12.5px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.picon{background:none;border:0;color:var(--tx);padding:6px;display:flex}
+.picon svg{width:24px;height:24px}
+.picon.on{color:var(--acc)}
+.scrub{margin-top:8px}
+.sbar{position:relative;height:18px;cursor:pointer;touch-action:none}
+.sbar::before{content:"";position:absolute;left:0;right:0;top:7px;height:4px;border-radius:2px;background:#33373e}
+.sbar i{position:absolute;left:0;top:7px;height:4px;border-radius:2px;background:var(--acc)}
+.sbar b{position:absolute;top:3px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--tx)}
+.stime{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mut);font-variant-numeric:tabular-nums}
+.ctl{display:flex;align-items:center;justify-content:space-between;margin-top:4px}
+.ib{background:none;border:0;color:var(--tx);width:46px;height:46px;display:flex;align-items:center;justify-content:center;border-radius:50%}
+.ib svg{width:26px;height:26px}
+.ib.on{color:var(--acc)}
+.ib.dim{color:var(--mut)}
+.playbtn{width:60px;height:60px;border-radius:50%;border:0;background:var(--acc);color:var(--accInk);display:flex;align-items:center;justify-content:center}
+.playbtn svg{width:30px;height:30px}
+.vol{display:flex;align-items:center;gap:10px;color:var(--mut)}
+.roomBtn{display:flex;align-items:center;gap:6px;background:none;border:0;color:var(--acc);font-weight:700;font-size:13px;padding:4px 0}
+.roomBtn svg{width:17px;height:17px}
+.player.mini .scrub,.player.mini .ctl,.player.mini .vol{display:none}
+.player:not(.mini) #npPP2{display:none}
+.roomBtn span{white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis}
+/* ---- Ljus ---- */
+.lamp{padding:10px 0;border-top:1px solid #22262c}
+.lamp:first-child{border-top:0}
+.lh{display:flex;align-items:center;gap:10px}
+.ldot{width:13px;height:13px;border-radius:50%;flex:none}
+.lname{flex:1;font-weight:620}
+.dots{display:flex;flex-wrap:wrap;gap:9px;margin-top:10px}
+.dot{width:36px;height:36px;border-radius:50%;border:2px solid #0e0f11;box-shadow:0 0 0 1px #3a3f47;padding:0}
+.ghead{display:flex;align-items:center;gap:8px}
+.gname{flex:1;display:flex;align-items:center;gap:9px;background:none;border:0;color:var(--tx);font-weight:700;font-size:16px;text-align:left;padding:4px 0}
+.gname svg{color:var(--acc)}
+/* ---- Larm ---- */
+.seg3{display:flex;background:var(--card2);border:1px solid var(--line2);border-radius:14px;padding:4px;gap:4px;margin-bottom:14px}
+.seg3 button{flex:1;min-height:42px;border:0;border-radius:10px;background:none;color:var(--mut);font-weight:700;display:flex;align-items:center;justify-content:center;gap:7px}
+.seg3 button.on{background:var(--acc);color:var(--accInk)}
+.alarm{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer}
+.alarm.off{opacity:.5}
+.atime{font-size:42px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.05}
+.ring{background:linear-gradient(135deg,#3a1d0d,#1d1308);border:1px solid var(--acc);border-radius:18px;padding:16px;margin-bottom:14px;animation:glow 1.6s infinite alternate}
+@keyframes glow{to{box-shadow:0 0 26px rgba(232,163,61,.35)}}
+.ringT{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800}
+.ringT svg{width:28px;height:28px;color:var(--acc)}
+.days{display:flex;gap:6px}
+.day{flex:1;height:46px;border-radius:12px;border:1px solid var(--line2);background:var(--card2);color:var(--mut);font-weight:750}
+.day.on{background:var(--acc);border-color:var(--acc);color:var(--accInk)}
+.timeIn{font-size:40px;height:72px;font-weight:800;text-align:center;font-variant-numeric:tabular-nums;color-scheme:dark}
+.countdown{font-size:34px;font-weight:800;font-variant-numeric:tabular-nums}
+/* ---- Inställningar ---- */
+.menu{background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;margin-bottom:16px}
+.mrow{display:flex;align-items:center;gap:13px;padding:12px 14px;border-top:1px solid #22262c;cursor:pointer}
+.mrow:first-child{border-top:0}
+.mrow:active{background:var(--card2)}
+.mico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none;background:#2a2219;color:var(--acc)}
+.mt{font-weight:650}
+.ms{font-size:12.5px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.marrow{margin-left:auto;color:var(--dim);font-size:22px}
+.secT{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--mut);font-weight:750;margin:6px 4px 8px}
+.pagehead{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.back{width:42px;height:42px;border-radius:12px;border:1px solid var(--line2);background:var(--card2);color:var(--tx);font-size:22px;line-height:1}
+.pagetitle{font-size:18px;font-weight:750}
+.pframe{width:100%;border:0;display:block;min-height:200px;background:transparent}
+/* Nest Hub: klockvyn när ingen rört skärmen */
+#amb,#ambCover{display:none}
+body.idle #amb{display:block;position:fixed;inset:0;width:100vw;height:100vh;border:0;z-index:95;background:#0b0b0a}
+body.idle #ambCover{display:block;position:fixed;inset:0;z-index:96}
+/* liggande skärm (surfplatta, Nest Hub): flikarna till vänster */
+@media (min-width:860px) and (orientation:landscape){
+  body{padding-left:92px}
+  nav.tabs{top:0;bottom:0;right:auto;width:92px;flex-direction:column;justify-content:flex-start;gap:6px;padding:calc(env(safe-area-inset-top) + 62px) 8px 12px;border-top:0;border-right:1px solid var(--line)}
+  .tab{flex:none;padding:11px 0;font-size:12px}
+  header.top{padding-left:18px}
+  main{max-width:1100px;padding-bottom:calc(var(--player) + 24px)}
+  .player{left:92px;bottom:0}
+  .toast{bottom:calc(var(--player) + 18px)}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+  .player:not(.mini) .in2{max-width:none;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1.3fr) minmax(0,1fr);grid-template-rows:auto auto;column-gap:22px;align-items:center}
+  .player:not(.mini) .prow{grid-column:1;grid-row:1 / span 2}
+  .player:not(.mini) .ctl{grid-column:2;grid-row:1;margin:0;justify-content:center;gap:14px}
+  .player:not(.mini) .scrub{grid-column:2;grid-row:2;margin:0}
+  .player:not(.mini) .vol{grid-column:3;grid-row:1 / span 2}
+  .mrail{max-height:calc(100vh - 64px - var(--player) - 20px)}
+}
+</style>
+</head>
+<body class="tab-skarm">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-tv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 20h8M12 17v3"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5.5l11-2V16"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></symbol>
+    <symbol id="i-bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1.1 2V16h5v-.2c.1-.8.5-1.5 1.1-2A6 6 0 0 0 12 3z"/></symbol>
+    <symbol id="i-alarm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="7.5"/><path d="M12 9v4l2.5 2M5 3.5 2.5 6M19 3.5 21.5 6"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4.5" width="4" height="15" rx="1"/><rect x="14" y="4.5" width="4" height="15" rx="1"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24" fill="currentColor"><path d="M5 5v14l10-7zM17 5h2.5v14H17z"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24" fill="currentColor"><path d="M19 5v14L9 12zM4.5 5H7v14H4.5z"/></symbol>
+    <symbol id="i-shuffle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 20s-7.5-4.5-9-9.5C2 6.5 6 3.5 9.2 5.4 10.6 6.2 12 8 12 8s1.4-1.8 2.8-2.6C18 3.5 22 6.5 21 10.5 19.5 15.5 12 20 12 20z"/></symbol>
+    <symbol id="i-heartf" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20s-7.5-4.5-9-9.5C2 6.5 6 3.5 9.2 5.4 10.6 6.2 12 8 12 8s1.4-1.8 2.8-2.6C18 3.5 22 6.5 21 10.5 19.5 15.5 12 20 12 20z"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+    <symbol id="i-vol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11 12 4l8.5 7M5.5 9.5V20h13V9.5"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
+    <symbol id="i-radio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="12" rx="2"/><circle cx="15.5" cy="14" r="2.5"/><path d="M7 12.5h3M7 15.5h3M5 8l11-5"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="m12 3 2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.8l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h9M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></symbol>
+    <symbol id="i-speaker" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="2.5" width="13" height="19" rx="2.5"/><circle cx="12" cy="14.5" r="3.5"/><path d="M12 6.5h.01"/></symbol>
+    <symbol id="i-power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3v8M6.3 6.8a8 8 0 1 0 11.4 0"/></symbol>
+    <symbol id="i-sparkles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></symbol>
+    <symbol id="i-news" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="4.5" width="15" height="15" rx="2"/><path d="M18 8.5h3v9a2 2 0 0 1-2 2H6M6.5 8.5h8M6.5 12h8M6.5 15.5h5"/></symbol>
+    <symbol id="i-ball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="m12 7.5 3.4 2.5-1.3 4H9.9l-1.3-4zM12 3.5v4M15.4 10l4.3-1.4M14.1 14l2.6 3.6M9.9 14l-2.6 3.6M8.6 10 4.3 8.6"/></symbol>
+    <symbol id="i-film" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></symbol>
+    <symbol id="i-palette" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.8 1.8-1.7 0-1.2-1-1.6-1-2.7 0-1 .8-1.6 1.8-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10.5" cy="7.5" r="1.2"/><circle cx="15" cy="7.5" r="1.2"/></symbol>
+    <symbol id="i-wave" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M2 12h3l2-6 3 12 3-9 2 5 2-2h5"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></symbol>
+    <symbol id="i-bus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="4.5" y="3.5" width="15" height="14" rx="2.5"/><path d="M4.5 11.5h15M8 20.5v-3M16 20.5v-3"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="9.5" r="1.8"/><path d="m21 16-5-5-9 9"/></symbol>
+    <symbol id="i-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 6V4.5h16V6M12 4.5v15M9 19.5h6"/></symbol>
+    <symbol id="i-hub" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 12h.01M11 12h.01M15 12h3"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-cast" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6M3 12a9 9 0 0 1 9 9M3 16a5 5 0 0 1 5 5M3 20h.01"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 1.5M9.5 2.5h5"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></symbol>
+    <symbol id="i-queue" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 6h12M4 11h12M4 16h7"/><path d="M15.5 14.5v6l5-3z" fill="currentColor"/></symbol>
+  </defs>
+</svg>
+
+<header class="top"><span class="brand">BLAUPUNKT</span><span class="ttl" id="ttl"></span><span class="hubdot" id="hub"><i></i><span>Hubben</span></span></header>
+
+<main>
+  <section class="panel on" id="p-skarm"></section>
+  <section class="panel" id="p-musik">
+    <div class="mlay"><div class="mrail" id="mRail"></div><div class="mmain" id="mMain"></div></div>
+  </section>
+  <section class="panel" id="p-ljus"></section>
+  <section class="panel" id="p-larm"></section>
+  <section class="panel" id="p-inst"></section>
+</main>
+
+<div class="player mini" id="player"><div class="in2">
+  <div class="prow">
+    <div class="pcov" id="npCov"><svg class="ic"><use href="#i-music"/></svg></div>
+    <div class="ptxt" onclick="togglePlayerSize()"><div class="pt1" id="npT">Inget spelas</div><div class="pt2" id="npA">Välj något att spela</div></div>
+    <button class="picon" id="npLike" onclick="likeNow()" aria-label="Gilla"><svg><use href="#i-heart"/></svg></button>
+    <button class="picon" id="npMoon" onclick="openSleep()" aria-label="Sov-timer"><svg><use href="#i-moon"/></svg></button>
+    <button class="picon" id="npPP2" onclick="playPause()" aria-label="Spela/paus"><svg><use href="#i-play"/></svg></button>
+  </div>
+  <div class="scrub"><div class="sbar" id="npBar"><i id="npFill"></i><b id="npDot"></b></div><div class="stime"><span id="npPos">0:00</span><span id="npLeft">0:00</span></div></div>
+  <div class="ctl">
+    <button class="ib dim" id="npShuf" onclick="sonos('shuffle-set', !NOW().shuffle)" aria-label="Blanda"><svg><use href="#i-shuffle"/></svg></button>
+    <button class="ib" onclick="sonos('prev')" aria-label="Föregående"><svg><use href="#i-prev"/></svg></button>
+    <button class="playbtn" id="npPP" onclick="playPause()" aria-label="Spela/paus"><svg><use href="#i-play"/></svg></button>
+    <button class="ib" onclick="sonos('next')" aria-label="Nästa"><svg><use href="#i-next"/></svg></button>
+    <button class="ib dim" id="npRep" onclick="cycleRepeat()" aria-label="Upprepa"><svg><use href="#i-repeat"/></svg></button>
+  </div>
+  <div class="vol"><button class="roomBtn" onclick="openRooms()"><svg><use href="#i-speaker"/></svg><span id="npRoom">Vardagsrum</span></button>
+    <svg class="ic"><use href="#i-vol"/></svg><input type="range" class="range" id="npVol" min="0" max="100" value="20"><button class="picon" onclick="openQueue()" aria-label="Kö"><svg><use href="#i-queue"/></svg></button></div>
+</div></div>
+
+<nav class="tabs" id="tabs"></nav>
+<div class="sheetBg" id="sheetBg" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet"><div class="grab"></div><div id="sheetBody"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+// ======================================================================
+// Blaupunkt-appen. Upplägget kommer från Tavlan-appen: Skärmen, Musik, Ljus, Larm, Inställningar.
+// Allt hänger ihop med Blaupunkt-skärmen, hubben på Pi:n (lampor, Sonos, larm) och Nest Hub.
+//   /app        i mobilen (inloggad)       /nestapp   på Nest Hub (styra går, inte ändra)
+// ======================================================================
+const NEST = location.pathname === "/nestapp";
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const pad2 = n => String(n).padStart(2, "0");
+const ic = (n, cls) => `<svg class="ic${cls ? " " + cls : ""}"><use href="#i-${n}"/></svg>`;
+const mmss = s => { s = Math.max(0, Math.round(s || 0)); return Math.floor(s / 60) + ":" + pad2(s % 60); };
+const store = { get(k, d){ try { const v = localStorage.getItem("bp." + k); return v == null ? d : JSON.parse(v); } catch(e){ return d; } },
+                set(k, v){ try { localStorage.setItem("bp." + k, JSON.stringify(v)); } catch(e){} } };
+function toast(t, ms){ const el = $("#toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("on"), ms || 2200); }
+async function send(c){ try { await fetch("/api/send?c=" + encodeURIComponent(c)); } catch(e){ toast("Ingen kontakt med servern"); } }
+async function getJ(u){ const r = await fetch(u, { cache:"no-store" }); return r.json(); }
+async function postJ(u, d){ const r = await fetch(u, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(d) }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || ("fel " + r.status)); return j; }
+
+// ---------- läget ----------
+const D = { st:{}, deck:{}, S:{}, rooms:{}, sp:{ connected:false }, wx:null, dep:[], shotAt:0 };
+let TAB = NEST ? "skarm" : store.get("tab", "skarm");
+let ROOM = store.get("room", "");
+const NOW = () => D.rooms[curRoom()] || {};
+const curRoom = () => ROOM || (D.st.speakers || [])[0] || "Vardagsrum";
+const rooms = () => (D.st.speakers && D.st.speakers.length ? D.st.speakers : ["Vardagsrum"]);
+const hubOnline = () => D.st.at && Date.now() / 1000 - D.st.at < 150;
+
+// ---------- flikarna ----------
+const TABS = [["skarm","Skärmen","tv"],["musik","Musik","music"],["ljus","Ljus","bulb"],["larm","Larm","alarm"],["inst","Inställningar","gear"]];
+$("#tabs").innerHTML = TABS.map(([id, t, i]) => `<button class="tab" data-t="${id}" onclick="showTab('${id}')">${ic(i)}<span>${t}</span></button>`).join("");
+function showTab(id){
+  TAB = id; if (!NEST) store.set("tab", id);
+  document.body.className = document.body.className.replace(/\btab-\S+/g, "").trim() + " tab-" + id + (document.body.classList.contains("idle") ? " idle" : "");
+  document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.t === id));
+  document.querySelectorAll(".panel").forEach(p => p.classList.toggle("on", p.id === "p-" + id));
+  $("#ttl").textContent = "";
+  layoutPlayer();
+  if (id === "musik"){ send("sonos-focus:" + curRoom()); renderMusic(); }
+  if (id === "skarm"){ shotTick(true); renderSkarm(); }
+  if (id === "ljus"){ send("lamps-read"); renderLjus(); }
+  if (id === "larm") renderLarm();
+  if (id === "inst") renderInst();
+  window.scrollTo(0, 0);
+}
+function layoutPlayer(){
+  const pl = $("#player");
+  const h = TAB === "musik" ? pl.getBoundingClientRect().height : 0;
+  document.documentElement.style.setProperty("--player", (h || 0) + "px");
+}
+window.addEventListener("resize", layoutPlayer);
+
+// ---------- hämtning ----------
+let busyUntil = 0;                         // någon drar i ett reglage: rita inte om under tiden
+const busy = (ms = 2500) => { busyUntil = Date.now() + ms; };
+async function tick(){
+  if (document.hidden) return;
+  try {
+    const [st, rm] = await Promise.all([getJ("/api/tradfri-list"), getJ("/api/sonos-rooms")]);
+    D.st = st || {}; D.rooms = rm || {};
+  } catch(e){}
+  const hub = $("#hub"); hub.classList.toggle("ok", !!hubOnline()); hub.title = hubOnline() ? "Hubben är ansluten" : "Ingen kontakt med hubben";
+  document.querySelector('.tab[data-t="larm"]').classList.toggle("alert", ringing().length > 0);
+  if (NEST && ringing().length && document.body.classList.contains("idle")){ wake(); showTab("larm"); }
+  updatePlayer();
+  if (Date.now() < busyUntil) return;
+  if (TAB === "ljus") renderLjus();
+  if (TAB === "larm") renderLarm(true);
+  if (TAB === "skarm") renderSkarmLive();
+}
+async function slow(){
+  try { const j = await getJ("/api/deck"); D.deck = (j && j.deck) || {}; } catch(e){}
+  try { const j = await getJ("/api/state"); D.S = (j && j.settings) || {}; } catch(e){}
+  try { D.sp = await getJ("/api/sp/status"); } catch(e){}
+  if (!ROOM) ROOM = D.S.clipRoom || "";
+  if (TAB === "inst") renderInst();
+}
+async function saveDeck(part){
+  if (NEST){ toast("Ändra det här i appen i mobilen"); return false; }
+  try { await postJ("/api/deck-patch", part); return true; }
+  catch(e){ toast(String(e.message).includes("inloggning") ? "Logga in igen i mobilen" : "Kunde inte spara: " + e.message, 3500); return false; }
+}
+
+// ======================================================================
+// SKÄRMEN: bild av Blaupunkt-skärmen, snabbkontroller, Stream Controller
+// ======================================================================
+const PAGES = [["hem","Hemskärm","home"],["wx","Väder","sun"],["news","Nyheter","news"],["foto","Foton","image"],["fotboll","Fotboll","ball"],["hockey","Hockey","ball"],["plex","Film","film"],["test","Testbild","tv"]];
+const VIZ = { 1:"Oscilloskop", 2:"Magiskt öga", 3:"VU-mätare", 4:"Atomålder", 5:"Ljusorgel", 6:"Spegel", 7:"Båge", 8:"Fjäril" };
+const PALS = { svartvit:"Svartvit", sepia:"Sepia", fosfor:"Grön fosfor", farg:"60-talsfärg" };
+let shotT = 0;
+async function shotTick(now){
+  clearTimeout(shotT);
+  if (TAB === "skarm" && !document.hidden){
+    send("screen-shot");
+    try { const m = await getJ("/api/screenshot?meta=1"); if (m.at && m.at !== D.shotAt){ D.shotAt = m.at; const img = $("#shotImg"); if (img){ img.src = "/api/screenshot?t=" + m.at; } } } catch(e){}
+    renderShotMeta();
+  }
+  shotT = setTimeout(shotTick, now ? 1500 : 4000);
+}
+function renderShotMeta(){
+  const el = $("#shotMeta"); if (!el) return;
+  const age = D.shotAt ? Math.round(Date.now() / 1000 - D.shotAt) : null;
+  el.innerHTML = `<span>${age == null ? "Väntar på första bilden…" : age < 8 ? "Live" : "Uppdaterad för " + (age < 120 ? age + " s" : Math.round(age / 60) + " min") + " sedan"}</span><span>${hubOnline() ? "" : "Hubben svarar inte"}</span>`;
+  const ph = $("#shotPh"); if (ph) ph.classList.toggle("hidden", !!D.shotAt);
+}
+function renderSkarm(){
+  const S = D.S || {};
+  const p = $("#p-skarm");
+  p.innerHTML = `<div class="cols"><div>
+    <div class="card"><div class="lbl">Just nu på skärmen</div>
+      <div class="shot" onclick="shotTick(true)"><img id="shotImg" alt="" ${D.shotAt ? `src="/api/screenshot?t=${D.shotAt}"` : ""}><div class="ph" id="shotPh">Hubben tar en bild av Blaupunkt-skärmen medan appen är öppen.</div></div>
+      <div class="shotmeta" id="shotMeta"></div>
+      <div class="row"><button class="btn big pri" onclick="send('open');toast('Skärmen öppnas')">${ic("power")} Öppna</button><button class="btn big" onclick="send('close');toast('Skärmen stängs')">Stäng</button><button class="btn sq" onclick="send('playpause')" aria-label="Spela/paus">${ic("play")}</button></div>
+    </div>
+    <div class="card" id="nowCard"></div>
+    <div class="card"><div class="lbl">Klipp och sändningar</div>
+      <div class="big2">
+        <button class="tile" onclick="send('svt:rapport');toast('Rapport startar')">${ic("news")}<span>Rapport<small>senaste sändningen</small></span></button>
+        <button class="tile" onclick="send('svt:sportnytt');toast('Sportnytt startar')">${ic("ball")}<span>Sportnytt<small>senaste sändningen</small></span></button>
+        <button class="tile" onclick="send('hl:fb');toast('Höjdpunkter fotboll')">${ic("ball")}<span>Höjdpunkter<small>fotboll, SVT</small></span></button>
+        <button class="tile" onclick="send('hl:hk');toast('Höjdpunkter hockey')">${ic("ball")}<span>Höjdpunkter<small>hockey</small></span></button>
+      </div>
+      <div class="row"><button class="btn" onclick="send('hl:stop')">${ic("x")} Stäng klippet</button></div>
+    </div>
+  </div><div>
+    <div class="card"><div class="lbl">Visa sidan</div>
+      <div class="big2">${PAGES.map(([k, t, i]) => `<button class="tile" onclick="send('page:${k}');toast('${t}')">${ic(i)}<span>${t}</span></button>`).join("")}</div>
+      <div class="row"><button class="btn" onclick="send('page:next')">Nästa sida</button></div>
+    </div>
+    <div class="card"><div class="lbl">Kanal</div>
+      <div class="chips">${Object.entries(VIZ).map(([n, t]) => `<button class="chip${String(S.viz) === n ? " on" : ""}" onclick="setViz(${n})">${t}</button>`).join("")}</div>
+      <div class="sub">Färgläge</div>
+      <div class="chips">${Object.entries(PALS).map(([k, t]) => `<button class="chip${S.palette === k ? " on" : ""}" onclick="setPal('${k}')">${t}</button>`).join("")}</div>
+    </div>
+    <div class="card"><div class="lbl">Stream Controller <button class="more" onclick="togglePad()">${store.get("pad", false) ? "Dölj" : "Visa"}</button></div>
+      ${store.get("pad", false) ? `<iframe class="padframe" src="/app-pad" title="Stream Controller"></iframe>` : `<div class="hint">Knapparna och vreden som på den riktiga kontrollen. Tryck Visa.</div>`}
+    </div>
+  </div></div>`;
+  renderSkarmLive(); renderShotMeta();
+}
+function togglePad(){ store.set("pad", !store.get("pad", false)); renderSkarm(); }
+function setViz(n){ send("viz:" + n); D.S.viz = n; renderSkarm(); toast(VIZ[n]); }
+function setPal(k){ send("palette:" + k); D.S.palette = k; renderSkarm(); toast(PALS[k]); }
+function renderSkarmLive(){
+  const c = $("#nowCard"); if (!c) return;
+  const n = NOW();
+  const runs = sceneRuns(), na = nextAlarm(), sl = sleepOn();
+  c.innerHTML = `<div class="lbl">Hemma just nu</div>
+    <div class="setrow" onclick="showTab('musik')"><div><div class="t">${esc(n.title || (n.playing ? "Spelar" : "Inget spelas"))}</div><div class="s">${esc([n.artist, curRoom()].filter(Boolean).join(" · "))}</div></div>${ic(n.playing ? "pause" : "play")}</div>
+    <div class="setrow" onclick="showTab('larm')"><div><div class="t">${na ? (na.snooze ? "Snoozat till " : "Nästa larm ") + hhmm(na.at) : "Inget larm på"}</div><div class="s">${sl ? "Sov-timer: tystnar " + hhmm(sl.end) : "Ingen sov-timer"}</div></div>${ic("alarm")}</div>
+    ${runs.length ? `<div class="setrow" onclick="showTab('ljus')"><div><div class="t">${runs.map(r => esc(r.name)).join(", ")}</div><div class="s">Scener som är igång</div></div>${ic("sparkles")}</div>` : ""}`;
+}
+
+// ======================================================================
+// MUSIK: som i Tavlan. Spotify (inloggat på servern), radio, Sonos-favoriter; spelas på Sonos.
+// ======================================================================
+let MV = store.get("mview", "start");
+const SPC = {};                             // svar från Spotify, så att det går snabbt att bläddra
+async function sp(path, q){
+  const key = path + "?" + new URLSearchParams(q || {});
+  if (SPC[key] && Date.now() - SPC[key].t < 60000) return SPC[key].d;
+  const j = await getJ("/api/sp/api?" + new URLSearchParams(Object.assign({ path }, q || {})));
+  if (j && j.error){ if (j.login) D.sp.connected = false; throw new Error(j.error); }
+  SPC[key] = { t: Date.now(), d: j };
+  return j;
+}
+const img = (arr, small) => { arr = arr || []; if (!arr.length) return ""; const s = arr.slice().sort((a, b) => (a.width || 0) - (b.width || 0)); return (small ? s.find(x => (x.width || 0) >= 64) : s.find(x => (x.width || 0) >= 250)) ?.url || s[s.length - 1].url; };
+const cov = (u, cls) => u ? `<img src="${esc(u)}" alt="" loading="lazy">` : `<div class="nocov">${ic("music")}</div>`;
+let PLAYLISTS = [];
+async function loadPlaylists(){
+  if (!D.sp.connected) return [];
+  try { const j = await sp("me/playlists", { limit: 50 }); PLAYLISTS = (j.items || []).filter(Boolean); } catch(e){}
+  return PLAYLISTS;
+}
+function renderRail(){
+  const items = [["start","home","Start"],["liked","heart","Gillade låtar"],["search","search","Sök"],["radio","radio","Radio"],["favs","star","Sonos-favoriter"]];
+  $("#mRail").innerHTML = items.map(([id, i, t]) => `<button class="ri${MV === id ? " sel" : ""}" title="${t}" onclick="openMV('${id}')">${ic(i)}</button>`).join("")
+    + (PLAYLISTS.length ? '<div class="rsep"></div>' : "")
+    + PLAYLISTS.map(p => `<button class="ri${MV === "pl:" + p.id ? " sel" : ""}" title="${esc(p.name)}" onclick="openMV('pl:${p.id}')">${img(p.images, true) ? `<img src="${esc(img(p.images, true))}" alt="" loading="lazy">` : ic("list")}</button>`).join("");
+}
+function openMV(v){ MV = v; store.set("mview", v); renderMusic(); window.scrollTo(0, 0); }
+async function renderMusic(){
+  renderRail();
+  const m = $("#mMain");
+  if (!D.sp.connected && ["start","liked","search"].includes(MV) || (!D.sp.connected && MV.startsWith("pl:"))){
+    m.innerHTML = spLoginCard() + favsBlock(); if (!PLAYLISTS.length) return;
+  }
+  if (MV === "radio") return renderRadio();
+  if (MV === "favs"){ m.innerHTML = `<div class="sect">Sonos-favoriter</div>` + favsBlock(true); return; }
+  if (!D.sp.connected) return;
+  m.innerHTML = '<div class="spin"></div>';
+  try {
+    if (MV === "start") await renderStart(m);
+    else if (MV === "liked") await renderTracks(m, "Gillade låtar", "", null, (await sp("me/tracks", { limit: 50 })).items.map(x => x.track), "liked");
+    else if (MV === "search") renderSearch(m);
+    else if (MV.startsWith("pl:")) await renderPlaylist(m, MV.slice(3));
+    else if (MV.startsWith("al:")) await renderAlbum(m, MV.slice(3));
+    else if (MV.startsWith("ar:")) await renderArtist(m, MV.slice(3));
+  } catch(e){ m.innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+  renderRail();
+}
+function spLoginCard(){
+  return `<div class="card"><div class="lbl">Spotify</div>
+    <div class="hint">Logga in en gång, så hämtar appen dina spellistor, gillade låtar och sök från Spotify. Musiken spelas på Sonos.</div>
+    <div class="row"><button class="btn pri big" onclick="spLogin()">Logga in med Spotify</button></div>
+    ${D.sp.clientId ? "" : `<div class="hint">Först behövs en Spotify Client ID: Inställningar › Musik.</div>`}</div>`;
+}
+function favsBlock(full){
+  const favs = (D.st.sonos || {}).favs || [];
+  if (!favs.length) return full ? `<div class="empty">Favoriterna hämtas från Sonos när hubben har läst av högtalarna.</div>` : "";
+  return `${full ? "" : '<div class="sect">Sonos-favoriter</div>'}<div class="tl">${favs.map(f => `<button class="tr" onclick="playFav('${esc(f).replace(/'/g, "\\'")}')"><div class="nocov">${ic("star")}</div><div class="tt"><div class="t1">${esc(f)}</div></div></button>`).join("")}</div>`;
+}
+async function renderStart(m){
+  const [rec, pls] = await Promise.all([sp("me/player/recently-played", { limit: 50 }).catch(() => ({ items: [] })), loadPlaylists()]);
+  const seen = new Set(), recent = [];
+  for (const it of rec.items || []){
+    const c = it.context, t = it.track; if (!t) continue;
+    const key = c ? c.uri : t.album.uri;
+    if (seen.has(key)) continue; seen.add(key);
+    if (c && c.type === "playlist"){ const pl = PLAYLISTS.find(p => p.uri === c.uri); if (pl) recent.push({ kind:"pl", id: pl.id, name: pl.name, sub:"Spellista", img: img(pl.images) }); }
+    else recent.push({ kind:"al", id: t.album.id, name: t.album.name, sub: t.artists.map(a => a.name).join(", "), img: img(t.album.images) });
+    if (recent.length >= 10) break;
+  }
+  const h = new Date().getHours();
+  m.innerHTML = `<div class="sect">${h < 10 ? "God morgon" : h < 18 ? "Hej" : "God kväll"}${D.sp.name ? ", " + esc(D.sp.name.split(" ")[0]) : ""}</div>
+    ${recent.length ? `<div class="sect">Spelat nyligen</div><div class="grid">${recent.map(r => `<button class="gi" onclick="openMV('${r.kind}:${r.id}')">${cov(r.img)}<div class="t1">${esc(r.name)}</div><div class="t2">${esc(r.sub)}</div></button>`).join("")}</div>` : ""}
+    <div class="sect">Dina spellistor</div>
+    <div class="grid">${PLAYLISTS.map(p => `<button class="gi" onclick="openMV('pl:${p.id}')">${cov(img(p.images))}<div class="t1">${esc(p.name)}</div><div class="t2">${(p.tracks || {}).total || ""} låtar</div></button>`).join("")}</div>
+    ${favsBlock()}`;
+}
+function trackRows(tracks, ctx){
+  const now = NOW().tid;
+  return `<div class="tl">${tracks.filter(t => t && t.id).map((t, i) => `<button class="tr${t.id === now ? " now" : ""}" onclick='playTrack(${JSON.stringify(t.uri)}, ${JSON.stringify(ctx || "")}, ${i})'>
+    ${cov(img((t.album || {}).images, true))}<div class="tt"><div class="t1">${esc(t.name)}</div><div class="t2">${esc((t.artists || []).map(a => a.name).join(", "))}</div></div><span class="dur">${mmss((t.duration_ms || 0) / 1000)}</span></button>`).join("")}</div>`;
+}
+function headBlock(image, title, sub, ctx, round){
+  return `<div class="mhead">${image ? `<img src="${esc(image)}" alt=""${round ? ' style="border-radius:50%"' : ""}>` : `<div class="nocov">${ic("music")}</div>`}<div><h2>${esc(title)}</h2><div class="mut">${esc(sub || "")}</div>
+    ${ctx ? `<div class="row"><button class="btn pri" onclick='playCtx(${JSON.stringify(ctx)}, false)'>${ic("play")} Spela</button><button class="btn" onclick='playCtx(${JSON.stringify(ctx)}, true)'>${ic("shuffle")} Blanda</button></div>` : ""}</div></div>`;
+}
+async function renderTracks(m, title, sub, image, tracks, ctx){
+  m.innerHTML = headBlock(image, title, sub, ctx === "liked" ? null : ctx) + (tracks.length ? trackRows(tracks, ctx === "liked" ? "" : ctx) : '<div class="empty">Inga låtar.</div>');
+}
+async function renderPlaylist(m, id){
+  const p = await sp("playlists/" + id, { fields: "name,uri,images,owner(display_name),tracks.total,tracks.items(track(id,uri,name,duration_ms,artists(name),album(images)))" });
+  await renderTracks(m, p.name, (p.owner || {}).display_name + " · " + ((p.tracks || {}).total || 0) + " låtar", img(p.images), ((p.tracks || {}).items || []).map(x => x.track), p.uri);
+}
+async function renderAlbum(m, id){
+  const a = await sp("albums/" + id);
+  const tracks = (a.tracks.items || []).map(t => Object.assign({}, t, { album: { images: a.images } }));
+  await renderTracks(m, a.name, a.artists.map(x => x.name).join(", ") + " · " + (a.release_date || "").slice(0, 4), img(a.images), tracks, a.uri);
+}
+async function renderArtist(m, id){
+  const [a, top, al] = await Promise.all([sp("artists/" + id), sp("artists/" + id + "/top-tracks", { market: "SE" }), sp("artists/" + id + "/albums", { include_groups: "album,single", limit: 20, market: "SE" })]);
+  m.innerHTML = headBlock(img(a.images), a.name, "Artist", a.uri, true) + `<div class="sect">Populärt</div>` + trackRows((top.tracks || []).slice(0, 10), "")
+    + `<div class="sect">Album</div><div class="grid">${(al.items || []).map(x => `<button class="gi" onclick="openMV('al:${x.id}')">${cov(img(x.images))}<div class="t1">${esc(x.name)}</div><div class="t2">${(x.release_date || "").slice(0, 4)}</div></button>`).join("")}</div>`;
+}
+let SQ = "";
+function renderSearch(m){
+  m.innerHTML = `<input class="in" id="sq" type="search" placeholder="Låt, artist, album eller spellista" value="${esc(SQ)}" autocomplete="off"><div id="sres" style="margin-top:12px"></div>`;
+  const inp = $("#sq"); let t = 0;
+  inp.addEventListener("input", () => { clearTimeout(t); t = setTimeout(() => { SQ = inp.value.trim(); doSearch(); }, 350); });
+  if (!SQ) setTimeout(() => inp.focus(), 50);
+  doSearch();
+}
+async function doSearch(){
+  const r = $("#sres"); if (!r) return;
+  if (!SQ){ r.innerHTML = `<div class="empty">Sök i hela Spotify.</div>`; return; }
+  r.innerHTML = '<div class="spin"></div>';
+  try {
+    const j = await sp("search", { q: SQ, type: "track,artist,album,playlist", limit: 8, market: "SE" });
+    const ar = (j.artists || {}).items || [], al = ((j.albums || {}).items || []).filter(Boolean), pl = ((j.playlists || {}).items || []).filter(Boolean);
+    const tr = ((j.tracks || {}).items || []).filter(Boolean);
+    r.innerHTML = (tr.length ? `<div class="sect">Låtar</div>` + trackRows(tr, "") : "")
+      + (ar.length ? `<div class="sect">Artister</div><div class="grid">${ar.map(x => `<button class="gi round" onclick="openMV('ar:${x.id}')">${cov(img(x.images))}<div class="t1">${esc(x.name)}</div></button>`).join("")}</div>` : "")
+      + (al.length ? `<div class="sect">Album</div><div class="grid">${al.map(x => `<button class="gi" onclick="openMV('al:${x.id}')">${cov(img(x.images))}<div class="t1">${esc(x.name)}</div><div class="t2">${esc(x.artists.map(a => a.name).join(", "))}</div></button>`).join("")}</div>` : "")
+      + (pl.length ? `<div class="sect">Spellistor</div><div class="grid">${pl.map(x => `<button class="gi" onclick="openMV('pl:${x.id}')">${cov(img(x.images))}<div class="t1">${esc(x.name)}</div><div class="t2">${esc((x.owner || {}).display_name || "")}</div></button>`).join("")}</div>` : "");
+    if (!r.innerHTML.trim()) r.innerHTML = `<div class="empty">Inga träffar.</div>`;
+  } catch(e){ r.innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+let RQ = "";
+async function renderRadio(){
+  const m = $("#mMain");
+  m.innerHTML = `<div class="sect">Radio</div><input class="in" id="rq" type="search" placeholder="Sök station, t.ex. P3, jazz, Rix" value="${esc(RQ)}"><div id="rres" style="margin-top:12px"><div class="spin"></div></div>`;
+  const inp = $("#rq"); let t = 0;
+  inp.addEventListener("input", () => { clearTimeout(t); t = setTimeout(() => { RQ = inp.value.trim(); loadRadio(); }, 400); });
+  loadRadio();
+}
+let RADIO = [];
+async function loadRadio(){
+  const r = $("#rres"); if (!r) return;
+  try {
+    RADIO = await getJ(RQ ? "/api/radio?q=" + encodeURIComponent(RQ) : "/api/radio?top=SE");
+    if (RADIO.error) throw new Error(RADIO.error);
+    r.innerHTML = `${RQ ? "" : '<div class="sub">Populärt i Sverige</div>'}<div class="tl">${RADIO.map((s, i) => `<button class="tr" onclick="playRadio(${i})">${s.icon ? `<img src="${esc(s.icon)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'nocov',innerHTML:'${ic("radio").replace(/"/g, "&quot;")}'}))">` : `<div class="nocov">${ic("radio")}</div>`}<div class="tt"><div class="t1">${esc(s.name)}</div><div class="t2">${esc(s.tags || s.country)}</div></div></button>`).join("") || '<div class="empty">Inga stationer.</div>'}</div>`;
+  } catch(e){ r.innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+
+// ---------- spela (på Sonos, via hubben) ----------
+function sonos(action, value, room){ send("sonos:" + JSON.stringify({ room: room || curRoom(), action, value })); setTimeout(tick, 900); }
+function playTrack(uri, ctx, i){
+  if (ctx) sonos("link", { link: ctx, index: i }); else sonos("link", { link: uri, index: 0 });
+  toast("Spelar på " + curRoom());
+}
+function playCtx(ctx, shuffle){ sonos("link", { link: ctx, index: 0 }); setTimeout(() => sonos("shuffle-set", !!shuffle), 1800); toast((shuffle ? "Blandar på " : "Spelar på ") + curRoom()); }
+function playFav(f){ sonos("fav", f); toast("Spelar " + f); }
+function playRadio(i){ const s = RADIO[i]; if (!s) return; sonos("radio", { url: s.url, name: s.name }); toast(s.name + " på " + curRoom()); }
+function playPause(){ const n = NOW(); n.playing = !n.playing; updatePlayer(); sonos("toggle"); }
+function cycleRepeat(){ const n = NOW(); sonos("repeat-set", n.repeat === "off" ? "all" : n.repeat === "all" ? "one" : "off"); }
+async function likeNow(){
+  const n = NOW(); if (!n.tid){ toast("Bara Spotify-låtar kan gillas"); return; }
+  if (!D.sp.connected){ toast("Logga in med Spotify först"); return; }
+  const on = !LIKED[n.tid];
+  try { await postJ("/api/sp/like", { id: n.tid, on }); LIKED[n.tid] = on; updatePlayer(); toast(on ? "Sparad i Gillade låtar" : "Borttagen ur Gillade låtar"); delete SPC["me/tracks?limit=50"]; }
+  catch(e){ toast(e.message); }
+}
+const LIKED = {};
+async function checkLiked(tid){ if (!tid || !D.sp.connected || tid in LIKED) return; try { const j = await sp("me/tracks/contains", { ids: tid }); LIKED[tid] = !!(j && j[0]); updatePlayer(); } catch(e){} }
+
+// spelarens rad längst ned
+let posBase = { pos:0, at:0, playing:false, dur:0, key:"" };
+function updatePlayer(){
+  const n = NOW();
+  $("#npRoom").textContent = curRoom() + ((n.members || []).length > 1 ? " +" + (n.members.length - 1) : "");
+  $("#npT").textContent = n.title || (n.kind === "tv" ? "TV-ljud" : n.playing ? "Spelar" : "Inget spelas");
+  $("#npA").textContent = n.artist || (n.title ? n.album : "Välj något att spela");
+  $("#npCov").innerHTML = n.art ? `<img src="${esc(n.art)}" alt="">` : ic("music");
+  for (const b of ["#npPP", "#npPP2"]) $(b).innerHTML = ic(n.playing ? "pause" : "play");
+  $("#npShuf").className = "ib " + (n.shuffle ? "on" : "dim");
+  $("#npRep").className = "ib " + (n.repeat && n.repeat !== "off" ? "on" : "dim");
+  $("#npRep").style.opacity = n.repeat === "one" ? ".75" : "";
+  if (Date.now() > busyUntil && n.vol != null) $("#npVol").value = n.vol;
+  const liked = n.tid && LIKED[n.tid];
+  $("#npLike").className = "picon" + (liked ? " on" : ""); $("#npLike").innerHTML = ic(liked ? "heartf" : "heart");
+  $("#npLike").style.display = n.tid ? "" : "none";
+  $("#npMoon").className = "picon" + (sleepOn() ? " on" : "");
+  const key = n.title + "|" + n.pos;
+  if (key !== posBase.key) posBase = { pos: n.pos || 0, at: Date.now(), playing: !!n.playing, dur: n.dur || 0, key };
+  posBase.playing = !!n.playing;
+  checkLiked(n.tid);
+  drawPos();
+}
+function drawPos(){
+  if (scrubbing) return;
+  const p = Math.min(posBase.dur || 0, posBase.pos + (posBase.playing ? (Date.now() - posBase.at) / 1000 : 0));
+  const f = posBase.dur ? p / posBase.dur * 100 : 0;
+  $("#npFill").style.width = f + "%"; $("#npDot").style.left = f + "%";
+  $("#npPos").textContent = mmss(p); $("#npLeft").textContent = posBase.dur ? "−" + mmss(posBase.dur - p) : "";
+  document.querySelector(".scrub").style.visibility = posBase.dur ? "" : "hidden";
+}
+setInterval(drawPos, 500);
+let scrubbing = false;
+(function(){
+  const bar = $("#npBar");
+  const at = e => { const r = bar.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); };
+  bar.addEventListener("pointerdown", e => { if (!posBase.dur) return; scrubbing = true; bar.setPointerCapture(e.pointerId); move(e); });
+  const move = e => { if (!scrubbing) return; const f = at(e); $("#npFill").style.width = f * 100 + "%"; $("#npDot").style.left = f * 100 + "%"; $("#npPos").textContent = mmss(f * posBase.dur); };
+  bar.addEventListener("pointermove", move);
+  bar.addEventListener("pointerup", e => { if (!scrubbing) return; scrubbing = false; const s = at(e) * posBase.dur; posBase = Object.assign(posBase, { pos: s, at: Date.now() }); sonos("seek", Math.round(s)); });
+  let vt = 0;
+  $("#npVol").addEventListener("input", e => { busy(); clearTimeout(vt); vt = setTimeout(() => sonos("vol", +e.target.value), 150); });
+})();
+function togglePlayerSize(){ $("#player").classList.toggle("mini"); store.set("pmini", $("#player").classList.contains("mini")); layoutPlayer(); }
+if (!store.get("pmini", false)) $("#player").classList.remove("mini");
+
+// rum och grupper
+function openRooms(){
+  const sg = (D.st.sonos || {}).groups || [], vols = (D.st.sonos || {}).vols || {};
+  const mine = (sg.find(g => g.members.includes(curRoom())) || { members: [curRoom()] }).members;
+  openSheet(`<h3>Högtalare</h3><div class="hint">Välj vilket rum appen styr. Bocka i fler rum för att spela samma musik i dem.</div>
+    ${rooms().map(r => { const on = mine.includes(r);
+      return `<div class="setrow"><div style="flex:1"><button class="chip${r === curRoom() ? " on" : ""}" onclick="pickRoom('${esc(r)}')">${esc(r)}</button>
+        <input type="range" class="range" min="0" max="100" value="${vols[r] ?? 20}" oninput="busy();roomVol('${esc(r)}',this.value)" style="margin-top:6px"></div>
+        ${r === curRoom() ? "" : `<button class="sw${on ? " on" : ""}" onclick="groupRoom('${esc(r)}', ${!on})" aria-label="Spela även i ${esc(r)}"></button>`}</div>`; }).join("")}
+    <div class="row"><button class="btn" onclick="sonos('group-all')">Alla tillsammans</button><button class="btn" onclick="sonos('ungroup-all')">Dela upp alla</button></div>`);
+}
+let rvT = {};
+function roomVol(r, v){ clearTimeout(rvT[r]); rvT[r] = setTimeout(() => send("sonos:" + JSON.stringify({ room: r, action: "vol", value: +v })), 150); }
+function pickRoom(r){ ROOM = r; store.set("room", r); send("sonos-focus:" + r); closeSheet(); updatePlayer(); toast("Styr " + r); }
+function groupRoom(r, on){ if (on) send("sonos:" + JSON.stringify({ room: r, action: "group", value: curRoom() })); else send("sonos:" + JSON.stringify({ room: r, action: "ungroup" })); closeSheet(); toast(on ? r + " spelar med" : r + " lämnar"); setTimeout(() => send("lamps-read"), 2500); }
+function openQueue(){
+  const q = NOW().queue || [];
+  openSheet(`<h3>Spelas härnäst</h3>${q.length ? `<div class="tl">${q.map(x => `<div class="tr"><div class="nocov">${ic("music")}</div><div class="tt"><div class="t1">${esc(x.title)}</div><div class="t2">${esc(x.artist)}</div></div></div>`).join("")}</div>` : '<div class="empty">Kön är tom.</div>'}`);
+}
+
+// ---------- Spotify-inloggningen (koden byts mot nycklar på servern) ----------
+const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+async function spLogin(){
+  const cid = (D.S.clientId || "").trim();
+  if (!cid){ openInst("musik"); toast("Lägg först in Spotify Client ID"); return; }
+  const a = new Uint8Array(48); crypto.getRandomValues(a);
+  const verifier = Array.from(a, x => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"[x % 62]).join("");
+  store.set("spv", verifier);
+  const challenge = b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
+  const scope = "user-read-currently-playing user-read-playback-state playlist-read-private playlist-read-collaborative user-library-read user-library-modify user-read-recently-played user-top-read";
+  location.href = "https://accounts.spotify.com/authorize?" + new URLSearchParams({ response_type:"code", client_id: cid, scope, code_challenge_method:"S256", code_challenge: challenge, redirect_uri: location.origin + "/callback", state:"app" });
+}
+async function spFinish(){
+  const q = new URLSearchParams(location.search);
+  if (!q.get("code") || q.get("state") !== "app") return;
+  history.replaceState(null, "", "/app");
+  try { const j = await postJ("/api/sp/connect", { code: q.get("code"), verifier: store.get("spv", ""), redirect: location.origin + "/callback" });
+    D.sp = { connected: true, name: j.name, clientId: true }; toast("Spotify anslutet" + (j.name ? ": " + j.name : "")); TAB = "musik"; MV = "start"; }
+  catch(e){ toast("Spotify: " + e.message, 4000); }
+}
+async function spLogout(){ if (!confirm("Logga ut appen från Spotify?")) return; await postJ("/api/sp/logout", {}).catch(() => {}); D.sp = { connected: false }; PLAYLISTS = []; renderInst(); }
+
+// ======================================================================
+// LJUS: scener, grupper, lampor, tider
+// ======================================================================
+const SWATCH = ["#ffb35c","#ffd27a","#fff4e0","#ff3b30","#ff9500","#ffcc00","#34c759","#30b0c7","#007aff","#5856d6","#af52de","#ff2d55"];
+const sceneRuns = () => (D.st.runs || []).filter(r => !r.alarm && D.st.runsAt && Date.now() / 1000 - D.st.runsAt < 150);
+let openGroup = null;
+function renderLjus(){
+  const p = $("#p-ljus");
+  const scenes = (D.deck.scenes || []);
+  const runIds = new Set(sceneRuns().map(r => String(r.id)));
+  const groups = (D.st.groups || []);
+  const lamps = (D.st.lamps || []).slice().sort((a, b) => String(a.name).localeCompare(String(b.name), "sv"));
+  const states = D.st.states || {};
+  const vals = (D.st.vals || {});
+  let html = `<div class="cols"><div>`;
+  html += `<div class="card"><div class="lbl">Scener</div>${scenes.length ? `<div class="big2">${scenes.map(s => `<button class="tile${runIds.has(String(s.id)) ? " on" : ""}" onclick="runScene('${esc(s.id)}', ${runIds.has(String(s.id))})">${ic(runIds.has(String(s.id)) ? "check" : "sparkles")}<span>${esc(s.name || "Scen")}${runIds.has(String(s.id)) ? "<small>på · tryck för att gå tillbaka</small>" : ""}</span></button>`).join("")}</div>` : '<div class="hint">Inga scener ännu. Bygg dem i deck-redigeraren (Inställningar › Scener och tider).</div>'}</div>`;
+  for (const g of groups){
+    const name = g.name, open = openGroup === name;
+    const dim = vals["dim:" + name] ?? 70, temp = vals["temp:" + name] ?? 50;
+    html += `<div class="card"><div class="ghead"><button class="gname" onclick="openGroup=${open ? "null" : `'${esc(name)}'`};renderLjus()">${ic("bulb")}<span>${esc(name)}</span><span class="mut" style="font-size:12px">${open ? "▴" : "▾"}</span></button>
+      <button class="btn" onclick="light('${esc(name)}','on')">Tänd</button><button class="btn" onclick="light('${esc(name)}','off')">Släck</button></div>
+      <div class="slab"><span>Ljusstyrka</span><b id="gd-${esc(name)}">${dim} %</b></div><input type="range" class="range" min="1" max="100" value="${dim}" oninput="busy();$('#gd-${esc(name)}').textContent=this.value+' %';lightV('${esc(name)}','dim',this.value)">
+      ${open ? `<div class="slab"><span>Färgton</span><b>${temp < 35 ? "varm" : temp > 65 ? "kall" : "neutral"}</b></div><input type="range" class="range" min="0" max="100" value="${temp}" oninput="busy();lightV('${esc(name)}','temp',this.value)">
+        <div class="dots">${SWATCH.slice(3).map(c => `<button class="dot" style="background:${c}" onclick="lightV('${esc(name)}','color','${c}')"></button>`).join("")}</div>
+        ${(g.moods || []).length ? `<div class="sub">Trådfri-scener</div><div class="chips">${g.moods.map(mo => `<button class="chip" onclick="lightV('${esc(name)}','scene','${esc(mo.name || mo)}')">${esc(mo.name || mo)}</button>`).join("")}</div>` : ""}` : ""}</div>`;
+  }
+  html += `</div><div>`;
+  if (lamps.length) html += `<div class="card"><div class="lbl">Lampor</div>${lamps.map(l => { const s = states[String(l.id)] || {}, on = !!s.on, id = String(l.id);
+    return `<div class="lamp"><div class="lh"><span class="ldot" style="background:${on ? (s.kind === "color" && s.color ? s.color : "#ffd27a") : "#33363c"}"></span><span class="lname">${esc(l.name)}</span>${on ? "" : '<span class="mut" style="font-size:12.5px">släckt</span>'}<button class="sw${on ? " on" : ""}" onclick="lamp('${id}',{on:${!on}})"></button></div>
+      ${on && !l.outlet ? `<input type="range" class="range" min="1" max="100" value="${s.dim || 50}" oninput="busy();lampT('${id}',{dim:+this.value})">` : ""}
+      ${on && l.color ? `<div class="dots">${SWATCH.map((c, i) => `<button class="dot" style="background:${c}" onclick='lamp("${id}", ${JSON.stringify(i < 3 ? { kind:"white", temp: [15, 35, 75][i] } : { kind:"color", color:c })})'></button>`).join("")}</div>`
+        : on && l.temp ? `<input type="range" class="range" min="0" max="100" value="${s.temp ?? 50}" oninput="busy();lampT('${id}',{kind:'white',temp:+this.value})">` : ""}</div>`; }).join("")}</div>`;
+  const sch = D.deck.schedules || [];
+  html += `<div class="card"><div class="lbl">Tider</div>${sch.length ? sch.map((x, i) => { const sc = scenes.find(s => String(s.id) === String(x.scene));
+    return `<div class="setrow"><div><div class="t">${esc(x.name || (sc && sc.name) || "Tid")}</div><div class="s">${esc(whenText(x.when))} · ${esc(daysText(x.days))}${x.on !== false && nextOf(x.id) ? " · nästa " + hhmm(nextOf(x.id)) : ""}</div></div><button class="sw${x.on !== false ? " on" : ""}" onclick="toggleSched(${i})"></button></div>`; }).join("") : '<div class="hint">Inga tider ännu.</div>'}
+    <div class="row"><a class="btn ghost" href="/deck" target="_blank" rel="noopener">Bygg scener, tider och lampregler ›</a></div></div>`;
+  html += `</div></div>`;
+  if (!groups.length && !lamps.length && !scenes.length) html = `<div class="empty">Inga lampor ännu. Hubben skickar listan när den har kontakt med Trådfri-gatewayen.</div>`;
+  const y = window.scrollY; p.innerHTML = html; window.scrollTo(0, y);
+}
+function runScene(id, on){ send("scene:" + id); toast(on ? "Tillbaka som innan" : "Scenen startar"); setTimeout(tick, 1500); }
+function light(g, op, value){ send("light:" + JSON.stringify({ group: g, action: op, value: value ?? null })); }
+let lvT = {};
+function lightV(g, op, v){ clearTimeout(lvT[g + op]); lvT[g + op] = setTimeout(() => { light(g, op, op === "dim" || op === "temp" ? +v : v); if (op === "dim" || op === "temp"){ D.st.vals = D.st.vals || {}; D.st.vals[op + ":" + g] = +v; } }, 160); }
+function lamp(id, o){ const st = D.st.states || (D.st.states = {}); st[id] = Object.assign({}, st[id] || {}, o, o.on === false ? {} : { on: true }); send("lamps-set:" + JSON.stringify({ [id]: Object.assign({ on: true }, o) })); renderLjus(); }
+let lpT = {};
+function lampT(id, o){ clearTimeout(lpT[id]); lpT[id] = setTimeout(() => { const st = D.st.states || (D.st.states = {}); st[id] = Object.assign({}, st[id] || {}, o); send("lamps-set:" + JSON.stringify({ [id]: Object.assign({ on: true }, o) })); }, 160); }
+async function toggleSched(i){ const sch = JSON.parse(JSON.stringify(D.deck.schedules || [])); if (!sch[i]) return; sch[i].on = sch[i].on === false; if (await saveDeck({ schedules: sch })){ D.deck.schedules = sch; renderLjus(); toast(sch[i].on ? "Påslagen" : "Avslagen"); } }
+function whenText(w){ w = w || {}; const off = +w.offset || 0; if ((w.kind || "time") === "time") return w.time || "00:00"; const s = w.kind === "sunrise" ? "soluppgång" : "solnedgång"; return off ? Math.abs(off) + " min " + (off > 0 ? "efter " : "före ") + s : s; }
+const DAYL = ["mån","tis","ons","tor","fre","lör","sön"], DAYS = ["M","T","O","T","F","L","S"];
+function daysText(d){ d = Array.isArray(d) && d.length ? d.slice().sort() : [0,1,2,3,4,5,6]; if (d.length === 7) return "varje dag"; if (d.join() === "0,1,2,3,4") return "vardagar"; if (d.join() === "5,6") return "helger"; return d.map(i => DAYL[i]).join(", "); }
+const nextOf = id => ((D.st.upcoming || []).find(u => String(u.id) === String(id)) || {}).at;
+function hhmm(ts){ const d = new Date(ts * 1000), t = pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+  const days = Math.round((new Date(d).setHours(0,0,0,0) - new Date().setHours(0,0,0,0)) / 864e5);
+  return days === 0 ? t : days === 1 ? "i morgon " + t : DAYL[(d.getDay() + 6) % 7] + " " + t; }
+
+// ======================================================================
+// LARM: larm, timer, sov-timer
+// ======================================================================
+let LSEG = store.get("lseg", "alarm"), EDIT = null;
+const ringing = () => (D.st.runs || []).filter(r => r.alarm && D.st.runsAt && Date.now() / 1000 - D.st.runsAt < 150);
+const alarmOf = id => (D.deck.alarms || []).find(a => a.id === String(id));
+const sleepOn = () => D.st.sleep && D.st.sleep.end && D.st.sleep.end * 1000 > Date.now() ? D.st.sleep : null;
+function nextAlarm(){
+  const ids = new Set((D.deck.alarms || []).filter(a => a.on !== false).map(a => "alarm-" + a.id));
+  const list = (D.st.upcoming || []).filter(u => ids.has(String(u.id)));
+  const sn = Object.entries(D.st.snoozed || {}).map(([id, at]) => ({ id, at, snooze: true }));
+  return [...sn, ...list].sort((a, b) => a.at - b.at)[0] || null;
+}
+const minsLeft = ts => Math.max(0, Math.round((ts * 1000 - Date.now()) / 60000));
+function inText(ts){ const m = minsLeft(ts); return m >= 60 ? Math.floor(m / 60) + " h " + (m % 60) + " min" : m + " min"; }
+function renderLarm(live){
+  if (live && EDIT) return;                       // skriv inte över ett larm som ändras
+  const p = $("#p-larm");
+  let html = ringing().map(r => { const a = alarmOf(r.alarm) || {};
+    return `<div class="ring"><div class="ringT">${ic("bell")}<span>${esc(a.name || "Larmet")} ringer</span></div>
+      <div class="row"><button class="btn big" onclick="send('alarm:snooze:${esc(r.alarm)}');setTimeout(tick,1200)">Snooza ${a.snooze || 9} min</button><button class="btn big pri" onclick="send('alarm:stop:${esc(r.alarm)}');setTimeout(tick,1200)">Stäng av</button></div></div>`; }).join("");
+  html += `<div class="seg3">${[["alarm","alarm","Larm"],["timer","timer","Timer"],["sleep","moon","Sov-timer"]].map(([k, i, t]) => `<button class="${LSEG === k ? "on" : ""}" onclick="LSEG='${k}';store.set('lseg','${k}');EDIT=null;renderLarm()">${ic(i)} ${t}</button>`).join("")}</div>`;
+  if (LSEG === "alarm") html += EDIT ? alarmEditor() : alarmList();
+  else if (LSEG === "timer") html += timerPanel();
+  else html += sleepPanel();
+  const y = window.scrollY; p.innerHTML = html; window.scrollTo(0, y);
+}
+function alarmList(){
+  const list = D.deck.alarms || [], na = nextAlarm();
+  let h = na ? `<div class="card"><div class="setrow"><div><div class="t">${na.snooze ? "Snoozat till" : "Nästa larm"} ${hhmm(na.at)}</div><div class="s">om ${inText(na.at)}</div></div>${ic("alarm")}</div></div>` : "";
+  h += list.map(a => `<div class="card alarm${a.on === false ? " off" : ""}" onclick="editAlarm('${esc(a.id)}')"><div><div class="atime">${esc(a.time || "07:00")}</div><div class="mut">${esc([a.name, daysText(a.days)].filter(Boolean).join(" · "))}</div></div><button class="sw${a.on !== false ? " on" : ""}" onclick="event.stopPropagation();toggleAlarm('${esc(a.id)}')"></button></div>`).join("");
+  if (!list.length) h += `<div class="empty">Inga larm ännu.</div>`;
+  if (!NEST) h += `<button class="btn pri big" style="width:100%" onclick="newAlarm()">${ic("plus")} Nytt larm</button>`;
+  h += `<div class="hint" style="margin-top:12px">Larmet ringer från Sonos via hubben, även när appen är stängd. Det tonas upp, kan starta en scen och väcka Blaupunkt-skärmen. Stäng av eller snooza här, på Nest Hub eller med en knapp.</div>`;
+  return h;
+}
+function newAlarm(){ EDIT = { id: Math.random().toString(36).slice(2, 10), _new: true, on: true, time: "07:00", days: [0,1,2,3,4], name: "", music: true, room: curRoom(), src: "playlist", value: "", vol: 25, fade: 10, screen: true, scene: "", stop: 60, snooze: 9 }; renderLarm(); }
+function editAlarm(id){ if (NEST) return; const a = alarmOf(id); if (a){ EDIT = JSON.parse(JSON.stringify(a)); renderLarm(); } }
+async function toggleAlarm(id){ const list = JSON.parse(JSON.stringify(D.deck.alarms || [])); const a = list.find(x => x.id === id); if (!a) return; a.on = a.on === false; if (await saveDeck({ alarms: list })){ D.deck.alarms = list; renderLarm(); toast(a.on ? "Larmet är på" : "Larmet är av"); } }
+function alarmEditor(){
+  const a = EDIT, favs = (D.st.sonos || {}).favs || [];
+  const opt = (v, t, cur) => `<option value="${esc(v)}"${String(cur) === String(v) ? " selected" : ""}>${esc(t)}</option>`;
+  return `<div class="card"><div class="lbl">${a._new ? "Nytt larm" : "Ändra larm"}</div>
+    <input type="time" class="in timeIn" value="${esc(a.time)}" oninput="EDIT.time=this.value">
+    <div class="sub">Dagar</div><div class="days">${DAYS.map((d, i) => `<button class="day${(a.days || []).includes(i) ? " on" : ""}" title="${DAYL[i]}" onclick="toggleDay(${i})">${d}</button>`).join("")}</div>
+    <div class="chips" style="margin-top:8px"><button class="chip" onclick="EDIT.days=[0,1,2,3,4];renderLarm()">Vardagar</button><button class="chip" onclick="EDIT.days=[5,6];renderLarm()">Helger</button><button class="chip" onclick="EDIT.days=[0,1,2,3,4,5,6];renderLarm()">Varje dag</button></div>
+    <div class="sub">Namn</div><input class="in" value="${esc(a.name || "")}" placeholder="t.ex. Jobb" oninput="EDIT.name=this.value"></div>
+  <div class="card"><div class="lbl">Väckning</div>
+    <div class="setrow"><div class="t">Spela musik</div><button class="sw${a.music !== false ? " on" : ""}" onclick="EDIT.music=!(EDIT.music!==false);renderLarm()"></button></div>
+    ${a.music !== false ? `<div class="sub">Högtalare</div><select class="in" onchange="EDIT.room=this.value">${rooms().map(r => opt(r, r, a.room)).join("")}</select>
+      <div class="sub">Vad ska spelas</div><select class="in" onchange="EDIT.src=this.value;renderLarm()">${opt("playlist", "Spotify-spellista", a.src)}${opt("fav", "Sonos-favorit", a.src)}${opt("resume", "Fortsätt det som spelades", a.src)}</select>
+      ${a.src === "playlist" ? `<select class="in" style="margin-top:8px" onchange="EDIT.value=this.value"><option value="">Välj spellista…</option>${PLAYLISTS.map(p => opt(p.uri, p.name, a.value)).join("")}</select>${PLAYLISTS.length ? "" : `<div class="hint">Logga in med Spotify under Musik för att välja bland dina spellistor.</div>`}` : ""}
+      ${a.src === "fav" ? `<select class="in" style="margin-top:8px" onchange="EDIT.value=this.value"><option value="">Välj favorit…</option>${favs.map(f => opt(f, f, a.value)).join("")}</select>` : ""}
+      <div class="slab"><span>Volym</span><b id="eV">${a.vol ?? 25}</b></div><input type="range" class="range" min="1" max="100" value="${a.vol ?? 25}" oninput="EDIT.vol=+this.value;$('#eV').textContent=this.value">
+      <div class="slab"><span>Tonas upp under</span><b id="eF">${a.fade ? a.fade + " min" : "direkt"}</b></div><input type="range" class="range" min="0" max="30" value="${a.fade ?? 10}" oninput="EDIT.fade=+this.value;$('#eF').textContent=this.value>0?this.value+' min':'direkt'">` : ""}
+    <div class="sub">Starta även scenen</div><select class="in" onchange="EDIT.scene=this.value">${opt("", "Ingen", a.scene)}${(D.deck.scenes || []).map(s => opt(s.id, s.name, a.scene)).join("")}</select>
+    <div class="setrow"><div class="t">Väck Blaupunkt-skärmen</div><button class="sw${a.screen !== false ? " on" : ""}" onclick="EDIT.screen=!(EDIT.screen!==false);renderLarm()"></button></div>
+    <div class="slab"><span>Snooze</span><b id="eS">${a.snooze ?? 9} min</b></div><input type="range" class="range" min="1" max="30" value="${a.snooze ?? 9}" oninput="EDIT.snooze=+this.value;$('#eS').textContent=this.value+' min'">
+    <div class="slab"><span>Stängs av själv efter</span><b id="eA">${a.stop ? a.stop + " min" : "aldrig"}</b></div><input type="range" class="range" min="0" max="180" step="5" value="${a.stop ?? 60}" oninput="EDIT.stop=+this.value;$('#eA').textContent=+this.value?this.value+' min':'aldrig'">
+  </div>
+  <div class="row"><button class="btn pri big" onclick="saveAlarm()">${ic("check")} Spara</button><button class="btn big" onclick="EDIT=null;renderLarm()">Avbryt</button></div>
+  ${a._new ? "" : `<div class="row"><button class="btn bad big" onclick="deleteAlarm()">Ta bort larmet</button></div>`}`;
+}
+function toggleDay(i){ const d = EDIT.days || []; EDIT.days = d.includes(i) ? d.filter(x => x !== i) : [...d, i].sort(); renderLarm(); }
+async function saveAlarm(){
+  const list = JSON.parse(JSON.stringify(D.deck.alarms || [])), o = Object.assign({}, EDIT); delete o._new;
+  if (!o.days || !o.days.length) o.days = [0,1,2,3,4,5,6];
+  const i = list.findIndex(x => x.id === o.id); if (i >= 0) list[i] = o; else list.push(o);
+  list.sort((a, b) => String(a.time).localeCompare(String(b.time)));
+  if (await saveDeck({ alarms: list })){ D.deck.alarms = list; EDIT = null; renderLarm(); toast("Larmet är sparat"); }
+}
+async function deleteAlarm(){ if (!confirm("Ta bort larmet?")) return; const list = (D.deck.alarms || []).filter(x => x.id !== EDIT.id); if (await saveDeck({ alarms: list })){ D.deck.alarms = list; EDIT = null; renderLarm(); } }
+let TSET = store.get("timer", { min: 10, name: "", room: "" });
+function timerPanel(){
+  const ts = (D.st.timers || []).filter(t => t.end * 1000 > Date.now());
+  let h = ts.map(t => `<div class="card"><div class="setrow"><div><div class="countdown" data-end="${t.end}">${mmss(t.end - Date.now() / 1000)}</div><div class="s">${esc(t.name)} · klar ${hhmm(t.end)}</div></div><button class="btn bad" onclick="send('timer-off:${esc(t.id)}');setTimeout(tick,1000)">Stoppa</button></div></div>`).join("");
+  h += `<div class="card"><div class="lbl">Ny timer</div><div class="chips">${[1,3,5,10,15,20,30,45,60,90].map(m => `<button class="chip${TSET.min === m ? " on" : ""}" onclick="TSET.min=${m};store.set('timer',TSET);renderLarm()">${m < 60 ? m + " min" : m / 60 + " h"}</button>`).join("")}</div>
+    <div class="slab"><span>Eller välj</span><b id="tM">${TSET.min} min</b></div><input type="range" class="range" min="1" max="180" value="${TSET.min}" oninput="TSET.min=+this.value;$('#tM').textContent=this.value+' min'">
+    <div class="sub">Namn (valfritt)</div><input class="in" value="${esc(TSET.name || "")}" placeholder="t.ex. Pasta" oninput="TSET.name=this.value">
+    <div class="sub">Ringer i</div><select class="in" onchange="TSET.room=this.value">${rooms().map(r => `<option${(TSET.room || curRoom()) === r ? " selected" : ""}>${esc(r)}</option>`).join("")}</select>
+    <div class="row"><button class="btn pri big" onclick="startTimer()">${ic("timer")} Starta ${TSET.min} min</button></div></div>
+    <div class="hint">Timern ringer med en klocka i högtalaren och syns på Blaupunkt-skärmen och Nest Hub. Det som spelades fortsätter efteråt.</div>`;
+  return h;
+}
+function startTimer(){ store.set("timer", TSET); send("timer:" + JSON.stringify({ id: Math.random().toString(36).slice(2, 8), min: TSET.min, name: TSET.name || "Timer", room: TSET.room || curRoom() })); toast("Timern är igång"); setTimeout(tick, 1200); }
+setInterval(() => document.querySelectorAll(".countdown[data-end]").forEach(el => { el.textContent = mmss(+el.dataset.end - Date.now() / 1000); }), 1000);
+let SSET = store.get("sleep", { min: 30, fade: 5, lights: "", screen: false });
+function sleepPanel(){
+  const sl = sleepOn();
+  if (sl) return `<div class="card"><div class="lbl">Sov-timern är på</div><div class="countdown">${minsLeft(sl.end)} min</div><div class="mut">${esc(sl.room)} tystnar ${hhmm(sl.end)}</div>
+    <div class="row"><button class="btn big" onclick="send('sleep:add:10');setTimeout(tick,1000)">+10 min</button><button class="btn big" onclick="send('sleep:add:30');setTimeout(tick,1000)">+30 min</button></div>
+    <div class="row"><button class="btn bad big" onclick="send('sleep:off');setTimeout(tick,1000)">Stäng av sov-timern</button></div></div>`;
+  const groups = (D.st.groups || []).map(g => g.name), sel = (SSET.lights || "").split(",").filter(Boolean);
+  const save = "store.set('sleep',SSET);renderLarm()";
+  return `<div class="card"><div class="lbl">Sov-timer</div><div class="sub">Musiken tystnar om</div>
+    <div class="chips">${[15,30,45,60,90,120].map(m => `<button class="chip${SSET.min === m ? " on" : ""}" onclick="SSET.min=${m};${save}">${m < 60 ? m + " min" : m === 60 ? "1 h" : m === 90 ? "1,5 h" : "2 h"}</button>`).join("")}</div>
+    <div class="sub">Tonas ut under</div><div class="chips">${[1,5,10,15].map(m => `<button class="chip${SSET.fade === m ? " on" : ""}" onclick="SSET.fade=${m};${save}">${m} min</button>`).join("")}</div>
+    ${groups.length ? `<div class="sub">Släck även</div><div class="chips">${groups.map(g => `<button class="chip${sel.includes(g) ? " on" : ""}" onclick="SSET.lights=${JSON.stringify(sel.includes(g) ? sel.filter(x => x !== g).join(",") : [...sel, g].join(",")).replace(/"/g, "&quot;")};${save}">${esc(g)}</button>`).join("")}</div>` : ""}
+    <div class="setrow"><div class="t">Stäng Blaupunkt-skärmen också</div><button class="sw${SSET.screen ? " on" : ""}" onclick="SSET.screen=!SSET.screen;${save}"></button></div>
+    <div class="row"><button class="btn pri big" onclick="startSleep()">${ic("moon")} Starta i ${esc(curRoom())}</button></div></div>`;
+}
+function startSleep(){ send("sleep:" + JSON.stringify(Object.assign({ room: curRoom() }, SSET))); toast("Sov-timern är på"); setTimeout(tick, 1200); closeSheet(); }
+function openSleep(){ openSheet(sleepPanel().replace('class="card"', 'class="card" style="border:0;padding:0;background:none"')); }
+
+// ======================================================================
+// INSTÄLLNINGAR: meny med sök som i Tavlan. Skärmens inställningar är samma kontroller som
+// panelen på Blaupunkt-skärmen (index.html?panel=…) och sparas direkt till alla skärmar.
+// ======================================================================
+const SETP = [
+  ["Blaupunkt-skärmen", [
+    ["sidor", "home", "Sidor när inget spelar", "Hemskärm, testbild och hur länge sidorna visas", "idle:hem,idle:test,idle:tider", "hemskärm rotation tid sidor testbild klocka"],
+    ["vader", "sun", "Väder, datum och klocka", "Väder i detalj, kanterna runt bilden, steg", "idle:vader,kanter", "väder ort datum klocka vecka steg kanter"],
+    ["buss", "bus", "Buss", "Hållplats, destination och skylten", "idle:buss", "buss hållplats avgångar resrobot skylt dalatrafik"],
+    ["nyheter", "news", "Nyheter", "Källor och bara innehållsrika artiklar", "idle:nyheter", "nyheter rss källor artiklar"],
+    ["sport", "ball", "Fotboll och hockey", "AIK, tabeller och sportnyheter", "idle:sport", "fotboll hockey aik tabell sport highlights"],
+    ["plex", "film", "Film från Plex", "Filmtips bland osedda filmer", "idle:plex", "plex film filmtips"],
+    ["foton", "image", "Foton", "Album från Google Foto", "idle:foton", "foton google album bilder"],
+    ["bildror", "tv", "Bildrör och färg", "Färgläge, mättnad, störningar, uppvärmning", "bildror", "bildrör färg mättnad ljusstyrka kontrast störningar brus flimmer"],
+    ["utseende", "text", "Text och utseende", "Märkning, typsnitt, textstorlekar, omslag", "utseende", "text typsnitt storlek märkning omslag versaler"],
+    ["skarm", "tv", "Skärmformat", "Format och skärmens mått", "skarm", "skärm format storlek"],
+    ["kanal", "wave", "Kanal (visualisering)", "Visualiseringar och byte vid ny låt", "kanal", "kanal visualisering oscilloskop ljusorgel"],
+  ]],
+  ["Musik och ljud", [
+    ["musik", "music", "Musik och Spotify", "Spotify-inloggning, Client ID, källa", "", "spotify musik källa client inloggning"],
+    ["radio", "radio", "Radio på skärmen", "Stationer för skärmens radioläge", "radio", "radio stationer"],
+    ["skarmljud", "speaker", "Ljud, vakna och belysning", "Klippljud, vakna-läge, Trådfri vid väckning", "kalla,spotify", "klippljud vakna väckning trådfri belysning visualisering ljud"],
+  ]],
+  ["Hemmet", [
+    ["scener", "sparkles", "Scener, tider och lampregler", "Bygg i deck-redigeraren", "", "scener tider schema lampregler"],
+    ["knappar", "grid", "Knappar (Stream Controller)", "Knapparnas utseende och funktion", "", "knappar stream controller deck vred"],
+    ["nest", "cast", "Nest Hub", "Appen på Nest Hub", "", "nest hub google cast"],
+  ]],
+  ["System", [
+    ["hubb", "hub", "Hubben", "Status för Pi:n", "", "hubb pi status version"],
+    ["kort", "grid", "Testa och kortkommandon", "Testa väckningen, tangenter", "kort", "test väckning kortkommandon"],
+    ["aterstall", "lock", "Återställ skärmen", "Alla skärmens inställningar", "aterstall", "återställ"],
+  ]],
+];
+let SETPAGE = null, SETQ = "";
+const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+function renderInst(){
+  const p = $("#p-inst");
+  if (SETPAGE) return renderSetPage(p);
+  const q = norm(SETQ).trim();
+  let html = `<input type="search" class="in" id="setQ" placeholder="Sök inställning… (t.ex. buss, mättnad)" value="${esc(SETQ)}" style="margin-bottom:14px">`;
+  const row = ([id, i, t, s]) => `<div class="mrow" onclick="openInst('${id}')"><div class="mico">${ic(i)}</div><div style="min-width:0"><div class="mt">${esc(t)}</div><div class="ms">${esc(s)}</div></div><span class="marrow">›</span></div>`;
+  if (q){
+    const hits = SETP.flatMap(([sec, rows]) => rows).filter(r => norm(r[2] + " " + r[3] + " " + r[5]).includes(q));
+    html += hits.length ? `<div class="menu">${hits.map(row).join("")}</div>` : `<div class="empty">Ingen inställning heter så.</div>`;
+  } else html += SETP.map(([sec, rows]) => `<div class="secT">${esc(sec)}</div><div class="menu">${rows.map(row).join("")}</div>`).join("");
+  html += NEST ? "" : `<div class="hint" style="text-align:center">Inställningarna sparas direkt och syns på alla skärmar.</div>`;
+  p.innerHTML = html;
+  const inp = $("#setQ"); inp.addEventListener("input", () => { SETQ = inp.value; const pos = inp.selectionStart; renderInst(); const n = $("#setQ"); n.focus(); n.setSelectionRange(pos, pos); });
+}
+function openInst(id){ SETPAGE = id; if (TAB !== "inst") showTab("inst"); else renderInst(); window.scrollTo(0, 0); }
+function renderSetPage(p){
+  const r = SETP.flatMap(([, rows]) => rows).find(x => x[0] === SETPAGE);
+  if (!r){ SETPAGE = null; return renderInst(); }
+  let body = "";
+  if (r[4]) body = NEST ? `<div class="empty">Ändra skärmens inställningar i appen i mobilen.</div>` : `<iframe class="pframe" id="pframe" src="/?panel=${encodeURIComponent(r[4])}" title="${esc(r[2])}"></iframe>`;
+  else if (r[0] === "musik") body = `<div class="card"><div class="lbl">Spotify i appen</div>
+      ${D.sp.connected ? `<div class="setrow"><div><div class="t">Inloggad${D.sp.name ? " som " + esc(D.sp.name) : ""}</div><div class="s">${D.sp.product === "premium" ? "Premium" : esc(D.sp.product || "")}</div></div>${ic("check")}</div><div class="row"><button class="btn" onclick="spLogout()">Logga ut</button></div>`
+        : `<div class="hint">Logga in så hämtar appen dina spellistor, gillade låtar och sök. Musiken spelas på Sonos.</div><div class="row"><button class="btn pri big" onclick="spLogin()">Logga in med Spotify</button></div>`}
+      <div class="hint">Samma Spotify-app (Client ID) som Blaupunkt-skärmen använder. Lägg till <b>${esc(location.origin)}/callback</b> som Redirect URI i Spotifys utvecklarsida om den inte redan finns.</div></div>
+    <iframe class="pframe" id="pframe" src="/?panel=spotify" title="Spotify"></iframe>`;
+  else if (r[0] === "scener" || r[0] === "knappar") body = `<div class="card"><div class="hint">${r[0] === "scener" ? "Scener (ljus, musik, skärm, effekter, tidslinjer), tider och lampregler byggs i deck-redigeraren. Här i appen startar du dem och slår av och på tiderna (fliken Ljus)." : "Knapparnas utseende, funktioner, sidor och vred ställs in i deck-redigeraren. Under fliken Skärmen finns knapparna att trycka på."}</div>
+      <div class="row"><a class="btn pri big" href="/deck" target="_blank" rel="noopener">Öppna deck-redigeraren</a></div></div>`;
+  else if (r[0] === "nest") body = `<div class="card"><div class="hint">Hubben castar den här appen till Google Nest Hub. Där kan du styra musik, ljus, scener och larm med touch. Efter två minuter utan tryck visas klockvyn.</div>
+      <div class="row"><button class="btn pri" onclick="send('nest:now');toast('Castar till Nest Hub')">Visa på Nest Hub nu</button><button class="btn" onclick="send('nest:on');toast('På')">Slå på</button><button class="btn" onclick="send('nest:off');toast('Av')">Slå av</button></div></div>`;
+  else if (r[0] === "hubb") body = `<div class="card">
+      <div class="setrow"><div class="t">Kontakt</div><div class="mut">${hubOnline() ? "Ansluten" : "Svarar inte"}</div></div>
+      <div class="setrow"><div class="t">Senast hörd</div><div class="mut">${D.st.at ? hhmm(D.st.at) : "–"}</div></div>
+      <div class="setrow"><div class="t">Lampor</div><div class="mut">${(D.st.lamps || []).length}</div></div>
+      <div class="setrow"><div class="t">Högtalare</div><div class="mut">${esc(rooms().join(", "))}</div></div>
+      <div class="row"><button class="btn" onclick="send('tradfri-refresh');toast('Läser om lamporna')">Läs om lampor och grupper</button><button class="btn" onclick="send('lamps-read');toast('Läser av')">Läs av nu</button></div>
+      <div class="hint">Uppdatera hubben med uppdatera-pi.bat på datorn.</div></div>`;
+  p.innerHTML = `<div class="pagehead"><button class="back" onclick="SETPAGE=null;renderInst()">‹</button><div class="pagetitle">${esc(r[2])}</div></div>` + body;
+}
+window.addEventListener("message", e => { if (e.origin === location.origin && e.data && e.data.panelHeight){ const f = $("#pframe"); if (f) f.style.height = (e.data.panelHeight + 10) + "px"; } });
+
+// ---------- bladet ----------
+function openSheet(html){ $("#sheetBody").innerHTML = html; $("#sheetBg").classList.add("on"); $("#sheet").classList.add("on"); }
+function closeSheet(){ $("#sheetBg").classList.remove("on"); $("#sheet").classList.remove("on"); }
+
+// ---------- Nest Hub: klockvyn när ingen rört skärmen på två minuter ----------
+let idleT = 0;
+function wake(){ document.body.classList.remove("idle"); clearTimeout(idleT); idleT = setTimeout(() => { document.body.classList.add("idle"); }, 120000); }
+if (NEST){
+  const amb = document.createElement("iframe"); amb.id = "amb"; amb.src = "/nest"; amb.tabIndex = -1; document.body.append(amb);
+  const cover = document.createElement("div"); cover.id = "ambCover"; document.body.append(cover);
+  cover.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); wake(); });
+  ["pointerdown", "keydown", "wheel"].forEach(ev => document.addEventListener(ev, wake, true));
+  wake();
+}
+
+// ---------- start ----------
+(async () => {
+  await spFinish();
+  await slow();
+  await tick();
+  if (D.sp.connected) loadPlaylists().then(() => { if (TAB === "musik") renderRail(); });
+  showTab(TAB);
+  setInterval(tick, 2500);
+  setInterval(slow, 60000);
+  setInterval(() => { if (TAB === "musik" || TAB === "skarm") send("sonos-focus:" + curRoom()); }, 30000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden){ tick(); slow(); if (TAB === "skarm") shotTick(true); if (TAB === "musik") send("sonos-focus:" + curRoom()); } });
+})();
+</script>
+</body>
+</html>

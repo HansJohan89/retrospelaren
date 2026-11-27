@@ -412,6 +412,31 @@ body.hidecursor,body.hidecursor *{cursor:none!important}
   transform:translateX(102%);transition:transform .35s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;
   box-shadow:-10px 0 40px rgba(0,0,0,.6);font-size:15px}
 #panel.open{transform:none}
+/* Inställningarna inbäddade i appen (index.html?panel=<del>): bara den delen av panelen, i hela fönstret */
+html.panelOnly,html.panelOnly body{background:#0e0f11;overflow:auto;height:auto}
+html.panelOnly body > *:not(#panel):not(#loginBox){display:none!important}
+html.panelOnly #panel{position:static;transform:none;width:100%;box-shadow:none;background:#0e0f11;color:#e8e6e0;font-size:15px}
+html.panelOnly #panel > header{display:none}
+html.panelOnly #panel .scroll{overflow:visible;padding:4px 16px 40px}
+html.panelOnly #panel section[data-sec]{display:none}
+html.panelOnly #panel section[data-sec].show{display:block}
+html.panelOnly #panel,html.panelOnly #panel *{font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif!important;letter-spacing:normal}
+html.panelOnly #panel h3{font-size:11px;letter-spacing:.16em!important;text-transform:uppercase;color:#e8a33d;margin:18px 0 10px;font-weight:700}
+html.panelOnly #panel .lbl{color:#9a9fa8;font-size:13px}
+html.panelOnly #panel .note{color:#8f949c;font-size:12.5px;line-height:1.45}
+html.panelOnly #panel .chk{display:flex;align-items:flex-start;gap:10px;padding:9px 0;font-size:15px;line-height:1.35}
+html.panelOnly #panel input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#e8a33d;margin-top:1px}
+html.panelOnly #panel input[type=range]{accent-color:#e8a33d}
+html.panelOnly #panel input[type=text],html.panelOnly #panel input[type=search],html.panelOnly #panel input[type=number],html.panelOnly #panel select,html.panelOnly #panel textarea{
+  background:#0f1113!important;color:#e8e9ec!important;border:1px solid #30353d!important;border-radius:11px!important;min-height:44px;padding:0 12px!important;font-size:15px!important}
+html.panelOnly #panel textarea{padding:10px 12px!important}
+html.panelOnly #panel .btn{background:#22262c!important;color:#e8e9ec!important;border:1px solid #30353d!important;border-radius:11px!important;min-height:44px;padding:0 14px!important;font-weight:600}
+html.panelOnly #panel .btn.primary{background:#e8a33d!important;border-color:#e8a33d!important;color:#1a1204!important}
+html.panelOnly #panel .seg{display:flex;flex-wrap:wrap;gap:7px}
+html.panelOnly #panel .seg button{background:#1d2025!important;color:#e8e9ec!important;border:1px solid #30353d!important;border-radius:18px!important;min-height:36px;padding:0 14px!important;font-weight:600;font-size:13px}
+html.panelOnly #panel .seg button.on,html.panelOnly #panel .seg button[aria-pressed="true"]{background:#e8a33d!important;border-color:#e8a33d!important;color:#1a1204!important}
+html.panelOnly #panel .row{gap:8px;margin:8px 0}
+
 #loginBox{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:rgba(0,0,0,.6)}
 #loginBox form{background:#171a22;border:1px solid #2a2f3b;border-radius:14px;padding:22px;width:min(320px,86vw);display:flex;flex-direction:column;gap:10px;color:#e8e6e0;font:15px system-ui,sans-serif}
 #loginBox span{color:#9aa0ad;font-size:13px}#loginBox .err{color:#ff8080;min-height:1em;font-size:13px}
@@ -517,7 +542,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
 <aside id="panel" aria-label="Inställningar">
   <header><h2>Inställningar</h2><button id="closePanel" aria-label="Stäng">&times;</button></header>
   <div class="scroll">
-    <section>
+    <section data-sec="kalla">
       <h3>Källa</h3>
       <div class="seg" id="srcSeg">
         <button data-v="radio">Radio</button>
@@ -526,7 +551,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <div class="row"><span>Ljud för klipp och sändningar</span><select id="clipRoom"><option value="">Skärmens egna högtalare</option></select></div>
     </section>
 
-    <section id="radioSec">
+    <section id="radioSec" data-sec="radio">
       <h3>Radio</h3>
       <div class="seg" id="genreSeg">
         <button data-q="tag=50s">50-tal</button>
@@ -544,7 +569,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <div class="row"><span>Volym</span><input type="range" id="vol" min="0" max="1" step="0.01"></div>
     </section>
 
-    <section id="spSec">
+    <section id="spSec" data-sec="spotify">
       <h3>Spotify</h3>
       <div class="row"><input type="text" id="spClient" placeholder="Client ID från developer.spotify.com"></div>
       <div class="note">Lägg in den här adressen som Redirect URI i din Spotify-app:<br><code id="spRedirect"></code></div>
@@ -576,13 +601,13 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <div id="lightCtl"><div class="note">Inga grupper hämtade än - tryck Uppdatera ovan.</div></div>
     </section>
 
-    <section>
+    <section data-sec="streamcontroller">
       <h3>Stream Controller</h3>
       <div class="note">Knapparna och rattarna på Stream Controllern ställs in på en egen sida, som också har en emulator som gör samma sak som den riktiga enheten. Samma kommandon (<code>/api/send</code>) som förut.</div>
       <div class="row"><a class="btn primary" href="/deck" target="_blank" rel="noopener" style="text-decoration:none">Öppna Stream Controller</a><a class="btn" href="/deck?mode=use" target="_blank" rel="noopener" style="text-decoration:none">Bara emulatorn</a></div>
     </section>
 
-    <section>
+    <section data-sec="kanal">
       <h3>Kanal (visualisering)</h3>
       <div class="seg" id="vizSeg">
         <button data-v="1">1 Oscilloskop</button>
@@ -599,7 +624,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <div class="vizRot" id="vizRotSeg"></div>
     </section>
 
-    <section>
+    <section data-sec="bildror">
       <h3>Bildrör</h3>
       <div class="seg" id="palSeg">
         <button data-v="svartvit">Svartvit</button>
@@ -621,7 +646,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <label class="chk"><input type="checkbox" id="warmChk"> Bildröret värms upp vid start och slocknar till en punkt</label>
     </section>
 
-    <section>
+    <section data-sec="utseende">
       <h3>Utseende</h3>
       <div class="row"><span class="lbl">Märkning</span><input type="text" id="brandIn" maxlength="24"></div>
       <div class="row"><span class="lbl">Rubrikstypsnitt</span><select id="fontT"></select></div>
@@ -656,7 +681,7 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <label class="chk"><input type="checkbox" id="crtChk"> Linjer, vinjett och reflex</label>
     </section>
 
-    <section>
+    <section data-sec="skarm">
       <h3>Skärm</h3>
       <div class="seg" id="fmtSeg">
         <button data-v="4:3">4:3</button>
@@ -667,14 +692,19 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <div class="note">Storlek och förskjutning används för att passa bilden exakt bakom masken i möbeln.</div>
     </section>
 
-    <section>
+    <section data-sec="idle">
       <h3>När inget spelar</h3>
+      <div data-sub="hem">
       <label class="chk"><input type="checkbox" id="idHome"> Hemskärm med flera rutor</label>
       <div class="seg" id="homeSeg" style="margin:6px 0 4px 26px">
         <button data-v="clock">Klocka</button><button data-v="wx">Väder</button><button data-v="bus">Bussar</button>
         <button data-v="news">Nyhet</button><button data-v="aik">AIK</button><button data-v="photo">Foto</button>
       </div>
+      </div>
+      <div data-sub="vader">
       <label class="chk"><input type="checkbox" id="idWx"> Väder i detalj</label>
+      </div>
+      <div data-sub="buss">
       <label class="chk"><input type="checkbox" id="idBus"> Bussavgångar på vädersidan</label>
       <div class="row"><input type="search" id="busQ" placeholder="Sök hållplats, t.ex. Falun Centrum"><button class="btn" id="busBtn">Sök</button></div>
       <div class="row"><select id="busSel"><option value="">Ingen hållplats vald</option></select></div>
@@ -689,11 +719,17 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <label class="chk"><input type="checkbox" id="signFit"> Krymp texten automatiskt så att alla avgångar får plats</label>
       <button class="btn" id="signReset" style="margin-top:6px">Återställ skylten</button>
       <div class="note" id="busStatus"></div>
+      </div>
+      <div data-sub="nyheter">
       <label class="chk"><input type="checkbox" id="idNews"> Nyheter</label>
+      </div>
+      <div data-sub="foton">
       <label class="chk"><input type="checkbox" id="idPhoto"> Foton från Google Foto</label>
       <textarea id="albums" rows="3" placeholder="Delningslänkar till album, en per rad (photos.app.goo.gl/...)" style="width:100%;font:inherit;font-size:13px;padding:7px 9px;border:1.5px solid var(--panel-ink);background:#f6efdc;color:var(--panel-ink);border-radius:3px;margin-top:8px"></textarea>
       <label class="chk"><input type="checkbox" id="photoOrig"> Foton i originalfärg (annars bildrörets färgläge)</label>
       <div class="note" id="photoStatus"></div>
+      </div>
+      <div data-sub="sport">
       <label class="chk"><input type="checkbox" id="idFb"> Fotboll &amp; hockey (AIK) – egna sidor</label>
       <div class="row"><span class="lbl">Fotbollskälla</span><select id="fbSrc"><option value="espn">ESPN (ingen nyckel, ingen kvot)</option><option value="highlightly">Highlightly (100 anrop/dygn)</option></select></div>
       <div class="row"><span class="lbl">Hämta var</span><input type="number" id="fbMins" min="5" max="1440" step="5" style="width:6em"> <span class="lbl">minut</span></div>
@@ -701,20 +737,31 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <div class="note" id="fbStatus"></div>
       <div class="note" id="hkStatus"></div>
       <div id="sportNewsCfg"></div>
+      </div>
+      <div data-sub="plex">
       <label class="chk"><input type="checkbox" id="idPlex"> Filmtips från Plex (osedda filmer)</label>
       <div class="note" id="plexStatus"></div>
+      </div>
+      <div data-sub="test">
       <label class="chk"><input type="checkbox" id="idTest"> Testbild</label>
+      </div>
+      <div data-sub="tider">
       <div id="idleSl"></div>
+      </div>
+      <div data-sub="nyheter">
       <div class="lbl" style="margin-top:12px">Nyhetskällor (kryssa i så många du vill)</div>
       <label class="chk"><input type="checkbox" id="richOnly"> Bara innehållsrika artiklar (med bild och ordentlig text) – gäller även sport</label>
       <div id="feedList"></div>
       <div id="ownFeeds"></div>
       <div class="row"><input type="text" id="ownFeedName" placeholder="Namn" style="width:7em"><input type="text" id="ownFeedUrl" placeholder="Egen RSS-adress (https://...)" style="flex:1"><button id="ownFeedAdd" class="btn">Lägg till</button></div>
       <div class="note" id="newsStatus"></div>
+      </div>
+      <div data-sub="tider">
       <div class="note">Sidorna växlar efter varandra. Är inget valt visas testbilden.</div>
+      </div>
     </section>
 
-    <section>
+    <section data-sec="kanter">
       <h3>Kanter</h3>
       <label class="chk"><input type="checkbox" id="edDate"> Veckodag och datum</label>
       <label class="chk"><input type="checkbox" id="edWeek"> Veckonummer</label>
@@ -726,12 +773,12 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
       <div class="note" id="wxStatus"></div>
     </section>
 
-    <section>
+    <section data-sec="aterstall">
       <h3>Återställ</h3>
       <div class="row"><button class="btn" id="resetBtn">Återställ alla inställningar</button></div>
     </section>
 
-    <section>
+    <section data-sec="kort">
       <h3>Kortkommandon</h3>
       <div class="keys">
         <kbd>1&ndash;5</kbd><span>Byt kanal</span>
@@ -753,6 +800,11 @@ select{font:inherit;font-size:14px;padding:6px 8px;border:1.5px solid var(--pane
 
 <script>
 "use strict";
+// Spotify-inloggning som appen (/app) startade: tillbaka till appen med koden
+if (location.pathname === "/callback" && (new URLSearchParams(location.search).get("state") || "").startsWith("app")) location.replace("/app" + location.search);
+// Appen visar delar av inställningspanelen med index.html?panel=<del,del>: då körs inget av skärmen
+const PANEL = new URLSearchParams(location.search).get("panel") || "";
+if (PANEL) document.documentElement.classList.add("panelOnly");
 // ================= lagring & inställningar =================
 const $ = s => document.querySelector(s);
 // Inställningar, favoriter och senaste station sparas även på servern (/api/state, en fil på
@@ -3292,7 +3344,7 @@ async function sonosPoll(){
 let sonosT = 0;
 function sonosLoop(){ sonosPoll().finally(() => { sonosT = setTimeout(sonosLoop, WAKE_HOLD ? 400 : 1500); }); }
 function sonosFast(){ clearTimeout(sonosT); sonosLoop(); }
-sonosLoop();
+if (!PANEL) sonosLoop();
 async function spCmd(kind){
   const map = { play:["PUT","/me/player/play"], pause:["PUT","/me/player/pause"], next:["POST","/me/player/next"], prev:["POST","/me/player/previous"] };
   const [m, p] = map[kind];
@@ -3429,6 +3481,7 @@ async function pollCmd(){
   finally { cmdBusy = false; }
 }
 function runCmd(c){
+  if (c.startsWith("osd:")){ osd(c.slice(4)); return; }       // ett meddelande på skärmen (t.ex. timern från appen)
   if (c === "open"){ const wasBlank = state.blanked; $("#blank").classList.remove("on"); state.blanked = false;
     if (wasBlank) wakeHold(30000);
     if (state.started && wasBlank) warmUp(); start();
@@ -3545,7 +3598,7 @@ function showIdlePage(name){
   if (idx < 0){ osd("Sidan är inte påslagen"); return; }
   BOARD.idx = idx - 1; BOARD.until = 0;   // boardStep tar nästa i tur vid nästa bildruta
 }
-setInterval(pollCmd, 300);
+if (!PANEL) setInterval(pollCmd, 300);
 
 // ================= panel och tangenter =================
 const panel = $("#panel");
@@ -4045,7 +4098,32 @@ function watchVersion(){
 }
 
 // ================= init =================
+// Bara inställningarna (inbäddade i appen): samma kontroller och samma sparande, men ingen skärm
+function initPanelOnly(){
+  // "idle:buss,idle:sport" = bara de delarna av "När inget spelar"
+  const want = PANEL.split(",").map(x => x.split(":")[0]);
+  const subs = PANEL.split(",").filter(x => x.includes(":")).map(x => x.split(":")[1]);
+  document.querySelectorAll("#panel section[data-sec]").forEach(sec => sec.classList.toggle("show", want.includes(sec.dataset.sec)));
+  if (subs.length) document.querySelectorAll("#panel [data-sub]").forEach(d => { d.hidden = !subs.includes(d.dataset.sub); });
+  if (subs.length) document.querySelectorAll('#panel section[data-sec="idle"] > h3').forEach(x => { x.hidden = true; });
+  $("#panel").classList.add("open");
+  $("#spRedirect").textContent = SP.redirect;
+  $("#spClient").value = S.clientId;
+  $("#vol").value = S.volume;
+  $("#autoCh").checked = S.autoChannel;
+  $("#vizRotSeg").querySelectorAll("input[type=checkbox]").forEach(cb => { cb.checked = S.vizRot[cb.dataset.v] !== false; });
+  buildControls(); syncAll(); loadFonts();
+  segOn("#vizSeg", String(S.viz)); segOn("#srcSeg", S.source); segOn("#vinSeg", S.vizInput); segOn("#genreSeg", S.genre);
+  if (want.includes("radio")) loadStations(S.genre);
+  if (want.includes("spotify")) renderSp();
+  // statusraderna (nyheter, sport, Plex, foton) fylls av sina vanliga hämtningar
+  if (want.includes("idle")){ loadNews(); loadFootball(); loadHockey(); loadAikNews(); loadPlex(); loadPhotos(); }
+  // höjden till appen, så att ramen blir lagom hög
+  const post = () => { try { parent.postMessage({ panelHeight: document.documentElement.scrollHeight }, location.origin); } catch(e){} };
+  new ResizeObserver(post).observe(document.body); post();
+}
 (async function init(){
+  if (PANEL){ initPanelOnly(); return; }
   saveS();     // fyll i nya standardvärden/omskrivningar på servern, så alla skärmar har exakt samma
   $("#spRedirect").textContent = SP.redirect;
   $("#spClient").value = S.clientId;
