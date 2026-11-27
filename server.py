@@ -1517,6 +1517,31 @@ class Handler(SimpleHTTPRequestHandler):
                     return self._json({"error": str(e)}, 200)
             if path == "/api/tradfri-list":
                 return self._json(get_tradfri_list())
+            if path in ("/api/hubfiles", "/api/hubfile"):
+                # Hubbens programfiler (mappen pi-hub), så att hubben kan uppdatera sig själv
+                # (kommandot hub-update). Bara kod; hubbens inställningar finns bara på Pi:n.
+                import hashlib
+                d = os.path.join(ROOT, "pi-hub")
+                ok = lambda n: re.fullmatch(r"[a-z_]+\.py|airplay-setup\.sh", n or "")
+                if path == "/api/hubfiles":
+                    files = {}
+                    for n in sorted(os.listdir(d)) if os.path.isdir(d) else []:
+                        if ok(n):
+                            with open(os.path.join(d, n), "rb") as f:
+                                files[n] = hashlib.sha256(f.read()).hexdigest()
+                    return self._json({"files": files})
+                n = (q.get("n") or [""])[0]
+                if not ok(n) or not os.path.isfile(os.path.join(d, n)):
+                    return self._json({"error": "finns inte"}, 404)
+                with open(os.path.join(d, n), "rb") as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(data)
+                return
             if path == "/api/nestbeat":
                 if q.get("ping"):
                     NEST_BEAT["at"] = time.time()
