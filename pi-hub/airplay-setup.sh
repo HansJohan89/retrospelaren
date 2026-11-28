@@ -22,4 +22,22 @@ python3 -c "import evdev" 2>/dev/null || sudo apt-get install -y python3-evdev
 HU=$(systemctl show -p User --value blaupunkt-hub 2>/dev/null); HU=${HU:-$USER}
 id -nG "$HU" | grep -qw input || sudo usermod -aG input "$HU"
 id -nG "$HU" | grep -qw bluetooth || sudo usermod -aG bluetooth "$HU" 2>/dev/null || true
+# Bluetooth för trådlösa spelkontroller (Stadia m.fl.): Bluetooth ska aldrig vara spärrad, och
+# BlueZ-inställningarna som rekommenderas när kontrollen paras men knapparna inte går att läsa.
+sudo rfkill unblock bluetooth 2>/dev/null || true
+BTC=/etc/bluetooth/main.conf
+btset(){ # sektion nyckel värde
+  if sudo grep -qE "^[[:space:]]*$2[[:space:]]*=" "$BTC"; then sudo sed -i -E "s|^[[:space:]]*$2[[:space:]]*=.*|$2 = $3|" "$BTC"
+  else sudo sed -i "/^\[$1\]/a $2 = $3" "$BTC"; fi; }
+if [ -f "$BTC" ] && ! grep -q "blaupunkt-spelkontroll" "$BTC"; then
+  sudo cp "$BTC" "$BTC.fore-blaupunkt"
+  btset General ControllerMode dual
+  btset General JustWorksRepairing always
+  btset General FastConnectable true
+  btset LE MinConnectionInterval 7
+  btset LE MaxConnectionInterval 9
+  echo "# blaupunkt-spelkontroll: inställningar satta av airplay-setup.sh (original: main.conf.fore-blaupunkt)" | sudo tee -a "$BTC" >/dev/null
+  sudo systemctl restart bluetooth
+  echo "Bluetooth: inställt för spelkontroller"
+fi
 echo "Klippljud: klart (ffmpeg $(ffmpeg -version 2>/dev/null | head -1 | cut -d" " -f3))"
