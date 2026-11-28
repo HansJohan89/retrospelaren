@@ -254,6 +254,9 @@ class Gamepad:
             for m in re.finditer(r"Device ([0-9A-F:]{17}) (.+)", out, re.I):
                 if not re.search(r"stadia|controller|gamepad", m.group(2), re.I):
                     continue
+                info = subprocess.run(["bluetoothctl", "info", m.group(1)], capture_output=True, text=True, timeout=5).stdout
+                if "Connected: yes" in info:
+                    continue                    # redan ansluten: rör den inte
                 r = subprocess.run(["bluetoothctl", "--timeout", "6", "connect", m.group(1)], capture_output=True, text=True, timeout=10)
                 ok = "successful" in (r.stdout or "").lower()
                 if ok or getattr(self, "_bt_last", None) != ok:
