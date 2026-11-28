@@ -43,7 +43,9 @@ DEFAULT_MAP = {
     "ABS_BRAKE+": "gp:prev", "ABS_GAS+": "gp:next",              # L2/R2 (Stadia)
     "BTN_TL2": "gp:prev", "BTN_TR2": "gp:next",
     # höger spak upp/ner: ljusare/mörkare (Stadia: ABS_RZ, andra: ABS_RY)
-    "ABS_RZ-": "gp:dim+", "ABS_RZ+": "gp:dim-", "ABS_RY-": "gp:dim+", "ABS_RY+": "gp:dim-",
+    # höger spak: höger/vänster ljusare/mörkare, upp/ner kallare/varmare ljus (Stadia: Z/RZ, andra: RX/RY)
+    "ABS_Z+": "gp:dim+", "ABS_Z-": "gp:dim-", "ABS_RZ-": "gp:colder", "ABS_RZ+": "gp:warmer",
+    "ABS_RX+": "gp:dim+", "ABS_RX-": "gp:dim-", "ABS_RY-": "gp:colder", "ABS_RY+": "gp:warmer",
     "BTN_START": "gp:screen",      # Meny: Blaupunkt-skärmen öppen/stängd
     "BTN_SELECT": "gp:tv-off",     # Alternativ: stäng tv/film på skärmen
     "BTN_MODE": "gp:nest",         # Stadia-knappen: appen på Nest Hub
@@ -120,7 +122,7 @@ class Gamepad:
     def mapping(self):
         if self.cfg.get("learned"):
             # inlärd på Nest Hub: bara det inlärda, plus spakarna (som inte lärs in)
-            m = {k: v for k, v in DEFAULT_MAP.items() if k.startswith(("ABS_X", "ABS_Y", "ABS_RZ", "ABS_RY"))}
+            m = {k: v for k, v in DEFAULT_MAP.items() if k.startswith(("ABS_X", "ABS_Y", "ABS_Z", "ABS_RZ", "ABS_RX", "ABS_RY"))}
         else:
             m = dict(DEFAULT_MAP)
         own = self.cfg.get("map")
