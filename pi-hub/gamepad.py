@@ -445,6 +445,12 @@ class Gamepad:
                 return
             self.log('  Handkontroll: hittade "%s" (%s), parar' % (name, mac))
             say("scan off")
+            # en gammal parning från tidigare försök tas bort först, i samma bluetoothctl
+            say("remove " + mac)
+            read_for(4, r"removed|not available")
+            say("scan on")
+            read_for(12, re.escape(mac))
+            say("scan off")
             say("pair " + mac)
             res = read_for(25, r"Pairing successful|Failed to pair|AlreadyExists|org\.bluez\.Error")
             self.log("  Handkontroll: parning: %s" % (res or "inget svar"))
